@@ -7,6 +7,8 @@ const assets = new Map(Object.entries({
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/knowledge.js': ['knowledge.js', 'text/javascript; charset=utf-8'],
   '/engine.js': ['engine.js', 'text/javascript; charset=utf-8'],
+  '/running.js': ['running.js', 'text/javascript; charset=utf-8'],
+  '/fuel.js': ['fuel.js', 'text/javascript; charset=utf-8'],
   '/model.js': ['model.js', 'text/javascript; charset=utf-8'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/hero.jpg': ['hero.jpg', 'image/jpeg'],
@@ -34,7 +36,7 @@ createServer(async (request, response) => {
     const body = await readFile(new URL('public/' + name, import.meta.url));
     response.writeHead(200, {
       'Content-Type': contentType,
-      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-cache'
     }).end(request.method === 'HEAD' ? undefined : body);

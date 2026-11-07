@@ -34,3 +34,21 @@ npm test
 | CycleAudit | 按本地顺序追加 | 周期 ID、课次 ID、时间、事件，以及手动编辑前后的训练负荷字段 |
 
 知识库放在 public/knowledge.js，规则与复核在 public/engine.js。草案提交前用最新数据重新计算，一旦结果变化即要求重新预览。当前周期在基础强度范围内区分九个专项的训练重点，竞赛强度、专项配速模型、伤后复跑、生成式个性化与教练人工审查尚未上线。产品约束不是临床阈值。
+
+## 跑步与餐食
+
+- 「训练 → 记录跑步」提供前台 GPS、手动计时、手动填写和运动文件导入。浏览器 GPS 要求安全地址和位置权限，隐藏页面时主动暂停。同一标签刷新可恢复暂停草稿。草稿和轨迹保存在浏览器中。
+- 运动报告按实有数据绘制路线示意、配速、心率、步频和海拔，按 GPS 或设备采样计算完整公里分段。步幅是由平均步频和总距离估算的平均值。可输入体重进行一次成人 MET 总能量估算。路线图不请求在线底图。
+- FIT 解析器支持单次跑步、标准 Session/Record 字段及 CRC 校验。TCX 仅接受标为跑步的单次 Activity。GPX 需用户确认属于跑步，并包含可计算距离与耗时的时间戳轨迹。文件不会上传。文件指纹阻止重复导入，近似时间、距离和时长则要求用户核对。
+- 「营养 → 添加餐食」提供中文搜索、份量、收藏、最近吃过、自定义条码食品和多食物组合。初始食材来自 USDA FoodData Central SR Legacy，按 CC0 使用。包装条码只查询本机收藏的自定义食品库。兼容的浏览器可解码照片里的条码；其他浏览器可手输。照片辅助仅供人工核对，不上传或保存图片。
+- 当前预览为本机 Web。iOS 原生后台 GPS 与 HealthKit、Android 前台定位服务与 Health Connect、获授权的手表同步、AI 食物识别、中国品牌与餐饮数据库仍待交付。当前版本也未做手机户外 GPS 真机验证。
+
+### 接入与数据参考
+
+- Apple HealthKit 路线和位置权限 https://developer.apple.com/documentation/healthkit/creating-a-workout-route
+- Android Health Connect 运动路线 https://developer.android.com/health-and-fitness/health-connect/features/exercise-routes
+- COROS 官方文件导出 https://support.coros.com/hc/en-us/articles/360043975752-Exporting-Workout-Data-and-Uploading-to-3rd-Party-Apps
+- Garmin Connect 直接接入 https://developer.garmin.com/gc-developer-program/overview/
+- FIT 数据协议 https://developer.garmin.com/fit/protocol/
+- USDA FoodData Central 使用许可 https://fdc.nal.usda.gov/api-guide/
+- 成人活动 MET 档位 https://pacompendium.com/running/

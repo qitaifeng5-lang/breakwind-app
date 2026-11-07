@@ -1,3 +1,5 @@
+import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
+import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
 import { ageGroups, cycleVersion, draftCycle, reviewCycle, specialties } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, week, conflicts, insight, readData, demo } from './model.js';
@@ -103,7 +105,7 @@ function dashboard(s) {
   const food = byDate(s.food,day);
   const [title, copy] = insight(s, day);
   const name = '准备好破风了吗？';
-  return head('PERFORMANCE DASHBOARD', name, fullDate(day) + ' · 把今天的训练、恢复和补给安排好。', btn('记录跑步','edit:runs:','plus','primary')) + workoutHero(s) +
+  return head('PERFORMANCE DASHBOARD', name, fullDate(day) + ' · 把今天的训练、恢复和补给安排好。', btn('记录跑步','run-options','plus','primary')) + workoutHero(s) +
     '<div class="dashboard-grid"><div class="stack">' +
     panel('本周训练概览', '<div class="weekly-summary">' + metric('本周跑量',num(total),'km') + metric('训练次数',count,'次') + '<div class="goal-meter"><div class="ring" style="--progress:' + percent + '%"><strong>' + (s.goals.weekly ? percent + '%' : '—') + '</strong></div><div><small>周跑量目标</small><strong>' + (s.goals.weekly ? num(s.goals.weekly) + ' km' : '待设置') + '</strong></div></div></div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · ' + selected.count + ' 次' : count ? '点击任意一天查看记录' : '本周暂无跑步记录') + '</div>',link('查看数据','chart'), '每周一更新统计周期') +
     panel('个人纪录', personalBest(s), btn('添加','edit:records:','plus','quiet'), '按距离查看最快的记录') +
@@ -118,18 +120,20 @@ function personalBest(s) {
   return groups.length ? '<div class="mini-grid pb-grid">' + groups.map(item => metric(item.event,duration(item.seconds))).join('') + '</div>' : empty('flag','还没有个人纪录','添加一次比赛或计时跑成绩。');
 }
 function nutritionStats(items) {
-  return '<div class="mini-grid">' + metric('能量',num(sum(items,'kcal')),'kcal') + metric('蛋白质',num(sum(items,'protein')),'g') + metric('碳水',num(sum(items,'carbs')),'g') + metric('脂肪',num(sum(items,'fat')),'g') + '</div>';
+  const total=mealTotals(items);
+  const display=key=>total[key]===null?'—':num(total[key]);
+  return '<div class="mini-grid">' + metric('能量',display('kcal'),'kcal') + metric('蛋白质',display('protein'),'g') + metric('碳水',display('carbs'),'g') + metric('脂肪',display('fat'),'g') + '</div>';
 }
 function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
   return items.length ? '<ul class="rows">' + items.map(item => {
     const [title, detail, badge] = render(item);
-    return '<li><span class="tile">' + icon(glyph,17) + '</span><div class="row-text"><strong>' + escape(title) + '</strong><small>' + escape(detail) + '</small></div>' + (badge ? tag(badge) : '') + btn(sample ? '查看' : '编辑','edit:' + collection + ':' + item.id,'','quiet') + '</li>';
+    return '<li><span class="tile">' + icon(glyph,17) + '</span><div class="row-text"><strong>' + escape(title) + '</strong><small>' + escape(detail) + '</small></div>' + (badge ? tag(badge) : '') + (collection === 'runs' ? btn('运动详情','run-detail:' + item.id,'','quiet') : collection === 'food' && item.components ? btn('餐食详情','meal-detail:' + item.id,'','quiet') : btn(sample ? '查看' : '编辑','edit:' + collection + ':' + item.id,'','quiet')) + '</li>';
   }).join('') + '</ul>' : empty(glyph,emptyLabel,emptyCopy);
 }
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
-const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), item.type];
+const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 function training(s) {
-  return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','edit:runs:','plus','primary') + btn('生成训练周期','generate','spark')) +
+  return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','run-options','plus','primary') + btn('生成训练周期','generate','spark') + btn('设备与同步','devices','settings')) +
   cycleOverview(s) + '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
   panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录','训练结束后可以填写实际距离和耗时。')) + '</div>';
 }
@@ -147,16 +151,24 @@ function schedule(s) {
   panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet') + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
-  const today = byDate(s.food, day);
-  return head('FUEL LOG','运动营养','用餐食记录回顾训练前后的补给。',btn('添加餐食','edit:food:','plus','primary')) +
-  '<div class="split">' + panel('今日营养汇总',today.length ? nutritionStats(today) : empty('food','等待第一餐','按实际份量填写你已知的营养数据。'),'', '根据手动填写的数值汇总') +
-  panel('餐食历史',rows(desc(s.food),'food',item => [item.name,[item.date,item.meal,item.grams ? item.grams+' g' : '',item.kcal !== null ? item.kcal+' kcal' : ''].filter(Boolean).join(' · '),item.timing],'food','还没有餐食记录','早餐、午餐、晚餐和加餐都可以记录。')) + '</div>';
+  const today = byDate(s.food,day);
+  const mealRow = item => [item.name,[item.loggedAt ? new Date(item.loggedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}) : '',item.date,item.meal,item.grams ? num(item.grams)+' g' : '',Number.isFinite(item.kcal) ? num(item.kcal)+' kcal' : ''].filter(Boolean).join(' · '),item.timing];
+  const totals = mealTotals(today);
+  const macros = ['protein','carbs','fat'];
+  const chart = today.length && macros.every(key=>totals[key]!==null) ? '<div class="distribution macro-chart">'+macros.map(key=>'<div><span>'+foodNames[key]+'</span><progress max="'+Math.max(1,...macros.map(k=>totals[k]))+'" value="'+totals[key]+'"></progress><strong>'+num(totals[key])+' g</strong></div>').join('')+'</div>' : '';
+  const frequent = [...new Set(desc(s.food).flatMap(item=>(item.components || []).map(part=>part.name)))].slice(0,5);
+  return head('FUEL LOG','运动营养','回顾每一餐和训练前后的补给。',btn('添加餐食','food-start','plus','primary')) +
+  '<div class="split">' + panel('今日营养汇总',today.length ? nutritionStats(today)+chart : empty('food','等待第一餐','搜索食物，或按实际份量填写营养。'),'', '食物估算及包装标签汇总') +
+  panel('今日餐食时间线',rows([...today].reverse(),'food',mealRow,'food','今天还没有餐食','早餐、午餐、晚餐和加餐。')) +
+  panel('常用餐食',frequent.length ? '<div class="cycle-weeks">'+frequent.map(name=>tag(name)).join('')+'</div>' : empty('food','暂无常用食物','餐食保存后可在最近吃过中重用。')) +
+  panel('饮食记录历史',rows(desc(s.food.filter(item=>item.date!==day)),'food',mealRow,'food','暂无往日餐食','训练前后补给会在列表里标记。')) + '</div>';
 }
 function recoveryPage(s) {
   return head('RECOVERY LOG','恢复日志','在训练之外，也记录身体的反馈。',btn('填写今日恢复','edit:recovery:' + (byDate(s.recovery,day).at(-1)?.id || ''),'plus','primary')) +
   panel('恢复记录',rows(desc(s.recovery),'recovery',item => [item.date,item.sleep + ' 小时睡眠 · 疲劳 ' + item.fatigue + ' / 5' + (item.note ? ' · ' + item.note : ''),item.pain ? '有疼痛反馈' : '无疼痛反馈'],'moon','还没有恢复记录','填写睡眠、疲劳和疼痛反馈，便于结合训练回顾。'));
 }
 function analytics(s) {
+  const monthly = s.runs.filter(run=>run.date.startsWith(day.slice(0,7)) && run.date<=day);
   const series = Array.from({length:chartRange}, (_,i) => {
     const date = offset(day,i-chartRange+1);
     const runs = byDate(s.runs,date);
@@ -166,7 +178,7 @@ function analytics(s) {
   const runs = s.runs.filter(run => run.date >= series[0].date && run.date <= day);
   const distribution = types.map(type => [type,runs.filter(run => run.type === type).length]).filter(([,n]) => n);
   return head('PERFORMANCE ANALYTICS','数据中心','从真实训练记录里看跑量、配速和一致性。',btn('添加成绩','edit:records:','plus','primary')) +
-  '<div class="split">' + panel('跑量趋势','<div class="weekly-summary">' + metric('累计跑量',num(sum(series,'distance')),'km') + metric('综合配速',pace(sum(series,'distance'),sum(series,'minutes')),'/km') + metric('训练天数',series.filter(item=>item.count).length,'天') + '</div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · 配速 ' + pace(selected.distance,selected.minutes) : '点击某天查看跑量和配速。') + '</div>', '<div class="segmented">' + [7,30].map(n => '<button type="button" aria-pressed="' + (n===chartRange) + '" data-action="range:' + n + '">' + n + ' 天</button>').join('') + '</div>') +
+  '<div class="split">' + panel('跑量趋势','<div class="weekly-summary">' + metric('累计跑量',num(sum(series,'distance')),'km') + metric('综合配速',pace(sum(series,'distance'),sum(series,'minutes')),'/km') + metric('训练天数',series.filter(item=>item.count).length,'天') + metric('本月跑量',num(sum(monthly,'distance')),'km') + '</div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · 配速 ' + pace(selected.distance,selected.minutes) : '点击某天查看跑量和配速。') + '</div>', '<div class="segmented">' + [7,30].map(n => '<button type="button" aria-pressed="' + (n===chartRange) + '" data-action="range:' + n + '">' + n + ' 天</button>').join('') + '</div>') +
   panel('训练类型',distribution.length ? '<div class="distribution">' + distribution.map(([type,n]) => '<div><span>' + type + '</span><progress max="' + runs.length + '" value="' + n + '">' + n + '</progress><strong>' + n + ' 次</strong></div>').join('') + '</div>' : empty('chart','暂无训练分布','完成记录后，可按训练类型查看次数。')) +
   panel('个人最好成绩',personalBest(s)) +
   panel('成绩历史',rows(desc(s.records),'records',item => [item.event,item.date + ' · ' + duration(item.seconds),''],'flag','还没有成绩记录','支持常见比赛距离和自定义项目。')) + '</div>';
@@ -196,7 +208,7 @@ const noteField = {name:'note',label:'备注',type:'textarea'};
 const timeFields = [{name:'start',label:'开始时间',type:'time'},{name:'end',label:'结束时间',type:'time'}];
 const painField = {name:'pain',label:'有疼痛反馈',type:'checkbox'};
 const schemas = {
-  runs: ['跑步记录',[textField('name','训练名称',true),dateField,selectField('type','训练类型',types.slice(0,9)),numberField('distance','实际距离（km）',0.01,300,0.01,true),numberField('minutes','实际耗时（分钟）',0.1,1440,0.1,true),numberField('heart','平均心率（bpm）',20,250),numberField('effort','主观强度（1–10）',1,10),painField,noteField]],
+  runs: ['跑步记录',[textField('name','训练名称',true),dateField,selectField('type','训练类型',types.slice(0,9)),selectField('mode','跑步场景',runModes),numberField('distance','实际距离（km）',0.01,300,'any',true),numberField('minutes','实际耗时（分钟）',0.1,1440,'any',true),numberField('heart','平均心率（bpm）',20,250),numberField('effort','主观强度（1–10）',1,10),painField,noteField]],
   plans: ['训练计划',[textField('name','训练名称',true),dateField,selectField('type','训练类型',types),numberField('distance','计划距离（km）',0.01,300,0.01),numberField('minutes','预计时长（分钟）',1,1440),textField('pace','建议配速（每公里）'),...timeFields,{name:'completed',label:'已完成',type:'checkbox'},noteField]],
   events: ['日程事项',[textField('name','事项名称',true),dateField,selectField('type','分类',['工作','学习','生活','待办']),...timeFields,noteField]],
   food: ['餐食记录',[textField('name','食物名称',true),dateField,selectField('meal','餐别',meals),selectField('timing','补给时机',['日常','训练前','训练中','训练后']),numberField('grams','实际份量（g）',0.1,10000,0.1),numberField('kcal','热量（kcal）',0,10000,0.1),numberField('protein','蛋白质（g）',0,1000,0.1),numberField('carbs','碳水（g）',0,1000,0.1),numberField('fat','脂肪（g）',0,1000,0.1),noteField]],
@@ -228,14 +240,15 @@ function openEditor(collection,id = '',defaults = {}) {
     modal('演示模式','<p>示例记录可供浏览。返回个人模式即可添加自己的数据。</p>' + btn('返回我的记录','demo','','primary'));
     return;
   }
-  const [title, fields] = schema;
-  formContext = {collection,id,defaults};
+  const [title, allFields] = schema;
+  const fields = collection === 'food' && item?.components ? allFields.filter(config=>['name','date','meal','timing','note'].includes(config.name)) : allFields;
+  formContext = {collection,id,defaults,fields};
   const values = item ? {...item} : {date:currentRoute() === 'calendar' ? selectedDate : day, ...defaults};
   if (collection === 'records' && item && !distances.includes(item.event)) {
     values.event = '自定义';
     values.custom = item.event;
   }
-  modal(title,'<form id="entry-form"><fieldset class="fields"' + (sample ? ' disabled' : '') + '>' + fields.map(config => field(config,values)).join('') + '</fieldset>' + (item?.engineVersion === cycleVersion ? sessionExplanation(item) : '') + '<p class="form-error" role="alert" hidden></p><div class="dialog-actions">' +
+  modal(title,'<form id="entry-form"><fieldset class="fields"' + (sample ? ' disabled' : '') + '>' + fields.map(config => field(config,values)).join('') + '</fieldset>' + (item?.engineVersion === cycleVersion ? sessionExplanation(item) : '') + (collection === 'runs' ? '<p id="entry-pace"></p>' + (!id ? '<label class="duplicate-confirm" hidden><input type="checkbox" name="differentRun"> 我已核对，这是不同的一次跑步</label>' : '') : '') + '<p class="form-error" role="alert" hidden></p><div class="dialog-actions">' +
     (!sample && id ? btn('删除记录','ask-delete','','danger') : '') + btn(sample ? '关闭' : '取消','close','','quiet') + (!sample ? '<button class="btn primary" type="submit">保存记录</button>' : '') + '</div></form>');
 }
 function notify(message) {
@@ -266,8 +279,7 @@ function formError(message) {
 editor.addEventListener('submit', event => {
   if (event.target.id !== 'entry-form' || sample) return;
   event.preventDefault();
-  const { collection,id,defaults } = formContext;
-  const fields = schemas[collection][1];
+  const { collection,id,defaults,fields } = formContext;
   const form = new FormData(event.target);
   const item = {};
   for (const config of fields) {
@@ -281,6 +293,15 @@ editor.addEventListener('submit', event => {
     item.event = item.custom;
   }
   delete item.custom;
+  if (collection === 'runs' && !id) {
+    Object.assign(item,defaults.capture || {source:'manual'});
+    const duplicate = likelyDuplicate(data.runs,item);
+    if (duplicate && (item.fileHash === duplicate.fileHash && item.fileHash || !form.has('differentRun'))) {
+      const error = editor.querySelector('.duplicate-confirm');
+      if (error) error.hidden = Boolean(item.fileHash && item.fileHash === duplicate.fileHash);
+      return formError('已有相似跑步记录：' + duplicate.name + '。请核对后再保存。');
+    }
+  }
   const saved = commit(next => {
     if (collection === 'goals') {
       next.goals = item;
@@ -289,6 +310,7 @@ editor.addEventListener('submit', event => {
     const index = next[collection].findIndex(entry => entry.id === id);
     if (id && index === -1) throw new Error('Record removed');
     item.id = id || crypto.randomUUID();
+    if (collection === 'runs' && !id && next.runs.some(run => item.fileHash && run.fileHash === item.fileHash)) throw new Error('Duplicate file');
     if (index >= 0) {
       const original = next[collection][index];
       if (collection === 'plans' && original.engineVersion === cycleVersion) {
@@ -306,24 +328,14 @@ editor.addEventListener('submit', event => {
     }
   });
   if (!saved) return;
-  editor.close();
-  if (defaults.timed) activeWorkout = undefined;
+  if (collection !== 'runs' || id) editor.close();
+  if (defaults.timed) clearWorkout();
   if (currentRoute() === 'calendar' && item.date) selectedDate = item.date;
   render();
   notify('已保存' + (defaults.planId ? '跑步记录，训练计划已完成' : ''));
+  if (collection === 'runs' && !id) showRun([item.id]);
 });
 
-function timerView() {
-  if (!activeWorkout) return;
-  modal('训练计时','<div class="timer"><span>ELAPSED TIME</span><strong id="elapsed">00:00</strong></div><p>结束后填写实际距离与训练反馈。</p><div class="dialog-actions">' + btn('放弃计时','cancel-timer','','quiet') + btn('结束并填写','finish','flag','primary') + '</div>');
-  const tick = () => {
-    const target = editor.querySelector('#elapsed');
-    if (target) target.textContent = duration(Math.floor((Date.now() - activeWorkout.started) / 1000));
-  };
-  clearInterval(clockTimer);
-  tick();
-  clockTimer = setInterval(tick,250);
-}
 editor.addEventListener('close', () => {
   clearInterval(clockTimer);
   if (opener?.isConnected) opener.focus();
@@ -374,21 +386,26 @@ const actions = {
   move: ([delta]) => {moveDate(Number(delta)); render();},
   range: ([range]) => {chartRange = Number(range); chartDate = ''; render();},
   chart: ([date]) => {chartDate = date; render();},
-  start: ([id]) => {
-    if (sample) return openEditor('runs');
-    const plan = data.plans.find(item => item.id === id);
-    activeWorkout = {started:Date.now(), plan};
-    render();
-    timerView();
-  },
+  start: ([id]) => runOptions(id),
   timer: timerView,
-  'cancel-timer': () => {activeWorkout = undefined; editor.close(); render();},
-  finish: () => {
-    clearInterval(clockTimer);
-    const {plan,started} = activeWorkout;
-    const minutes = Math.max(0.1, Math.round((Date.now() - started) / 6000) / 10);
-    openEditor('runs','',{name:plan?.name || '跑步训练',type:types.slice(0,9).includes(plan?.type) ? plan.type : types[0],minutes,planId:plan?.id,timed:true});
-  }
+  'run-options': () => runOptions(),
+  'run-manual': () => openEditor('runs','',{name:pendingPlan?.name,type:types.slice(0,9).includes(pendingPlan?.type)?pendingPlan.type:types[0],planId:pendingPlan?.id}),
+  'run-gps': () => startWorkout('gps'),
+  'run-timer': () => startWorkout('timer'),
+  'run-detail': showRun,
+  'run-import': importDialog,
+  'run-pause': toggleWorkout,
+  'cancel-timer': discardWorkout,
+  finish: finishWorkout,
+  devices: showDevices,
+  'food-start': startMeal,
+  'food-tab': ([tab]) => mealTab(tab),
+  'food-custom': () => showCustomFood(),
+  'food-pick': pickFood,
+  'food-favorite': favoriteFood,
+  'food-remove': removeFood,
+  'meal-detail': showMeal,
+  'barcode-photo': () => editor.querySelector('#barcode-file')?.click()
 };
 
 document.addEventListener('click', event => {
@@ -402,6 +419,7 @@ document.addEventListener('click', event => {
   } else if (editor.open && event.target.closest('a[href^="#"]')) editor.close();
 });
 window.addEventListener('hashchange', () => {
+  if (editor.open) editor.close();
   sample = location.hash.includes('demo=1');
   render();
   main.focus();
@@ -553,4 +571,421 @@ function saveDraft() {
   else location.hash = href('run');
   notify('已加入 ' + count + ' 项训练。可在日程中调整。');
 }
+
+const workoutKey = 'breakwind.run.draft';
+let watchId, gpsStatus = '', pendingPlan, statsCache;
+function storeWorkout() {
+  try { sessionStorage.setItem(workoutKey,JSON.stringify({...activeWorkout,elapsed:workoutElapsed(),anchor:null})); }
+  catch { gpsStatus = '暂时无法保留中断草稿，请在关闭页面前保存。'; }
+}
+function restoreWorkout() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(workoutKey));
+    if (saved?.started && Array.isArray(saved.points)) activeWorkout = saved;
+  } catch { /* A malformed draft is ignored. */ }
+}
+function workoutElapsed() {
+  return activeWorkout.elapsed + (activeWorkout.anchor ? Date.now()-activeWorkout.anchor : 0);
+}
+function runOptions(id) {
+  if (sample) return openEditor('runs');
+  if (activeWorkout) return timerView();
+  pendingPlan = data.plans.find(plan=>plan.id===id);
+  modal('记录跑步','<div class="menu-links">' +
+    btn('手机 GPS · 前台记录','run-gps','play','primary') + btn('开始手动计时','run-timer','clock') +
+    btn('手动填写','run-manual','plus') + btn('导入 FIT / GPX / TCX','run-import','flag') +
+    btn('设备与同步','devices','settings') + '</div><p class="help-copy">网页 GPS 需要定位授权和前台页面。切到后台或锁屏时会暂停。</p>');
+}
+function startWorkout(mode) {
+  if (sample || activeWorkout) return;
+  if (mode === 'gps' && (!navigator.geolocation || !window.isSecureContext)) {
+    modal('定位不可用','<p>请使用 HTTPS 或本机安全地址开启定位。也可以手动计时、填写记录或导入文件。</p>'+btn('开始手动计时','run-timer','clock'));
+    return;
+  }
+  activeWorkout = {mode,started:Date.now(),anchor:Date.now(),elapsed:0,segment:0,points:[],plan:pendingPlan};
+  gpsStatus = mode === 'gps' ? '正在获取定位…' : '';
+  if (mode === 'gps') beginWatch();
+  storeWorkout();
+  render();
+  timerView();
+}
+function beginWatch() {
+  watchId = navigator.geolocation.watchPosition(position => {
+    if (!activeWorkout?.anchor) return;
+    gpsStatus = '定位精度约 '+Math.round(position.coords.accuracy)+' m';
+    if (position.coords.accuracy > 30) gpsStatus += ' · 等待更稳定的信号';
+    if (addFix(activeWorkout.points,position.coords,position.timestamp,activeWorkout.segment)) {
+      statsCache = null;
+      storeWorkout();
+      if (activeWorkout.points.length >= 12000) pauseWorkout('已达到单次 GPS 采样上限，请结束并保存。');
+    }
+  },error => {
+    if (!activeWorkout?.anchor) return;
+    if (error.code === 1) {
+      pauseWorkout('定位权限被拒绝。可在浏览器设置中授权后继续，或改用手动记录。');
+      if (editor.querySelector('#elapsed')) timerView();
+    }
+    else gpsStatus = '暂未获得 GPS 信号。信号恢复后继续采样，缺口不连线。';
+  },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+}
+function endWatch() {
+  if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+  watchId = undefined;
+}
+function pauseWorkout(message) {
+  if (!activeWorkout?.anchor) return;
+  activeWorkout.elapsed = workoutElapsed();
+  activeWorkout.anchor = null;
+  gpsStatus = message;
+  endWatch();
+  storeWorkout();
+}
+function toggleWorkout() {
+  if (!activeWorkout) return;
+  if (activeWorkout.anchor) pauseWorkout('已暂停');
+  else {
+    if (activeWorkout.points.length >= 12000) return notify('已达到采样上限，请保存本次跑步。');
+    activeWorkout.anchor = Date.now();
+    activeWorkout.segment++;
+    if (activeWorkout.mode === 'gps') {
+      gpsStatus = '正在重新获取定位…';
+      beginWatch();
+    }
+    storeWorkout();
+  }
+  timerView();
+}
+function clearWorkout() {
+  endWatch();
+  clearInterval(clockTimer);
+  statsCache = null;
+  activeWorkout = undefined;
+  try { sessionStorage.removeItem(workoutKey); } catch { /* Storage may be disabled. */ }
+}
+function discardWorkout() {
+  clearWorkout();
+  editor.close();
+  render();
+}
+function timerView() {
+  if (!activeWorkout) return;
+  const gps = activeWorkout.mode === 'gps';
+  modal(gps?'手机 GPS · 前台跑步':'手动计时','<div class="timer"><span>ACTIVE TIME</span><strong id="elapsed">00:00</strong></div>' +
+    (gps ? '<div id="gps-metrics"></div><p id="gps-status" role="status"></p><p>保持页面在前台。路线只存于当前浏览器。</p>' : '<p>结束后填写实际距离与训练反馈。</p>') +
+    '<div class="dialog-actions">' + btn('放弃草稿','cancel-timer','','quiet') + btn(activeWorkout.anchor?'暂停':'继续','run-pause','clock') + btn('结束并填写','finish','flag','primary') + '</div>');
+  const tick = () => {
+    const target = editor.querySelector('#elapsed');
+    if (!target || !activeWorkout) return;
+    target.textContent = duration(Math.floor(workoutElapsed()/1000));
+    if (!gps) return;
+    const stats = statsCache ||= analyzeTrack(activeWorkout.points);
+    const speed = stats.series.at(-1)?.speed;
+    const status = editor.querySelector('#gps-status');
+    const message = gpsStatus || '草稿已恢复，点击继续以开启定位。';
+    if (status.textContent !== message) status.textContent = message;
+    const live = speed && activeWorkout.anchor && Date.now()-(activeWorkout.points.at(-1)?.t||0)<15000;
+    editor.querySelector('#gps-metrics').innerHTML = '<div class="mini-grid">' +
+      metric('距离',num(stats.distance/1000),'km') + metric('平均配速',pace(stats.distance/1000,workoutElapsed()/60000),'/km') +
+      metric('当前配速',live?duration(Math.round(speed)):'—','/km') + metric('累计爬升',stats.climb === null?'—':num(stats.climb),'m') + '</div>' +
+      (stats.splits.length ? '<p>最近完整公里 · '+duration(Math.round(stats.splits.at(-1)))+'</p>' : '');
+  };
+  clearInterval(clockTimer);
+  tick();
+  clockTimer = setInterval(tick,500);
+}
+function finishWorkout() {
+  if (!activeWorkout) return;
+  pauseWorkout('已结束计时');
+  clearInterval(clockTimer);
+  const {plan,started,points,mode} = activeWorkout;
+  const stats = analyzeTrack(points);
+  openEditor('runs','',{name:plan?.name || '跑步训练',type:types.slice(0,9).includes(plan?.type)?plan.type:types[0],
+    date:dateKey(new Date(started)),minutes:Math.max(0.1,Math.round(workoutElapsed()/600)/100),
+    distance:stats.distance >= 10 ? Math.round(stats.distance/10)/100 : '',planId:plan?.id,timed:true,
+    capture:{startedAt:started,source:mode==='gps' && stats.distance>=10?'gps':'timer',points:mode==='gps' && stats.distance>=10?points:[]}});
+}
+document.addEventListener('visibilitychange',()=> {
+  if (!document.hidden || !activeWorkout?.anchor) return;
+  pauseWorkout('页面离开前台，计时与采样已暂停。');
+  if (editor.querySelector('#elapsed')) timerView();
+});
+editor.addEventListener('input',event=>{
+  const form = event.target.closest('#entry-form');
+  const target = form?.querySelector('#entry-pace');
+  if (target) target.textContent = '平均配速 · '+pace(Number(form.elements.distance.value),Number(form.elements.minutes.value))+' /km';
+});
+
+function showDevices() {
+  const recent = state().runs.filter(run=>run.importedAt).sort((a,b)=>b.importedAt-a.importedAt)[0];
+  modal('设备与同步','<div class="device-list">' + [
+    ['Apple Watch / Apple Health','需要 iOS 原生 HealthKit','运动、路线和心率分别需要授权。'],
+    ['Android / Health Connect','需要 Android 原生接入','运动及健康数据需用户授权，其他应用创建的路线可能需要单次确认。'],
+    ['COROS','未连接 · 支持文件导入','可在 COROS 应用导出 FIT 或 GPX，再手动导入。'],
+    ['Garmin','未连接 · 支持文件导入','直接同步需要获批的 Garmin Connect 开发者接入。']
+  ].map(([title,status,scope])=>'<div><strong>'+title+'</strong><small>'+status+'</small><p>'+scope+'</p></div>').join('') +
+    '</div><p>当前网页没有设备授权或自动同步。最近文件导入：'+(recent?.importedAt?escape(new Date(recent.importedAt).toLocaleString('zh-CN')):'暂无')+'。</p>' +
+    '<p id="device-error" role="status">'+escape(lastImportError)+'</p>'+btn('手动导入运动文件','run-import','flag','primary'));
+}
+let lastImportError = '';
+function importDialog() {
+  if (sample) return openEditor('runs');
+  modal('导入运动文件','<form id="import-form"><div class="fields"><label class="wide">运动文件<input type="file" name="activity" accept=".fit,.gpx,.tcx" required></label></div><p class="help-copy">文件在当前浏览器解析。GPX 只表示轨迹，请确认该文件来自一次跑步。</p><p class="form-error" role="alert" hidden></p><div class="dialog-actions"><button class="btn primary">解析文件</button></div></form>');
+}
+editor.addEventListener('submit',async event=>{
+  if (event.target.id!=='import-form' || sample) return;
+  event.preventDefault();
+  const form=event.target;
+  const file=form.elements.activity.files[0];
+  form.querySelector('button').disabled=true;
+  try {
+    const record=await importRun(file);
+    if (!form.isConnected || !editor.open) return;
+    const {points,fileHash,startedAt,source,climb,...values}=record;
+    lastImportError='';
+    openEditor('runs','',{...values,capture:{points,fileHash,startedAt,source,climb,importedAt:Date.now()}});
+  } catch (error) {
+    lastImportError=error.message;
+    if (form.isConnected && editor.open) formError(error.message);
+  } finally { if (form.isConnected) form.querySelector('button').disabled=false; }
+});
+function svgLine(points,value,label,invert=false) {
+  const values=points.map(value).filter(Number.isFinite);
+  if (values.length<2) return '';
+  const low=Math.min(...values), high=Math.max(...values);
+  const shape=points.map((point,index)=>{
+    const y=value(point);
+    if (!Number.isFinite(y)) return '';
+    const normalized=(y-low)/(high-low || 1);
+    return (index===0 || !Number.isFinite(value(points[index-1])) ? 'M' : 'L')+
+      (10+index*300/Math.max(1,points.length-1)).toFixed(1)+' '+(high===low?48:invert?10+normalized*74:84-normalized*74).toFixed(1);
+  }).join(' ');
+  return '<div class="report-chart"><h3>'+label+'</h3><small>'+num(low)+' – '+num(high)+'</small><svg role="img" aria-label="'+label+'" viewBox="0 0 320 95"><path d="M10 84H310 M10 47H310 M10 10H310" class="chart-grid"/><path d="'+shape+'" class="chart-line"/></svg></div>';
+}
+function routeMap(points) {
+  const valid=points.filter(coordinate);
+  if (valid.length<2) return empty('flag','暂无可绘制路线','可通过 GPS 或运动文件添加轨迹。');
+  const origin=valid[0];
+  const x=p=>(((p.lon-origin.lon+540)%360)-180)*Math.cos(origin.lat*Math.PI/180);
+  const left=Math.min(...valid.map(x)),right=Math.max(...valid.map(x));
+  const top=Math.max(...valid.map(p=>p.lat)), bottom=Math.min(...valid.map(p=>p.lat));
+  const scale=Math.min(282/Math.max(1e-9,right-left),142/Math.max(1e-9,top-bottom));
+  const project=p=>((x(p)-(left+right)/2)*scale+160).toFixed(1)+' '+(((top+bottom)/2-p.lat)*scale+90).toFixed(1);
+  const d=points.map((p,i)=>coordinate(p)?(!coordinate(points[i-1])||p.break||points[i-1].segment!==p.segment?'M':'L')+project(p):'').join(' ');
+  return '<div class="route-map"><svg viewBox="0 0 320 180" role="img" aria-label="跑步路线示意图"><path class="chart-line" d="'+d+'"/><path class="route-start" d="M'+project(valid[0])+'h0"/><path class="route-end" d="M'+project(valid.at(-1))+'h0"/></svg><small>路线示意 · 无地图底图</small></div>';
+}
+function showRun([id]) {
+  const run=state().runs.find(item=>item.id===id);
+  if (!run) return;
+  const points=Array.isArray(run.points)?run.points:[];
+  const report=analyzeTrack(points);
+  const chartPoints=report.series.filter((_,index)=>index%Math.max(1,Math.ceil(report.series.length/350))===0);
+  const mean=key=>{
+    const values=report.series.map(item=>item[key]).filter(value=>Number.isFinite(value)&&value>0);
+    return values.length?values.reduce((total,value)=>total+value,0)/values.length:null;
+  };
+  const heart=run.heart??mean('heart');
+  const cadence=mean('cadence');
+  const stride=cadence && run.distance && run.minutes ? run.distance*1000/run.minutes/cadence : null;
+  const climb=run.climb??report.climb;
+  modal('运动报告','<div class="report-title"><h3>'+escape(run.name)+'</h3>'+tag(sourceNames[run.source]||'手动记录','red')+
+    '<p>'+escape([run.date,run.mode||'场景未记录',run.type].join(' · '))+'</p></div><div class="mini-grid">'+
+    metric('距离',num(run.distance),'km')+metric('耗时',duration(Math.round(run.minutes*60)))+metric('平均配速',pace(run.distance,run.minutes),'/km')+
+    metric('主观强度',run.effort??'—','/10')+metric('平均心率',heart?Math.round(heart):'—','bpm')+metric('平均步频',cadence?Math.round(cadence):'—','步/分钟')+
+    metric('估算步幅',stride?stride.toFixed(2):'—','m/步')+metric('累计爬升',climb===null?'—':num(climb),'m')+'</div>'+
+    '<h3 class="report-section">GPS 路线</h3>'+routeMap(points)+
+    svgLine(chartPoints,p=>p.speed && p.speed<1800?p.speed/60:null,'配速趋势（分钟/km）',true)+svgLine(chartPoints,p=>p.heart,'心率趋势（bpm）')+
+    svgLine(chartPoints,p=>p.cadence,'步频趋势（步/分钟）')+svgLine(chartPoints,p=>p.alt,'海拔趋势（m）')+
+    '<h3 class="report-section">公里分段</h3>'+(report.splits.length?'<ol class="split-list">'+report.splits.map((seconds,i)=>'<li><span>'+ (i+1)+' km</span><strong>'+duration(Math.round(seconds))+' /km</strong></li>').join('')+'</ol>':'<p>没有可计算完整公里分段的轨迹采样。</p>')+
+    '<form id="energy-form" class="fields"><label>体重（kg，仅用于本次估算）<input type="number" name="weight" min="20" max="350" step="0.1" required></label><button class="btn secondary">估算总消耗</button></form><p id="energy-result" role="status"></p>'+
+    '<p>以速度匹配成人活动汇编的 MET 档位，再按 MET × 3.5 × 体重 ÷ 200 × 分钟估算。包含静息消耗，未校正个人代谢、坡度或地形。<a class="text-link" href="https://pacompendium.com/running/" target="_blank" rel="noopener">MET 来源</a></p>'+
+    (run.note?'<p>'+escape(run.note)+'</p>':'')+'<div class="dialog-actions">'+btn(sample?'查看记录':'编辑记录','edit:runs:'+run.id,'settings')+'</div>');
+  installHeartZones(points);
+  editor.querySelector('#energy-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const estimate=energyEstimate(run.distance,run.minutes,Number(event.target.elements.weight.value));
+    editor.querySelector('#energy-result').textContent=estimate?'约 '+estimate.kcal+' kcal · '+estimate.met+' MET':'当前速度超出此估算覆盖范围。';
+  });
+}
+const foodNames = {kcal:'能量',protein:'蛋白质',carbs:'碳水',fat:'脂肪'};
+let mealDraft, selectedFood;
+function allFoods(s=state()) {
+  return [...catalog,...s.foodLibrary];
+}
+function startMeal() {
+  if (sample) return openEditor('food');
+  mealDraft={date:day,meal:meals[new Date().getHours()<10?0:new Date().getHours()<15?1:2],timing:'日常',items:[],query:'',tab:'search'};
+  mealTab('search');
+}
+function keepMealFields() {
+  const form=editor.querySelector('#meal-form');
+  if (!form) return;
+  for (const key of ['date','meal','timing','name']) mealDraft[key]=form.elements[key].value;
+}
+function mealTab(tab) {
+  if (!mealDraft || sample) return;
+  keepMealFields();
+  mealDraft.tab=tab;
+  const tabs=[['search','搜索食物'],['recent','最近吃过'],['favorite','我的收藏'],['barcode','条形码'],['photo','照片辅助']];
+  const options='<div class="food-tabs segmented">'+tabs.map(([id,title])=>'<button type="button" data-action="food-tab:'+id+'" aria-pressed="'+(id===tab)+'">'+title+'</button>').join('')+'</div>';
+  const search='<label class="food-search">食物名称或关键词<input type="search" id="food-query" placeholder="例如 米饭、鸡蛋、banana" maxlength="80" value="'+escape(mealDraft.query)+'"></label>';
+  const barcode='<form id="barcode-form"><div class="fields"><label>输入条形码<input name="barcode" inputmode="numeric" maxlength="14" required></label><button class="btn secondary">查找本地食品</button></div></form>' +
+    '<input type="file" id="barcode-file" accept="image/*" capture="environment" hidden>'+btn('从照片扫描','barcode-photo','flag')+
+    '<p class="help-copy">支持时在设备上解码。仅查询本地食品库，未匹配时可按包装营养标签新建。</p><p id="food-message" role="status"></p>';
+  const photo='<label class="food-search">拍摄或选择餐食照片<input type="file" id="food-photo" accept="image/*" capture="environment"></label><img id="meal-preview" class="meal-preview" alt="本次餐食照片预览" hidden>'+
+    '<p class="help-copy">此版本没有可用的 AI 识别服务。照片只供你核对，不上传、不保存。请按名称搜索并手动确认份量。</p>'+search;
+  modal('添加餐食',options+(tab==='search'?search:tab==='barcode'?barcode:tab==='photo'?photo:'')+
+    '<div id="food-results"></div><div class="meal-tools">'+btn('自定义食物','food-custom','plus')+btn('单项手动记录','edit:food:','','quiet')+'</div>'+
+    '<form id="meal-form"><div class="fields">'+field(dateField,mealDraft)+field(selectField('meal','餐别',meals),mealDraft)+
+    field(selectField('timing','补给时机',['日常','训练前','训练中','训练后']),mealDraft)+field(textField('name','组合餐食名称（可选）'),mealDraft)+'</div>'+
+    (mealDraft.items.length?'<ul class="rows">'+mealDraft.items.map((item,index)=>'<li><div class="row-text"><strong>'+escape(item.name)+'</strong><small>'+num(item.grams)+' g · '+(item.kcal===null?'热量未知':num(item.kcal)+' kcal')+'</small></div>'+btn('移除','food-remove:'+index,'close','quiet')+'</li>').join('')+'</ul>'+nutritionStats(mealDraft.items):'<p class="help-copy">选择一种或多种食物，调整份量后保存。</p>')+
+    '<p class="form-error" role="alert" hidden></p><div class="dialog-actions"><button class="btn primary" type="submit" '+(!mealDraft.items.length?'disabled':'')+'>保存餐食</button></div></form>');
+  displayFood();
+}
+function displayFood(matches) {
+  const target=editor.querySelector('#food-results');
+  if (!target || !mealDraft) return;
+  const s=state(), items=allFoods(s);
+  const recent=[...new Set(desc(s.food).flatMap(item=>(item.components || []).map(part=>part.foodId)))];
+  const tab=mealDraft.tab;
+  if (!matches && tab==='barcode') return;
+  const results=matches ?? (tab==='recent'?recent.map(id=>items.find(item=>item.id===id)).filter(Boolean):
+    tab==='favorite'?items.filter(item=>s.favorites.includes(item.id)):searchFood(items,mealDraft.query));
+  target.innerHTML=results.length?'<ul class="rows food-results">'+results.slice(0,35).map(item=>'<li><div class="row-text"><strong>'+escape(item.name)+'</strong><small>'+
+    escape(item.source)+' · 每 100 g '+(item.kcal===null?'能量未知':num(item.kcal)+' kcal')+'</small></div>'+
+    btn(s.favorites.includes(item.id)?'取消收藏':'收藏','food-favorite:'+item.id,'','quiet')+btn('选取','food-pick:'+item.id,'plus','quiet')+'</li>').join('')+'</ul>':
+    empty('food',tab==='recent'?'暂无近期食物':tab==='favorite'?'还没有收藏':'未找到食物','可以按包装营养标签添加自定义食物。');
+}
+function favoriteFood([id]) {
+  if (sample || !allFoods().some(item=>item.id===id)) return;
+  if (!commit(next=>{next.favorites=next.favorites.includes(id)?next.favorites.filter(value=>value!==id):[...next.favorites,id];})) return;
+  if (mealDraft.tab==='barcode') matchBarcode(mealDraft.barcode);
+  else displayFood();
+}
+function pickFood([id]) {
+  keepMealFields();
+  selectedFood=allFoods().find(item=>item.id===id);
+  if (!selectedFood) return;
+  modal('确认份量','<h3>'+escape(selectedFood.name)+'</h3><p>每 100 g · '+escape(selectedFood.source)+'</p>'+
+    nutritionStats([selectedFood])+(selectedFood.url?'<p><a class="text-link" href="'+escape(selectedFood.url)+'" target="_blank" rel="noopener">查看营养来源</a></p>':'')+
+    '<form id="portion-form"><div class="fields">'+field(numberField('grams','食用重量（g）',0.1,5000,0.1,true),{grams:selectedFood.portion})+
+    '</div><p id="portion-energy" role="status"></p><div class="dialog-actions">'+btn('返回食物列表','food-tab:'+mealDraft.tab,'','quiet')+
+    '<button class="btn primary">加入这餐</button></div></form>');
+  showPortionEnergy(selectedFood.portion);
+}
+function showPortionEnergy(grams) {
+  const target=editor.querySelector('#portion-energy');
+  if (!target || !selectedFood) return;
+  const values=portionValues(selectedFood,grams);
+  target.textContent=grams>0?Object.entries(values).map(([key,value])=>foodNames[key]+' '+(value===null?'未知':num(value)+(key==='kcal'?' kcal':' g'))).join(' · '):'';
+}
+function removeFood([index]) {
+  if (!mealDraft || sample) return;
+  mealDraft.items.splice(Number(index),1);
+  mealTab(mealDraft.tab);
+}
+function showCustomFood() {
+  keepMealFields();
+  const fields=[textField('name','食品名称',true),textField('barcode','包装条形码（可选）'),numberField('portion','常用份量（g）',0.1,5000,0.1,true),
+    ...Object.entries(foodNames).map(([key,label])=>numberField(key,label+' / 100 g（'+(key==='kcal'?'kcal':'g')+'）',0,key==='kcal'?1000:100,0.01))];
+  modal('自定义食物','<p>按营养标签填写每 100 g 数值。没有数据的项目留空。</p><form id="custom-food-form"><div class="fields">'+
+    fields.map(config=>field(config,{portion:100,barcode:mealDraft.barcode})).join('')+'</div><p class="form-error" role="alert" hidden></p>'+
+    '<div class="dialog-actions">'+btn('返回','food-tab:'+mealDraft.tab,'','quiet')+'<button class="btn primary">保存并选用</button></div></form>');
+}
+function matchBarcode(value) {
+  mealDraft.barcode=validBarcode(value)?value:'';
+  const message=editor.querySelector('#food-message');
+  if (!mealDraft.barcode) {
+    if (message) message.textContent='请输入有效的 8、12、13 或 14 位商品条形码。';
+    editor.querySelector('#food-results').replaceChildren();
+    return;
+  }
+  const results=allFoods().filter(item=>item.barcode?.padStart(14,'0')===value.padStart(14,'0'));
+  if (message) message.textContent=results.length?'已在本地食品库匹配。':'本地食品库没有该条形码。可用包装标签创建自定义食物。';
+  displayFood(results);
+}
+function showMeal([id]) {
+  const item=state().food.find(row=>row.id===id);
+  if (!item?.components) return;
+  modal('餐食详情','<div class="report-title"><h3>'+escape(item.name)+'</h3><p>'+escape([item.date,item.meal,item.timing].join(' · '))+'</p></div>'+
+    nutritionStats([item])+'<ul class="rows">'+item.components.map(part=>'<li><div class="row-text"><strong>'+escape(part.name)+'</strong><small>'+
+      num(part.grams)+' g · '+escape(part.source)+'</small></div></li>').join('')+'</ul>'+
+    (sample?'':'<div class="dialog-actions">'+btn('编辑餐别与补给','edit:food:'+id,'settings')+'</div>'));
+}
+editor.addEventListener('input',event=>{
+  if (event.target.id==='food-query') {mealDraft.query=event.target.value;displayFood();}
+  if (event.target.name==='grams' && event.target.form?.id==='portion-form') showPortionEnergy(Number(event.target.value));
+});
+editor.addEventListener('change',async event=>{
+  if (!['barcode-file','food-photo'].includes(event.target.id)) return;
+  const input=event.target, file=input.files[0];
+  if (!file || file.size>12*1024*1024 || !file.type.startsWith('image/')) return notify('请选择不超过 12 MB 的图片。');
+  if (input.id==='food-photo') {
+    const preview=editor.querySelector('#meal-preview');
+    const url=URL.createObjectURL(file);
+    preview.onload=preview.onerror=()=>URL.revokeObjectURL(url);
+    preview.src=url;
+    preview.hidden=false;
+    return;
+  }
+  const message=editor.querySelector('#food-message');
+  if (!('BarcodeDetector' in window)) {message.textContent='此浏览器没有照片条码解码能力，请输入包装上的号码。';return;}
+  let bitmap;
+  try {
+    const formats=(await BarcodeDetector.getSupportedFormats()).filter(item=>['ean_13','ean_8','upc_a','upc_e','itf'].includes(item));
+    if (!formats.length) throw new Error('Unsupported barcode formats');
+    bitmap=await createImageBitmap(file);
+    const codes=await new BarcodeDetector({formats}).detect(bitmap);
+    const code=codes.map(item=>item.rawValue).find(validBarcode);
+    if (!input.isConnected || !editor.open) return;
+    if (code) {
+      editor.querySelector('#barcode-form').elements.barcode.value=code;
+      matchBarcode(code);
+    } else message.textContent='没有识别出支持的商品条码。可换一张更清晰的照片或手动输入。';
+  } catch { if (input.isConnected) message.textContent='无法读取照片条码，请手动输入。'; }
+  finally {bitmap?.close();}
+});
+editor.addEventListener('submit',event=>{
+  const form=event.target;
+  if (!['portion-form','custom-food-form','meal-form','barcode-form'].includes(form.id) || sample) return;
+  event.preventDefault();
+  const values=new FormData(form);
+  if (form.id==='barcode-form') return matchBarcode(values.get('barcode').trim());
+  if (form.id==='portion-form') {
+    const grams=Number(values.get('grams'));
+    mealDraft.items.push({foodId:selectedFood.id,name:selectedFood.name,source:selectedFood.source,grams,...portionValues(selectedFood,grams)});
+    return mealTab(mealDraft.tab);
+  }
+  if (form.id==='custom-food-form') {
+    const name=values.get('name').trim(),barcode=values.get('barcode').trim();
+    if (!name || (barcode && !validBarcode(barcode))) return formError('请填写食物名称和有效的商品条形码。条形码可留空。');
+    if (barcode && allFoods().some(item=>item.barcode?.padStart(14,'0')===barcode.padStart(14,'0'))) return formError('该条形码已有食品，可以返回搜索。');
+    const item={id:crypto.randomUUID(),name,barcode,portion:Number(values.get('portion')),source:'自定义 · 用户填写'};
+    for (const key of Object.keys(foodNames)) item[key]=values.get(key)===''?null:Number(values.get(key));
+    if (commit(next=>next.foodLibrary.push(item))) pickFood([item.id]);
+    return;
+  }
+  if (!mealDraft.items.length) return;
+  keepMealFields();
+  const {name,date,meal,timing,items}=mealDraft;
+  const title=(name.trim() || items.map(item=>item.name).join(' + ')).slice(0,100);
+  const item={id:crypto.randomUUID(),name:title,date,meal,timing,components:items,grams:sum(items,'grams'),...mealTotals(items),loggedAt:Date.now()};
+  if (!commit(next=>next.food.push(item))) return;
+  mealDraft=undefined;
+  editor.close();
+  render();
+  notify('餐食已保存');
+});
+restoreWorkout();
 render();
+
+function installHeartZones(points) {
+  if (!points.some((point,i)=>i>0 && heartSegment(points[i-1],point)>0)) return;
+  const energy=editor.querySelector('#energy-form');
+  energy.insertAdjacentHTML('beforebegin','<form id="heart-zone-form" class="fields"><label>已知最大心率（bpm）<input name="max" type="number" min="80" max="250" required></label><button class="btn secondary">查看心率区间</button></form><div id="zone-result"></div>');
+  editor.querySelector('#heart-zone-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const zones=heartZones(points,Number(event.target.elements.max.value));
+    editor.querySelector('#zone-result').innerHTML='<p>按所填最大心率的百分比分段。仅统计有连续样本的时段。</p><ol class="split-list">'+
+      zones.map(([label,seconds])=>'<li><span>'+label+'</span><strong>'+duration(Math.round(seconds))+'</strong></li>').join('')+'</ol>';
+  });
+}
