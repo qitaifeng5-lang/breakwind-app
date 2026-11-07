@@ -1,8 +1,8 @@
-const cacheName = 'breakwind-shell-v1';
-const shell = ['./','./index.html','./app.js','./model.js','./engine.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
+const cacheName = 'breakwind-shell-v2';
+const shell = ['./','./index.html','./app.js','./model.js','./engine.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)));
+  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(Promise.all([

@@ -1,4 +1,5 @@
-import { evidence, draftTraining } from './engine.js';
+import { ageGroups, cycleVersion, draftCycle, reviewCycle, specialties } from './engine.js';
+import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, week, conflicts, insight, readData, demo } from './model.js';
 
 const icons = {
@@ -128,8 +129,8 @@ function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
 const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), item.type];
 function training(s) {
-  return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','edit:runs:','plus','primary') + btn('目标设置','profile','flag')) +
-  '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
+  return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','edit:runs:','plus','primary') + btn('生成训练周期','generate','spark')) +
+  cycleOverview(s) + '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
   panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录','训练结束后可以填写实际距离和耗时。')) + '</div>';
 }
 function schedule(s) {
@@ -177,7 +178,7 @@ const articles = [
   ['营养与恢复','怎样回顾训练前后的补给？','用餐食日志中的训练前、训练后标签关联补给时机，再结合训练备注回顾实际感受。']
 ];
 function academy() {
-  return head('TRAINING INTELLIGENCE','知识库与训练引擎','用国际研究理解训练，再根据实际日志生成可审核的七日基础草案。',btn('生成训练草案','generate','spark','primary')) + '<div class="split">' + articles.map(([category,title,body]) => '<details class="panel article"><summary>' + tag(category,'red') + '<strong>' + title + '</strong></summary><p>' + body + '</p></details>').join('') + '</div>' + evidenceLibrary();
+  return head('TRAINING INTELLIGENCE','知识库与训练引擎','比较国际训练资料，根据实际日志预览和调整训练周期。',btn('生成训练周期','generate','spark','primary')) + '<div class="split">' + articles.map(([category,title,body]) => '<details class="panel article"><summary>' + tag(category,'red') + '<strong>' + title + '</strong></summary><p>' + body + '</p></details>').join('') + '</div>' + evidenceLibrary();
 }
 
 const pages = { home:dashboard, run:training, calendar:schedule, food:nutrition, chart:analytics, heart:recoveryPage, book:academy };
@@ -234,7 +235,7 @@ function openEditor(collection,id = '',defaults = {}) {
     values.event = '自定义';
     values.custom = item.event;
   }
-  modal(title,'<form id="entry-form"><fieldset class="fields"' + (sample ? ' disabled' : '') + '>' + fields.map(config => field(config,values)).join('') + '</fieldset><p class="form-error" role="alert" hidden></p><div class="dialog-actions">' +
+  modal(title,'<form id="entry-form"><fieldset class="fields"' + (sample ? ' disabled' : '') + '>' + fields.map(config => field(config,values)).join('') + '</fieldset>' + (item?.engineVersion === cycleVersion ? sessionExplanation(item) : '') + '<p class="form-error" role="alert" hidden></p><div class="dialog-actions">' +
     (!sample && id ? btn('删除记录','ask-delete','','danger') : '') + btn(sample ? '关闭' : '取消','close','','quiet') + (!sample ? '<button class="btn primary" type="submit">保存记录</button>' : '') + '</div></form>');
 }
 function notify(message) {
@@ -288,11 +289,20 @@ editor.addEventListener('submit', event => {
     const index = next[collection].findIndex(entry => entry.id === id);
     if (id && index === -1) throw new Error('Record removed');
     item.id = id || crypto.randomUUID();
-    if (index >= 0) next[collection][index] = {...next[collection][index],...item};
+    if (index >= 0) {
+      const original = next[collection][index];
+      if (collection === 'plans' && original.engineVersion === cycleVersion) {
+        auditCycle(next,original,'手动编辑',item);
+      }
+      next[collection][index] = {...original,...item,...(collection === 'plans' && original.engineVersion === cycleVersion ? {manual:true} : {})};
+    }
     else next[collection].push(item);
     if (defaults.planId) {
       const plan = next.plans.find(entry => entry.id === defaults.planId);
-      if (plan) plan.completed = true;
+      if (plan) {
+        plan.completed = true;
+        if (plan.engineVersion === cycleVersion) auditCycle(next,plan,'已完成');
+      }
     }
   });
   if (!saved) return;
@@ -334,6 +344,7 @@ function moveDate(direction) {
 }
 const actions = {
   generate: openGenerator,
+  'review-cycle': showCycleReview,
   'save-draft': saveDraft,
   edit: ([collection,id]) => openEditor(collection,id),
   demo: leaveSample,
@@ -349,7 +360,11 @@ const actions = {
   'delete-back': () => openEditor(formContext.collection,formContext.id),
   delete: () => {
     const {collection,id} = formContext;
-    if (sample || !id || !commit(next => {next[collection] = next[collection].filter(item => item.id !== id);})) return;
+    if (sample || !id || !commit(next => {
+      const original = next[collection].find(item => item.id === id);
+      if (collection === 'plans' && original?.engineVersion === cycleVersion) auditCycle(next,original,'已删除');
+      next[collection] = next[collection].filter(item => item.id !== id);
+    })) return;
     editor.close();
     render();
     notify('记录已删除');
@@ -410,41 +425,121 @@ function networkState() {
 window.addEventListener('offline',networkState);
 window.addEventListener('online',networkState);
 networkState();
-render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
+
 function evidenceLink(source) {
-  return '<a class="text-link" href="' + source.url + '" target="_blank" rel="noopener">原始研究 ' + icon('arrow',15) + '</a>';
+  return '<a class="text-link" href="' + source.url + '" target="_blank" rel="noopener">查看原始来源 ' + icon('arrow',15) + '</a>';
+}
+function sourcesList(ids) {
+  return '<ul class="reference-list">' + evidence.filter(source => ids.includes(source.id)).map(source =>
+    '<li><a href="' + source.url + '" target="_blank" rel="noopener">' + escape(source.authors) + ' · ' + (source.year ?? '未标注年份') + ' · ' + source.level + '</a></li>').join('') + '</ul>';
 }
 function evidenceLibrary() {
-  return '<div class="stack evidence-grid">' + evidence.map(source => panel(source.title,
-    '<div class="evidence-copy"><p>' + source.finding + '</p><p><strong>适用范围</strong> ' + source.limits + '</p><p><strong>产品规则</strong> ' + source.application + '</p>' + evidenceLink(source) + '</div>',
-    tag(source.kind,'red'),source.author + ' · ' + source.year + ' · ' + source.region)).join('') + '</div>';
+  const methodology = [
+    ['先建立有氧基础','Lydiard 的阶段思路适用于比较中长跑周期组织。历史精英跑量不用于产品处方。',['lydiard']],
+    ['按目的区分强度','Daniels 按训练目的组织强度和赛季。配速框架不能单凭一次比赛成绩推导负荷。',['daniels']],
+    ['受控阈值','挪威访谈反映高水平教练如何管理强度。双阈值或乳酸监测要求较高，本版不自动安排。',['norway']],
+    ['马拉松专项方法的书目','世界田联档案可核验 Arcelli 与 Canova 的出版记录。当前证据不足以比较其剂量或训练效果。',['canova']],
+    ['马拉松周期','Pfitzinger 面向有经验的长距离跑者。按赛事组织周次的概念可用于比较，付费计划和跑量档位不进入生成器。',['pfitzinger']],
+    ['反馈驱动','Hudson 的教练框架与产品的反馈复核有共同关注点。其书目条目不是该方法效果的独立研究。',['hudson']],
+    ['中距离与越野','场地速度、动作与地形控制是不同研究和教练情境。精英课表不外推至大众。',['middle','japan','usatf','kenya','ethiopia']],
+    ['青年发展','成熟度、训练环境和长期参与比套用成人专项更重要。可参考国际共识与加拿大教练教育路径。',['ioc-youth','youth-running','canada']]
+  ];
+  return '<section class="stack evidence-grid"><h2>训练体系比较</h2><div class="split">' + methodology.map(([title,copy,ids]) =>
+    '<details class="panel article"><summary><strong>' + title + '</strong></summary><p>' + copy + '</p>' + sourcesList(ids) + '</details>').join('') +
+    '</div><h2>全球资料索引</h2><p class="library-note">证据标签描述来源性质。研究质量与适用人群需逐条阅读。</p><div class="split">' +
+    evidence.map(source => '<details class="panel article"><summary>' + tag(source.level + ' · ' + source.kind,'red') +
+      '<strong>' + escape(source.title) + '</strong><small>' + escape(source.region + ' · ' + (source.year ?? '年份未标注')) + '</small></summary>' +
+      '<div class="evidence-copy"><p>' + escape(source.authors + ' · ' + source.organization + ' · ' + source.language) + '</p>' +
+      '<p><strong>适用对象</strong> ' + escape(source.population + ' / ' + source.events) + '</p>' +
+      '<p><strong>训练原则</strong> ' + escape(source.principle) + '</p><p><strong>产品应用</strong> ' + escape(source.application) + '</p>' +
+      '<p><strong>局限</strong> ' + escape(source.limits) + '</p><p><strong>使用权限</strong> ' + escape(source.license) + '</p>' +
+      '<p><strong>核验日期</strong> ' + source.reviewed + ' · ' + source.id + ' · ' + evidenceLevels[source.level] + '</p>' + evidenceLink(source) + '</div></details>').join('') + '</div></section>';
+}
+function sessionExplanation(plan) {
+  const summary = plan.manual ? '<p>以下依据来自原始草案。本次训练随后已手动调整。</p>' : '';
+  return '<details class="plan-explanation"><summary>为什么安排这节训练？</summary>' + summary +
+    '<p><strong>训练目的</strong> ' + escape(plan.objective) + ' · ' + escape(plan.phase) + '</p>' +
+    '<p>' + escape(plan.rationale) + '</p><p><strong>训练结构</strong> ' + escape(plan.structure) + '</p>' +
+    '<p><strong>强度与调整</strong> ' + escape(plan.intensity + ' ' + plan.adjustment) + '</p>' + sourcesList(plan.sources || []) + '</details>';
+}
+function cycleOverview(s) {
+  const cycle = s.cycles.at(-1);
+  if (!cycle) return panel('训练周期',empty('spark','生成你的基础训练周期','按专项、训练时间和近期记录预览 1–4 周课表。'),link('查看研究','book'));
+  const current = cycle.weeks.find(item => item.start <= day && day <= item.end);
+  const planned = s.plans.filter(item => item.cycleId === cycle.id);
+  const completed = planned.filter(item => item.completed).length;
+  return '<div class="cycle-overview">' + panel('当前训练周期',
+    '<div class="weekly-summary">' + metric('目标项目',cycle.event) + metric('当前阶段',current?.phase || '周期结束') + metric('完成情况',completed + ' / ' + planned.length) + '</div>' +
+    '<p class="library-note">' + escape(cycle.weeks[0].start + ' 至 ' + cycle.weeks.at(-1).end + (cycle.raceDate ? ' · 比赛 ' + cycle.raceDate : '')) + '</p>' +
+    '<div class="cycle-weeks">' + cycle.weeks.map((week,index) => tag('第 ' + (index+1) + ' 周 · ' + week.phase + ' · ' + week.count + ' 项')).join('') + '</div>',
+    btn('复核与调整','review-cycle','settings','quiet')) + '</div>';
+}
+function showCycleReview() {
+  const s = state();
+  const review = reviewCycle(s,day);
+  const history = s.cycleAudit.slice(-5).reverse();
+  modal('训练复核与调整','<p>调整建议根据当前记录更新。选择一项训练可以手动修改日期、时长和完成状态。</p><ul class="draft-reasons">' +
+    (review.reasons.length ? review.reasons : ['现有记录未触发额外调整提示。']).map(reason => '<li>' + escape(reason) + '</li>').join('') + '</ul>' +
+    rows(review.future,'plans',planRow,'run','暂无待完成训练','可生成新的训练周期。') +
+    (history.length ? '<h3>最近变更</h3><ul class="draft-reasons">' + history.map(entry => '<li>' + escape(entry.at.slice(0,10) + ' · ' + entry.action + ' · ' + entry.name) + '</li>').join('') + '</ul>' : ''));
+}
+function auditCycle(data, plan, action, change) {
+  const load = item => ({date:item.date,distance:item.distance,minutes:item.minutes,type:item.type,completed:item.completed});
+  data.cycleAudit.push({at:new Date().toISOString(),cycleId:plan.cycleId,planId:plan.id,action,name:plan.name,before:load(plan),after:change ? load(change) : null});
 }
 let proposed;
+const levels = ['刚开始或重新起跑','近期规律跑步'];
+const riskOptions = ['请选择','目前没有这些情况','有疼痛、功能受限或仍在康复'];
 function openGenerator() {
-  modal('生成七日训练草案','<form id="engine-form"><div class="fields">' + field(selectField('level','训练基础',['刚开始或重新起跑','近期规律跑步']),{}) + '</div><p>以近期记录、恢复反馈、目标与日程为依据。基础引擎使用可解释规则。</p><div class="dialog-actions"><button class="btn primary" type="submit">查看草案</button></div></form>');
+  const s = state();
+  const settings = proposed?.profile || s.cycleProfile;
+  const available = s.goals.days || 3;
+  const values = {event:'跑步入门',age:'未提供',days:available,minutes:30,weeks:4,...settings,
+    raceDate:settings?.raceDate || s.goals.raceDate, level:settings?.level === 'regular' ? levels[1] : levels[0]};
+  const fields = [
+    selectField('event','目标项目',Object.keys(specialties)),selectField('age','年龄段',ageGroups),
+    selectField('level','跑步基础',levels),numberField('days','每周可训练天数',1,7,1,true),
+    numberField('minutes','每次可用时间（分钟）',5,120,1,true),numberField('weeks','周期周数',1,4,1,true),
+    {name:'raceDate',label:'比赛日期（可选）',type:'date'},selectField('risk','本次疼痛或康复确认',riskOptions)
+  ];
+  modal('生成训练周期','<form id="engine-form"><div class="fields">' + fields.map(config => field(config,values)).join('') + '</div>' +
+    '<p>只将本次健康选项用于当前安全检查，不保存该选项、不发送给外部服务。近期跑量和频率从日志计算。</p>' +
+    '<div class="dialog-actions"><button class="btn primary" type="submit">查看草案</button></div></form>');
 }
 editor.addEventListener('submit', event => {
   if (event.target.id !== 'engine-form') return;
   event.preventDefault();
-  const level = new FormData(event.target).get('level') === '近期规律跑步' ? 'regular' : 'beginner';
-  proposed = draftTraining(state(),day,level);
-  modal('七日基础训练草案','<ul class="draft-reasons">' + proposed.reasons.map(reason => '<li>' + escape(reason) + '</li>').join('') + '</ul><ul class="rows">' +
-    proposed.plans.map(plan => '<li><span class="tile">' + icon('run',17) + '</span><div class="row-text"><strong>' + escape(plan.name) + '</strong><small>' + plan.date + ' · ' + (plan.distance ? plan.distance + ' km' : plan.minutes + ' min') + ' · ' + escape(plan.note) + '</small></div></li>').join('') +
-    '</ul><div class="menu-links">' + evidence.filter(source => proposed.sources.includes(source.id)).map(source => '<div class="source-line"><span>' + source.author + ' (' + source.year + ')</span> ' + evidenceLink(source) + '</div>').join('') + '</div><div class="dialog-actions">' +
-    btn('关闭','close','','quiet') + (sample ? btn('返回我的记录','demo') : proposed.plans.length ? btn('确认加入日程','save-draft','calendar','primary') : '') + '</div>');
+  const form = new FormData(event.target);
+  const profile = {
+    event:form.get('event'), age:form.get('age'), level:form.get('level') === levels[1] ? 'regular' : 'beginner',
+    days:Number(form.get('days')),minutes:Number(form.get('minutes')),weeks:Number(form.get('weeks')),raceDate:form.get('raceDate'),
+    risk:form.get('risk') === riskOptions[1] ? 'clear' : form.get('risk') === riskOptions[2] ? 'reported' : 'unknown'
+  };
+  proposed = draftCycle(state(),day,profile);
+  modal('训练周期草案','<ul class="draft-reasons">' + proposed.reasons.map(reason => '<li>' + escape(reason) + '</li>').join('') + '</ul>' +
+    proposed.weeks.map((week,index) => '<section class="draft-week"><h3>第 ' + (index+1) + ' 周 · ' + week.phase + '</h3><small>' + week.start + ' 至 ' + week.end +
+      ' · 新增 ' + week.count + ' 项</small>' + proposed.plans.filter(plan => plan.date >= week.start && plan.date <= week.end).map(plan =>
+      '<div class="draft-session"><strong>' + escape(plan.name) + '</strong><small>' + plan.date + ' · 最多 ' + plan.minutes + ' 分钟' + (plan.distance ? ' / ' + plan.distance + ' km' : '') + '</small>' + sessionExplanation(plan) + '</div>').join('') + '</section>').join('') +
+    sourcesList(proposed.sources) + '<div class="dialog-actions">' + btn('修改设置','generate','','quiet') +
+    (sample ? btn('返回我的记录','demo') : proposed.plans.length ? btn('确认加入日程','save-draft','calendar','primary') : btn('关闭','close')) + '</div>');
 });
 function saveDraft() {
   if (sample || !proposed?.plans.length) return;
   let changed = false;
   const saved = commit(next => {
-    const latest = draftTraining(next,dateKey(),proposed.level);
+    const latest = draftCycle(next,dateKey(),proposed.profile);
     if (JSON.stringify(latest) !== JSON.stringify(proposed)) {
       changed = true;
       throw new Error('Draft changed');
     }
-    next.plans.push(...proposed.plans.map(plan => ({...plan,id:crypto.randomUUID()})));
+    const id = crypto.randomUUID();
+    const {risk,...profile} = proposed.profile;
+    next.cycleProfile = profile;
+    next.cycles.push({id,event:profile.event,raceDate:profile.raceDate || next.goals.raceDate,version:proposed.version,weeks:proposed.weeks,sources:proposed.sources});
+    next.plans.push(...proposed.plans.map(plan => ({...plan,id:crypto.randomUUID(),cycleId:id})));
+    next.cycleAudit.push({at:new Date().toISOString(),cycleId:id,action:'创建周期',name:profile.event});
   });
   if (changed) {
     notify('日志或日程有变化，请重新生成。');
@@ -453,9 +548,9 @@ function saveDraft() {
   if (!saved) return;
   const count = proposed.plans.length;
   proposed = undefined;
-  selectedDate = day;
-  calendarMode = 'week';
   editor.close();
-  location.hash = href('calendar');
+  if (currentRoute() === 'run') render();
+  else location.hash = href('run');
   notify('已加入 ' + count + ' 项训练。可在日程中调整。');
 }
+render();
