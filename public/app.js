@@ -405,6 +405,8 @@ const actions = {
   'food-favorite': favoriteFood,
   'food-remove': removeFood,
   'meal-detail': showMeal,
+  'vision-analyze': analyzeMealPhoto,
+  'vision-pick': args => pickFood(args,true),
   'barcode-photo': () => editor.querySelector('#barcode-file')?.click()
 };
 
@@ -832,7 +834,7 @@ function mealTab(tab) {
     '<input type="file" id="barcode-file" accept="image/*" capture="environment" hidden>'+btn('从照片扫描','barcode-photo','flag')+
     '<p class="help-copy">支持时在设备上解码。仅查询本地食品库，未匹配时可按包装营养标签新建。</p><p id="food-message" role="status"></p>';
   const photo='<label class="food-search">拍摄或选择餐食照片<input type="file" id="food-photo" accept="image/*" capture="environment"></label><img id="meal-preview" class="meal-preview" alt="本次餐食照片预览" hidden>'+
-    '<p class="help-copy">此版本没有可用的 AI 识别服务。照片只供你核对，不上传、不保存。请按名称搜索并手动确认份量。</p>'+search;
+    '<p class="help-copy">照片默认只在浏览器预览。启用本机视觉模型后，可手动送去识别。AI 结果仅用于辅助核对，份量由你确认。</p>'+btn('用本机 AI 识别','vision-analyze','spark')+'<div id="vision-results" aria-live="polite"></div>'+search;
   modal('添加餐食',options+(tab==='search'?search:tab==='barcode'?barcode:tab==='photo'?photo:'')+
     '<div id="food-results"></div><div class="meal-tools">'+btn('自定义食物','food-custom','plus')+btn('单项手动记录','edit:food:','','quiet')+'</div>'+
     '<form id="meal-form"><div class="fields">'+field(dateField,mealDraft)+field(selectField('meal','餐别',meals),mealDraft)+
@@ -861,16 +863,16 @@ function favoriteFood([id]) {
   if (mealDraft.tab==='barcode') matchBarcode(mealDraft.barcode);
   else displayFood();
 }
-function pickFood([id]) {
+function pickFood([id],fromVision=false) {
   keepMealFields();
   selectedFood=allFoods().find(item=>item.id===id);
   if (!selectedFood) return;
   modal('确认份量','<h3>'+escape(selectedFood.name)+'</h3><p>每 100 g · '+escape(selectedFood.source)+'</p>'+
     nutritionStats([selectedFood])+(selectedFood.url?'<p><a class="text-link" href="'+escape(selectedFood.url)+'" target="_blank" rel="noopener">查看营养来源</a></p>':'')+
-    '<form id="portion-form"><div class="fields">'+field(numberField('grams','食用重量（g）',0.1,5000,0.1,true),{grams:selectedFood.portion})+
+    '<form id="portion-form"><div class="fields">'+field(numberField('grams','食用重量（g）',0.1,5000,0.1,true),{grams:fromVision?null:selectedFood.portion})+
     '</div><p id="portion-energy" role="status"></p><div class="dialog-actions">'+btn('返回食物列表','food-tab:'+mealDraft.tab,'','quiet')+
     '<button class="btn primary">加入这餐</button></div></form>');
-  showPortionEnergy(selectedFood.portion);
+  showPortionEnergy(fromVision?0:selectedFood.portion);
 }
 function showPortionEnergy(grams) {
   const target=editor.querySelector('#portion-energy');
@@ -988,4 +990,49 @@ function installHeartZones(points) {
     editor.querySelector('#zone-result').innerHTML='<p>按所填最大心率的百分比分段。仅统计有连续样本的时段。</p><ol class="split-list">'+
       zones.map(([label,seconds])=>'<li><span>'+label+'</span><strong>'+duration(Math.round(seconds))+'</strong></li>').join('')+'</ol>';
   });
+}
+
+async function analyzeMealPhoto() {
+  const input=editor.querySelector('#food-photo');
+  const target=editor.querySelector('#vision-results');
+  const button=editor.querySelector('[data-action="vision-analyze"]');
+  const file=input?.files[0];
+  if (!file || file.size>12*1024*1024 || !file.type.startsWith('image/')) {
+    target.textContent='请先拍摄或选择一张不超过 12 MB 的照片。';
+    return;
+  }
+  button.disabled=true;
+  target.textContent='正在检查本机模型…';
+  let bitmap;
+  try {
+    const availability=await fetch('./api/food-vision',{signal:AbortSignal.timeout(6000)});
+    if (!availability.ok || !(await availability.json()).enabled) {
+      target.textContent='本机视觉模型尚未启用。你可以搜索食物并确认份量。';
+      return;
+    }
+    bitmap=await createImageBitmap(file);
+    const scale=Math.min(1,960/Math.max(bitmap.width,bitmap.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+    const image=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
+    if (!target.isConnected || !image || input.files[0]!==file) return;
+    target.textContent='本机模型正在尝试识别…';
+    const response=await fetch('./api/food-vision',{method:'POST',body:image,signal:AbortSignal.timeout(96000)});
+    const result=await response.json();
+    if (!target.isConnected || input.files[0]!==file) return;
+    if (!response.ok) {target.textContent=result.error;return;}
+    if (!result.candidates.length) {target.textContent='未识别出可靠的食物，请手动搜索。';return;}
+    target.innerHTML='<p>候选食物和份量均可能有误。请核对做法和重量，确认后才会匹配营养。</p><ul class="rows">'+
+      result.candidates.map(item=>{
+        const match=catalog.find(food=>food.id===item.foodId);
+        return '<li><div class="row-text"><strong>'+escape(item.name)+'</strong><small>'+
+          (item.minGrams===null?'份量未知':'粗略范围 '+item.minGrams+'–'+item.maxGrams+' g')+' · '+
+          escape(match?'可匹配 '+match.name:'暂无营养匹配，请手动搜索')+'</small></div>'+
+          (match?btn('核对份量','vision-pick:'+match.id,'','quiet'):'')+'</li>';
+      }).join('')+'</ul>';
+  } catch {
+    if (target.isConnected && input.files[0]===file) target.textContent='识别不可用或照片无法解码，请手动搜索。';
+  } finally {bitmap?.close();if (button.isConnected) button.disabled=false;}
 }

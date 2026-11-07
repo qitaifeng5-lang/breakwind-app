@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "破风",
+    "slug": "breakwind-app",
+    "version": "0.1.0",
+    "scheme": "breakwind-dev",
+    "platforms": ["ios"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./public/icon-512.png",
+    "ios": {
+      "bundleIdentifier": "com.breakwind.running.dev",
+      "supportsTablet": false,
+      "infoPlist": {
+        "UIFileSharingEnabled": false
+      }
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "破风在你开始跑步后使用位置计算路线、距离和配速。",
+          "locationAlwaysAndWhenInUsePermission": "只在你启动跑步并且未暂停时，破风会在锁屏或切到后台后继续记录路线。",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ]
+    ]
+  }
+}
