@@ -1,3 +1,4 @@
+import { visionRoute } from './vision.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 
@@ -22,6 +23,7 @@ const assets = new Map(Object.entries({
 const port = Number(process.env.PORT || 4188);
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://localhost').pathname;
+  if (path === '/api/food-vision') return visionRoute(request,response);
   const asset = assets.get(path);
   if (!['GET', 'HEAD'].includes(request.method)) {
     response.writeHead(405, { Allow: 'GET, HEAD' }).end();

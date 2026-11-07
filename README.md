@@ -40,8 +40,8 @@ npm test
 - 「训练 → 记录跑步」提供前台 GPS、手动计时、手动填写和运动文件导入。浏览器 GPS 要求安全地址和位置权限，隐藏页面时主动暂停。同一标签刷新可恢复暂停草稿。草稿和轨迹保存在浏览器中。
 - 运动报告按实有数据绘制路线示意、配速、心率、步频和海拔，按 GPS 或设备采样计算完整公里分段。步幅是由平均步频和总距离估算的平均值。可输入体重进行一次成人 MET 总能量估算。路线图不请求在线底图。
 - FIT 解析器支持单次跑步、标准 Session/Record 字段及 CRC 校验。TCX 仅接受标为跑步的单次 Activity。GPX 需用户确认属于跑步，并包含可计算距离与耗时的时间戳轨迹。文件不会上传。文件指纹阻止重复导入，近似时间、距离和时长则要求用户核对。
-- 「营养 → 添加餐食」提供中文搜索、份量、收藏、最近吃过、自定义条码食品和多食物组合。初始食材来自 USDA FoodData Central SR Legacy，按 CC0 使用。包装条码只查询本机收藏的自定义食品库。兼容的浏览器可解码照片里的条码；其他浏览器可手输。照片辅助仅供人工核对，不上传或保存图片。
-- 当前预览为本机 Web。iOS 原生后台 GPS 与 HealthKit、Android 前台定位服务与 Health Connect、获授权的手表同步、AI 食物识别、中国品牌与餐饮数据库仍待交付。当前版本也未做手机户外 GPS 真机验证。
+- 「营养 → 添加餐食」提供中文搜索、份量、收藏、最近吃过、自定义条码食品和多食物组合。初始食材来自 USDA FoodData Central SR Legacy，按 CC0 使用。包装条码只查询本机收藏的自定义食品库。兼容的浏览器可解码照片里的条码；其他浏览器可手输。照片默认在浏览器预览。主动启用本机模型并点击识别后，缩小的照片才会发送到同一电脑的本地模型；破风不保存照片。
+- 本机 Web 预览支持前台定位。iPhone 原生开发版见下方，仍待签名、安装和户外真机验收。Android 原生定位、Health Connect、厂商账号同步及中国品牌与餐饮数据库尚未接入。
 
 ### 接入与数据参考
 
@@ -52,3 +52,48 @@ npm test
 - FIT 数据协议 https://developer.garmin.com/fit/protocol/
 - USDA FoodData Central 使用许可 https://fdc.nal.usda.gov/api-guide/
 - 成人活动 MET 档位 https://pacompendium.com/running/
+
+## iPhone 原生开发版
+
+原生入口位于同一仓库的 native/。Web 仍用 npm start 启动，两端各自保存本机数据，目前不共享数据库。原生开发版使用 Expo SDK 56，要求 iOS 16.4 或更新版本。锁屏定位需要自建开发包，Expo Go 不适用。
+
+在具备 Expo SDK 56 所需 Xcode 的 Mac 上连接 iPhone，在 Xcode 中选择具备相应能力的签名团队，并在手机开启开发者模式。确认签名团队能够签名后运行：
+
+```sh
+npm ci
+npx expo prebuild --platform ios
+npm run mobile:ios
+```
+
+如需单独启动开发服务器，运行 npm run mobile:start。若组织已经具备 HealthKit 签名能力，可在预构建与启动时设置 BREAKWIND_HEALTHKIT=1。切换能力后要重新预构建并安装。需要签名账号、云构建或发布时先由项目所有者决定。
+
+### 真机验收记录表
+
+| 场景 | 期望观察 |
+| --- | --- |
+| 拒绝位置、仅使用期间、关闭精确位置、定位总开关关闭 | 界面说明原因，后台定位任务不启动 |
+| 允许始终定位后户外开始，锁屏走跑至少 2 分钟 | 解锁后时长、距离与轨迹增加，记录来源为 iPhone GPS |
+| 暂停后移动，再继续跑步 | 暂停期间不累计活动时长，路线分段，暂停前后不直线补点 |
+| 跑步中切网、信号短暂丢失、系统设置撤回权限 | 本地采样可持续写入，位置中断不会凭空补点，恢复前提示权限问题 |
+| 记录中强制退出并重开 | 以最后可确认采样恢复暂停草稿，确认后才能继续。强制退出期间不承诺持续定位 |
+| 结束、保存、重开应用、删除记录 | 报告可再次查看；删除后不再显示记录或轨迹 |
+| 有权限与无权限的 Apple 健康读取 | 只请求运动读取；只在确认后导入；空结果不宣称已授权 |
+| 重复导入同一运动，或导入与手机重合的跑步 | UUID 与近似活动检查阻止双计；本机有轨迹的活动优先保留 |
+| 从健康 App 撤销读取 | 后续读取遵循系统权限；之前导入的副本可在本机删除 |
+
+SQLite 持久化草稿、路点及报告。此开发版只按用户操作读取最近最多 100 条 HealthKit 跑步摘要，保留来源名称。路线、心率、Android Health Connect 与厂商账号同步尚未接入。Apple 的读取授权状态无法由应用精确判定，撤销操作通过系统健康权限完成。设备上的数据由 iOS 管理，应用没有健康或位置上传服务。
+
+官方参考：
+- Expo 后台定位 https://docs.expo.dev/versions/v56.0.0/sdk/location/
+- iPhone 开发者模式 https://docs.expo.dev/guides/ios-developer-mode/
+- HealthKit 授权模型 https://developer.apple.com/documentation/healthkit/authorizing-access-to-health-data
+- Health Connect 路线权限 https://developer.android.com/health-and-fitness/health-connect/features/exercise-routes
+
+### 可选本机食物照片识别
+
+关闭 Ollama 云功能，使用已经安装且允许在你的场景中使用的本地视觉模型。破风默认关闭该接口，不自动安装模型或调用付费服务。将 BREAKWIND_VISION_MODEL 设置为 Ollama 模型列表中的完整名称（含标签），重启 Web 服务。服务只连接 127.0.0.1:11434，并拒绝跨站照片请求。模型可用时，在「营养 → 添加餐食 → 照片辅助」点击「用本机 AI 识别」。
+
+匹配到已核验食材后，用户必须手动确认克数，系统再按数据库计算营养。找不到匹配或图片缺少比例时保留未知。结果取决于模型与实际照片，真实模型和图像准确度仍需实测。
+
+- USDA FoodData Central 原始数据及许可 https://fdc.nal.usda.gov/api-guide/
+- Ollama 本机视觉与关闭云功能 https://docs.ollama.com/capabilities/vision 和 https://docs.ollama.com/faq
