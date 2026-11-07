@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0C0D10">
+  <meta name="description" content="破风跑步训练日志。管理训练、日程、恢复和运动营养。">
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>破风 BREAKWIND</title>
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="workspace">
+    <header class="topbar" id="topbar"></header>
+    <div class="offline" id="offline" hidden>当前离线 · 记录会保存在此浏览器</div>
+    <main id="main" tabindex="-1"></main>
+    <footer>BREAKWIND / 破风而行，每一步都有答案。</footer>
+  </div>
+  <nav class="bottom-nav" id="bottom-nav" aria-label="移动端导航"></nav>
+  <dialog id="editor" aria-labelledby="dialog-title"></dialog>
+  <div class="toast" role="status" id="toast" hidden></div>
+  <noscript>请启用 JavaScript 以使用破风。</noscript>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
