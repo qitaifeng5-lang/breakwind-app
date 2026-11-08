@@ -260,7 +260,15 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
 .quick-events .btn { justify-content:center;min-height:48px;padding:8px 4px;color:var(--text) }
 .quick-events [aria-pressed=true],.group-week-days [aria-pressed=true] { background:var(--surface);border-color:#95939f;color:var(--text) }
 .quick-pb { display:grid;gap:6px }
-.quick-pb input,.food-search input,.meal-select select,#portion-form input { min-height:46px;font-size:1rem }
+.quick-pb input,.food-search input,.meal-select select,#portion-form input {
+  min-height:46px;min-width:0;width:100%;font:inherit;font-size:1rem;
+  appearance:none;border:1px solid #454650;border-radius:12px;
+  background:#101116;color:var(--text);padding:10px 12px;
+}
+.quick-pb input::placeholder,.food-search input::placeholder {color:var(--muted);opacity:1}
+.quick-pb input:focus-visible,.food-search input:focus-visible,.meal-select select:focus-visible,#portion-form input:focus-visible {
+  outline:2px solid var(--light-red);outline-offset:2px;
+}
 .quick-pb small { color:var(--sub) }
 .quick-groups { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0;margin:16px 0 0 }
 .quick-groups legend { margin-bottom:8px }
