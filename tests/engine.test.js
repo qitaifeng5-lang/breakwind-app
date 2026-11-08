@@ -1,12 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fresh, offset, readData } from '../public/model.js';
-import { draftCycle, reviewCycle, specialties, cycleVersion, templateDetails } from '../public/engine.js';
+import { draftCycle, reviewCycle, specialties, cycleVersion, templateDetails, groupWeek, parseGroupPB } from '../public/engine.js';
 import { evidence } from '../public/knowledge.js';
 
 const today = '2026-11-07';
 const profile = {event:'跑步入门',age:'18–39岁',level:'beginner',days:3,minutes:30,weeks:4,raceDate:'',risk:'clear'};
 const generate = (data = fresh(), changes = {}) => draftCycle(data,today,{...profile,...changes});
+
+test('PB parser applies the event format and accepts track hundredths',()=>{
+  assert.equal(parseGroupPB('1500 m','4:20'),260);
+  assert.equal(parseGroupPB('800 m','2：05.30'),125.3);
+  assert.equal(parseGroupPB('5000 m','21:30'),1290);
+  assert.equal(parseGroupPB('全程马拉松','3:45:00'),13500);
+  assert.equal(parseGroupPB('1500 m','0:40'),null);
+  assert.equal(parseGroupPB('越野跑','1:12:60'),null);
+  assert.equal(parseGroupPB('半程马拉松','1:75:00'),null);
+});
+
+test('competitive group previews a week from just PB, preserving its structure at lower intensity',()=>{
+  const settings={event:'1500 m',group:'competitive',pb:'4:20',start:today};
+  const week=groupWeek(fresh(),today,settings);
+  assert.equal(week.length,7);
+  assert.equal(week[0].name,'轻松跑＋动作练习');
+  assert.ok(week.every(plan=>!plan.quality && !plan.pace && !plan.name.includes('走跑')));
+  assert.equal(groupWeek(fresh(),today,{...settings,group:'novice'})[0].name,'轻松走跑');
+  assert.equal(groupWeek(fresh(),offset(today,7),settings)[0].date,offset(today,7));
+});
+
+test('group load uses known pace and recent volume, respects existing plans and stops for pain',()=>{
+  const data=experienced('1500 m');
+  const settings={event:'1500 m',group:'competitive',pb:'4:20',start:today};
+  const week=groupWeek(data,today,settings);
+  assert.match(week[0].pace,/\/km 或更慢/);
+  assert.equal(week[2].quality,true);
+  assert.match(week[2].note,/3 × 2 分钟/);
+  data.plans.push({id:'existing',date:today,type:'轻松跑',minutes:20});
+  assert.equal(groupWeek(data,today,settings)[0].id,'existing');
+  data.recovery.push({date:today,pain:true});
+  assert.ok(groupWeek(data,today,settings).every(plan=>plan.name==='暂缓训练' && !plan.minutes));
+});
 test('competitive 800 m history without device imports never falls back to beginner walk/run', () => {
   const draft = generate(fresh(),{event:'800 m',level:'regular',background:'competitive',years:6,weeklyDays:4,recentKm:28,recentLongest:9,raceStarts:8,readiness:'ready'});
   assert.equal(draft.athlete?.tier,'competitive');

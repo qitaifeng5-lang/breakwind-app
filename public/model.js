@@ -1,7 +1,7 @@
 export const types = ['轻松跑', '恢复跑', '节奏跑', '阈值跑', '间歇跑', '长距离跑', '坡道跑', '加速跑', '比赛配速跑', '交叉训练', '力量训练', '休息'];
 export const meals = ['早餐', '午餐', '晚餐', '加餐'];
 export const distances = ['800 m', '1500 m', '3000 m', '5 km', '10 km', '半程马拉松', '全程马拉松', '自定义'];
-export const fresh = () => ({ version: 1, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
+export const fresh = () => ({ version: 1, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, groupPlan: null, trainingHold: false, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
 
 export function dateKey(date = new Date()) {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => String(n).padStart(2, '0')).join('-');
@@ -68,6 +68,8 @@ export function readData(raw) {
     base[key] = parsed[key] || [];
   }
   base.cycleProfile = parsed.cycleProfile || null;
+  base.groupPlan = parsed.groupPlan && typeof parsed.groupPlan === 'object' ? parsed.groupPlan : null;
+  base.trainingHold = parsed.trainingHold === true;
   base.foodLibrary = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary : [];
   base.favorites = Array.isArray(parsed.favorites) ? parsed.favorites : [];
   base.planFavorites = Array.isArray(parsed.planFavorites) ? parsed.planFavorites.filter(value => typeof value === 'string') : [];
