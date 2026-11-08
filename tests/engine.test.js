@@ -1,12 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fresh, offset, readData } from '../public/model.js';
-import { draftCycle, reviewCycle, specialties, cycleVersion } from '../public/engine.js';
+import { draftCycle, reviewCycle, specialties, cycleVersion, templateDetails } from '../public/engine.js';
 import { evidence } from '../public/knowledge.js';
 
 const today = '2026-11-07';
 const profile = {event:'跑步入门',age:'18–39岁',level:'beginner',days:3,minutes:30,weeks:4,raceDate:'',risk:'clear'};
 const generate = (data = fresh(), changes = {}) => draftCycle(data,today,{...profile,...changes});
+test('competitive 800 m history without device imports never falls back to beginner walk/run', () => {
+  const draft = generate(fresh(),{event:'800 m',level:'regular',background:'competitive',years:6,weeklyDays:4,recentKm:28,recentLongest:9,raceStarts:8,readiness:'ready'});
+  assert.equal(draft.athlete?.tier,'competitive');
+  assert.ok(draft.plans.length);
+  assert.ok(draft.plans.every(plan => !plan.name.includes('走跑')));
+});
 function regular() {
   const data = fresh();
   data.goals = {...data.goals,weekly:11,days:3};
@@ -15,14 +21,87 @@ function regular() {
 }
 
 test('catalog entries are structured and every specialty has traceable references', () => {
-  assert.equal(Object.keys(specialties).length,9);
+  assert.equal(Object.keys(specialties).length,14);
   assert.equal(new Set(evidence.map(source => source.id)).size,evidence.length);
   for (const source of evidence) {
     for (const key of ['id','title','authors','organization','region','language','url','kind','level','population','events','principle','application','limits','reviewed','license']) assert.ok(source[key],key);
     assert.ok('year' in source);
     assert.equal(new URL(source.url).protocol,'https:');
   }
-  for (const specialty of Object.values(specialties)) assert.ok(specialty.references.every(id => evidence.some(source => source.id === id)));
+  for (const [name,specialty] of Object.entries(specialties)) {
+    assert.ok(specialty.references.every(id => evidence.some(source => source.id === id)));
+    for (const value of Object.values(templateDetails(name))) assert.ok(value.length,name);
+  }
+});
+
+function experienced(event) {
+  const data = fresh();
+  data.runs = Array.from({length:26},(_,i)=>({
+    date:offset(today,-i-4),distance:7,minutes:39,effort:i===2?6:3
+  })).filter((_,i)=>i%7>=2);
+  data.recovery = [{date:offset(today,-1),sleep:8,fatigue:2,pain:false}];
+  data.records = [-35,-95].map(delta=>({date:offset(today,delta),event,seconds:event==='800 m'?126:event==='1500 m'?265:1100}));
+  return data;
+}
+const racing = {level:'regular',background:'competitive',years:6,days:4,minutes:40,weeks:3,phase:'specific',readiness:'ready'};
+
+test('A and B receive different plans, and a single fast result cannot set the level', () => {
+  const novice = draftCycle(fresh(),today,{...profile,level:undefined,background:'auto',years:0});
+  const casual = regular();
+  casual.records = [{date:offset(today,-5),event:'5 km',seconds:980}];
+  const base = draftCycle(casual,today,{...profile,event:'5000 m',level:undefined,background:'recreational',years:2,readiness:'ready'});
+  assert.equal(novice.athlete.tier,'novice');
+  assert.equal(base.athlete.tier,'base');
+  assert.ok(novice.plans.length && base.plans.length);
+  assert.ok(novice.plans.every(plan=>plan.name==='入门走跑' && plan.distance===null));
+  assert.ok(base.plans.every(plan=>plan.type==='轻松跑' && plan.distance>0));
+});
+
+test('C and D can find distinct quality workouts within recent load and only in eligible phases', () => {
+  for (const [event,record,work] of [
+    ['800 m','800 m','4 × 15 秒'],['1500 m','1500 m','3 × 2 分钟'],
+    ['5000 m','5 km','2 × 4 分钟'],['越野跑','Cross Country','4 × 45 秒']
+  ]) {
+    const data = experienced(record);
+    const draft = generate(data,{...racing,event});
+    assert.equal(draft.athlete.tier,'competitive',event);
+    const hard = draft.plans.filter(plan=>plan.quality);
+    assert.ok(hard.length >= 1,event);
+    assert.ok(hard.every(plan=>plan.blocks[1][1].includes(work) && plan.date<=offset(today,10)),event);
+    assert.ok(draft.plans.some(plan=>plan.type==='轻松跑'));
+    assert.ok(draft.plans.every(plan=>plan.distance<=7 && plan.minutes<=39 && !plan.name.includes('走跑')));
+    assert.ok(generate(data,{...racing,event,phase:'foundation'}).plans.every(plan=>!plan.quality));
+  }
+});
+
+test('E stops all competitive sessions and needs explicit clearance even for cross-training', () => {
+  const data = experienced('800 m');
+  data.recovery.push({date:today,pain:true,fatigue:2});
+  for (const risk of ['reported','clear']) {
+    const draft = generate(data,{...racing,event:'800 m',risk});
+    assert.equal(draft.athlete.tier,'recovering');
+    assert.equal(draft.plans.length,0);
+    assert.match(draft.reasons.join(' '),/专业评估/);
+  }
+  const cross = {...racing,event:'恢复与交叉训练',phase:'recovery',background:'recovering',weeks:1};
+  assert.equal(generate(data,{...cross,returnCleared:true}).plans.length,0);
+  const rested=experienced('800 m');
+  assert.equal(generate(rested,cross).plans.length,0);
+  const permitted=generate(rested,{...cross,returnCleared:true});
+  assert.equal(permitted.plans.length,1);
+  assert.equal(permitted.plans[0].type,'交叉训练');
+});
+
+test('professional status needs supporting signals, and unclear readiness cannot increase intensity', () => {
+  const data=experienced('1500 m');
+  const settings={...racing,event:'1500 m',background:'professional'};
+  assert.equal(generate(data,settings).athlete.tier,'professional');
+  const uncertain=generate(data,{...settings,readiness:'uncertain'});
+  assert.equal(uncertain.athlete.tier,'competitive');
+  assert.ok(uncertain.plans.length && uncertain.plans.every(plan=>!plan.quality));
+  assert.equal(generate(fresh(),settings).plans.length,0);
+  const advanced=generate({...data,records:[]},{...settings,background:'recreational'});
+  assert.equal(advanced.athlete.tier,'advanced');
 });
 test('beginner with incomplete history gets time-based sessions and the draft is pure', () => {
   const data = fresh();

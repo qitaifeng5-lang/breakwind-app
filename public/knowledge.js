@@ -1,7 +1,10 @@
 const reviewed = '2026-11-07';
 const rights = '仅保留书目信息、原始链接和原创中文摘要；原文、图表和课表按来源条款处理。';
 function source(id, title, authors, organization, region, language, year, url, kind, level, population, events, principle, application, limits, license = rights) {
-  return { id, title, authors, organization, region, language, year, url, kind, level, population, events, principle, application, limits, reviewed, license };
+  const practice = ['lydiard','daniels','pfitzinger','hudson','canova'].includes(id);
+  const category = level === 'D' ? '未经充分验证的经验' : practice ? '公开教练实践与书目' :
+    level === 'B' ? '官方课程与指导' : '同行评审研究与共识';
+  return { id, title, authors, organization, region, language, year, url, kind, category, level, population, events, principle, application, limits, reviewed, license };
 }
 export const evidence = [
   source('ioc-youth','International Olympic Committee consensus statement on youth athletic development','Bergeron 等','IOC / BJSM','国际','en',2015,'https://doi.org/10.1136/bjsports-2015-094962','专家共识','A','青少年运动员','全项目','强调成熟度、活动多样性、恢复与长期发展。','未成年使用一般基础分支；专项交由教练审核。','共识覆盖多项运动；日历年龄不足以推断生理成熟度。'),
@@ -12,6 +15,7 @@ export const evidence = [
   source('talk','Evidence That the Talk Test Can Be Used to Regulate Exercise Intensity','Woltmann 等','Journal of Strength and Conditioning Research','美国','en',2015,'https://doi.org/10.1519/JSC.0000000000000811','小样本交叉实验','A','16 名活跃成年人','基础有氧','能舒适说话通常对应较低强度。','用自然交谈描述轻松训练体感。','不能精确测量个体阈值，青少年分支同时采用其专项共识。'),
   source('norway','Training Session Models in Endurance Sports: A Norwegian Perspective on Best Practice Recommendations','Tønnessen 等','Sports Medicine','挪威','en',2024,'https://pmc.ncbi.nlm.nih.gov/articles/PMC11560996/','同行评审定性研究','C','12 位高水平耐力教练及其运动员','奥运耐力项目','教练通过多种信号区分强度和课型。','用于比较阈值管理思路，不驱动自动阈值课。','多运动项目、精英样本，未比较训练流派效果。','原文开放获取；产品仅链接和原创概述，未转载。'),
   source('middle','Crossing the Golden Training Divide: The Science and Practice of Training World-Class 800- and 1500-m Runners','Haugen 等','Sports Medicine','挪威及国际','en',2021,'https://pmc.ncbi.nlm.nih.gov/articles/PMC8363530/','叙述综述与实践','C','世界级中距离跑者','800 m、1500 m','中距离跑者的有氧、速度和神经肌肉需求随距离及个人类型不同。','用于解释专项关注点。','精英训练量和高强度结构不适合直接外推。','CC BY 4.0；仅链接及原创摘要。'),
+  source('five-k','Training Characteristics of a World Championship 5000-m Finalist and Multiple Continental Record Holder Over the Year Leading to a World Championship Final','Kenneally 等','International Journal of Sports Physiology and Performance','国际','en',2022,'https://pubmed.ncbi.nlm.nih.gov/34426556/','同行评审单病例','C','一名世界级中长跑运动员','5000 m','强度分布的结论随赛季阶段和分区方法变化。','说明专项阶段和强度方法需要分别解释。','单一精英案例，无对照；跑量、配速与强度比例不用于排课。'),
   source('kenya','Training and bioenergetic characteristics in elite male and female Kenyan runners','Billat 等','Medicine & Science in Sports & Exercise','法国研究团队、肯尼亚跑者','en',2003,'https://pubmed.ncbi.nlm.nih.gov/12569219/','观察与生理测试','C','20 名肯尼亚精英跑者','10000 m','记录了训练特征、生理能力与表现的关联。','专项背景比较。','小样本、精英，相关性不能用于自动提高强度。'),
   source('ethiopia','Effects of training modalities on physiology, hematology, and performance in elite Ethiopian distance male athletes','Nigatu Worku、Zeru Bekele Tola、Aschenaki Taddese','BMC Research Notes','埃塞俄比亚','en',2026,'https://pmc.ncbi.nlm.nih.gov/articles/PMC13181890/','顺序训练干预','C','高海拔训练的精英男性跑者','中长跑','观察耐力、速度、力量训练区块后的变化。','用于理解专项环境差异。','固定训练顺序与精英高原样本限制外推。','CC BY-NC-ND 4.0；仅链接及原创事实摘要。'),
   source('japan','本邦中・長距離種目の競技者におけるレース直前期のコンディショニングに関する研究 ～いわゆる「刺激」の内容および実践するタイミングに着目して～','小畠 翼、林 容市、高見 京太','ランニング学研究','日本','ja',2023,'https://doi.org/10.57497/running.35.1_19','赛事准备实践研究','C','日本竞技跑者','中长跑','研究赛前刺激训练内容与时点。','比较赛前实践，不自动安排赛前刺激。','人群和赛前条件有局限，不能导出统一处方。'),
