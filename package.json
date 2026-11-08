@@ -9,7 +9,12 @@
     "test": "node --test",
     "mobile:start": "expo start --dev-client",
     "mobile:ios": "expo run:ios --device",
-    "mobile:bundle": "expo export --platform ios"
+    "mobile:bundle": "expo export --platform ios",
+    "test:browser": "playwright test",
+    "check:integrity": "node scripts/check-project.mjs integrity",
+    "check:syntax": "node scripts/check-project.mjs syntax",
+    "check:ios": "node scripts/check-project.mjs ios",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@kingstinct/react-native-healthkit": "16.2.0",
@@ -24,5 +29,15 @@
     "react-native-nitro-modules": "0.37.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "eslint": "9.39.1",
+    "globals": "16.5.0"
+  },
+  "overrides": {
+    "@expo/cli": {
+      "zod": "4.6.6"
+    }
   }
 }

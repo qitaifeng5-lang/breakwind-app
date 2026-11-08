@@ -1,0 +1,34 @@
+name: Breakwind daily quality review
+
+on:
+  schedule:
+    - cron: '20 13 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  issues: read
+  pull-requests: read
+  security-events: read
+
+concurrency:
+  group: breakwind-daily-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Summarize repository health without changing it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/daily-quality.mjs

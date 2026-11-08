@@ -3,3 +3,5 @@ node_modules/
 dist/
 ios/
 android/
+playwright-report/
+test-results/

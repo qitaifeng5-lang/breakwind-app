@@ -1,4 +1,4 @@
-const cacheName = 'breakwind-shell-v5';
+const cacheName = 'breakwind-shell-v6';
 const shell = ['./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {

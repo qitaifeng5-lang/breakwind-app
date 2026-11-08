@@ -10,6 +10,7 @@ const icons = {
   calendar: 'M4 6h16v15H4z M4 10h16 M8 3v5 M16 3v5',
   food: 'M5 3v7a3 3 0 0 0 6 0V3 M8 3v18 M19 3c-4 3-4 7-4 10h4 M19 3v18',
   chart: 'M4 4v16h16 M8 15l4-5 3 2 5-6',
+  growth: 'M5 21h14 M12 17v4 M8 4h8v7a4 4 0 0 1-8 0z M8 6H4v2a4 4 0 0 0 4 4 M16 6h4v2a4 4 0 0 1-4 4',
   book: 'M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14',
   heart: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0l-1 1-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1 7.8 7.8 7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z',
   bolt: 'M13 2 4 14h7l-1 8 10-12h-7z',
@@ -24,7 +25,7 @@ const icons = {
 };
 const icon = (name, size = 19) => '<svg aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + icons[name] + '"/></svg>';
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const routes = { home: ['总览','总览面板'], run: ['训练','训练工作台'], calendar: ['日程','训练与日程'], food: ['营养','运动营养'], chart: ['数据','数据中心'], heart: ['恢复','恢复日志'], book: ['学院','知识库与训练引擎'] };
+const routes = { home: ['总览','总览面板'], run: ['训练','训练工作台'], calendar: ['日程','训练与日程'], food: ['营养','运动营养'], chart: ['数据','数据中心'], heart: ['恢复','恢复日志'], book: ['学院','知识库与训练引擎'], growth: ['成长','跑者成长'] };
 const key = 'breakwind.local.v1';
 const main = document.querySelector('#main');
 const editor = document.querySelector('#editor');
@@ -49,6 +50,18 @@ let toastTimer;
 let activeWorkout;
 let clockTimer;
 let opener;
+let homeTab = 'training';
+let foodDate = day;
+let planFilter = 'all';
+let detailPeriod = 7;
+let activeDetail;
+let rankingTab = 'manual';
+const themes = {ember:'破风暗红',track:'赛道蓝',forest:'林地绿'};
+let currentTheme = 'ember';
+try {
+  const preference = localStorage.getItem('breakwind.theme');
+  if (Object.hasOwn(themes,preference)) currentTheme = preference;
+} catch { /* Use default if browser preferences are unavailable. */ }
 
 const state = () => sample ? demo(day) : data;
 const currentRoute = () => {
@@ -105,7 +118,7 @@ function dashboard(s) {
   const food = byDate(s.food,day);
   const [title, copy] = insight(s, day);
   const name = '准备好破风了吗？';
-  return head('PERFORMANCE DASHBOARD', name, fullDate(day) + ' · 把今天的训练、恢复和补给安排好。', btn('记录跑步','run-options','plus','primary')) + workoutHero(s) +
+  return head('PERFORMANCE DASHBOARD', name, fullDate(day) + ' · 把今天的训练、恢复和补给安排好。', btn('记录跑步','run-options','plus','primary')) + homeSwitch() + (homeTab === 'food' ? homeFuel(s,food) : workoutHero(s) + homeCalendar(s)) +
     '<div class="dashboard-grid"><div class="stack">' +
     panel('本周训练概览', '<div class="weekly-summary">' + metric('本周跑量',num(total),'km') + metric('训练次数',count,'次') + '<div class="goal-meter"><div class="ring" style="--progress:' + percent + '%"><strong>' + (s.goals.weekly ? percent + '%' : '—') + '</strong></div><div><small>周跑量目标</small><strong>' + (s.goals.weekly ? num(s.goals.weekly) + ' km' : '待设置') + '</strong></div></div></div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · ' + selected.count + ' 次' : count ? '点击任意一天查看记录' : '本周暂无跑步记录') + '</div>',link('查看数据','chart'), '每周一更新统计周期') +
     panel('个人纪录', personalBest(s), btn('添加','edit:records:','plus','quiet'), '按距离查看最快的记录') +
@@ -127,14 +140,14 @@ function nutritionStats(items) {
 function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
   return items.length ? '<ul class="rows">' + items.map(item => {
     const [title, detail, badge] = render(item);
-    return '<li><span class="tile">' + icon(glyph,17) + '</span><div class="row-text"><strong>' + escape(title) + '</strong><small>' + escape(detail) + '</small></div>' + (badge ? tag(badge) : '') + (collection === 'runs' ? btn('运动详情','run-detail:' + item.id,'','quiet') : collection === 'food' && item.components ? btn('餐食详情','meal-detail:' + item.id,'','quiet') : btn(sample ? '查看' : '编辑','edit:' + collection + ':' + item.id,'','quiet')) + '</li>';
+    return '<li><span class="tile">' + icon(glyph,17) + '</span><div class="row-text"><strong>' + escape(title) + '</strong><small>' + escape(detail) + '</small></div>' + (badge ? tag(badge) : '') + (collection === 'runs' ? btn('运动详情','run-detail:' + item.id,'','quiet') : collection === 'food' && item.components ? btn('餐食详情','meal-detail:' + item.id,'','quiet') : collection === 'plans' ? btn('课次详情','open-plan:' + item.id,'','quiet') : btn(sample ? '查看' : '编辑','edit:' + collection + ':' + item.id,'','quiet')) + '</li>';
   }).join('') + '</ul>' : empty(glyph,emptyLabel,emptyCopy);
 }
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
 const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 function training(s) {
   return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','run-options','plus','primary') + btn('生成训练周期','generate','spark') + btn('设备与同步','devices','settings')) +
-  cycleOverview(s) + '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
+  planCarousel() + cycleOverview(s) + '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
   panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录','训练结束后可以填写实际距离和耗时。')) + '</div>';
 }
 function schedule(s) {
@@ -148,20 +161,20 @@ function schedule(s) {
   }).join('');
   return head('SCHEDULE','训练与日程','把工作、学习和跑步放进同一张日历。',btn('新建事项','edit:events:','plus','primary') + btn('安排训练','edit:plans:','calendar')) +
   '<div class="split">' + panel('日历', '<div class="calendar-controls">' + btn('上一周期','move:-1','left','quiet') + '<strong>' + escape(calendarMode === 'month' ? selectedDate.slice(0,7) : fullDate(selectedDate)) + '</strong>' + btn('下一周期','move:1','right','quiet') + '</div><div class="calendar-days">' + dateButtons + '</div>', '<div class="segmented">' + [['day','日'],['week','周'],['month','月']].map(([mode,label]) => '<button type="button" aria-pressed="' + (calendarMode===mode) + '" data-action="mode:' + mode + '">' + label + '</button>').join('') + '</div>') +
-  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet') + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
+  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
-  const today = byDate(s.food,day);
+  const today = byDate(s.food,foodDate);
   const mealRow = item => [item.name,[item.loggedAt ? new Date(item.loggedAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}) : '',item.date,item.meal,item.grams ? num(item.grams)+' g' : '',Number.isFinite(item.kcal) ? num(item.kcal)+' kcal' : ''].filter(Boolean).join(' · '),item.timing];
   const totals = mealTotals(today);
   const macros = ['protein','carbs','fat'];
   const chart = today.length && macros.every(key=>totals[key]!==null) ? '<div class="distribution macro-chart">'+macros.map(key=>'<div><span>'+foodNames[key]+'</span><progress max="'+Math.max(1,...macros.map(k=>totals[k]))+'" value="'+totals[key]+'"></progress><strong>'+num(totals[key])+' g</strong></div>').join('')+'</div>' : '';
   const frequent = [...new Set(desc(s.food).flatMap(item=>(item.components || []).map(part=>part.name)))].slice(0,5);
   return head('FUEL LOG','运动营养','回顾每一餐和训练前后的补给。',btn('添加餐食','food-start','plus','primary')) +
-  '<div class="split">' + panel('今日营养汇总',today.length ? nutritionStats(today)+chart : empty('food','等待第一餐','搜索食物，或按实际份量填写营养。'),'', '食物估算及包装标签汇总') +
-  panel('今日餐食时间线',rows([...today].reverse(),'food',mealRow,'food','今天还没有餐食','早餐、午餐、晚餐和加餐。')) +
+  nutritionDateNav() + '<div class="split">' + panel('当日营养汇总',today.length ? nutritionStats(today)+chart : empty('food','等待第一餐','搜索食物，或按实际份量填写营养。'),'', '食物估算及包装标签汇总') +
+  panel('餐食时间线',meals.map(meal=>'<section class="meal-group"><header><h3>'+meal+'</h3>'+btn('添加'+meal,'food-start:'+meal,'plus','quiet')+'</header>'+rows([...today].reverse().filter(item=>item.meal===meal),'food',mealRow,'food','尚未记录','可按实际份量添加。')+'</section>').join(''),btn('营养趋势','metric-detail:meals','','quiet')) +
   panel('常用餐食',frequent.length ? '<div class="cycle-weeks">'+frequent.map(name=>tag(name)).join('')+'</div>' : empty('food','暂无常用食物','餐食保存后可在最近吃过中重用。')) +
-  panel('饮食记录历史',rows(desc(s.food.filter(item=>item.date!==day)),'food',mealRow,'food','暂无往日餐食','训练前后补给会在列表里标记。')) + '</div>';
+  panel('饮食记录历史',rows(desc(s.food.filter(item=>item.date!==foodDate)),'food',mealRow,'food','暂无往日餐食','训练前后补给会在列表里标记。')) + '</div>';
 }
 function recoveryPage(s) {
   return head('RECOVERY LOG','恢复日志','在训练之外，也记录身体的反馈。',btn('填写今日恢复','edit:recovery:' + (byDate(s.recovery,day).at(-1)?.id || ''),'plus','primary')) +
@@ -177,11 +190,11 @@ function analytics(s) {
   const selected = series.find(item => item.date === chartDate);
   const runs = s.runs.filter(run => run.date >= series[0].date && run.date <= day);
   const distribution = types.map(type => [type,runs.filter(run => run.type === type).length]).filter(([,n]) => n);
-  return head('PERFORMANCE ANALYTICS','数据中心','从真实训练记录里看跑量、配速和一致性。',btn('添加成绩','edit:records:','plus','primary')) +
-  '<div class="split">' + panel('跑量趋势','<div class="weekly-summary">' + metric('累计跑量',num(sum(series,'distance')),'km') + metric('综合配速',pace(sum(series,'distance'),sum(series,'minutes')),'/km') + metric('训练天数',series.filter(item=>item.count).length,'天') + metric('本月跑量',num(sum(monthly,'distance')),'km') + '</div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · 配速 ' + pace(selected.distance,selected.minutes) : '点击某天查看跑量和配速。') + '</div>', '<div class="segmented">' + [7,30].map(n => '<button type="button" aria-pressed="' + (n===chartRange) + '" data-action="range:' + n + '">' + n + ' 天</button>').join('') + '</div>') +
+  return head('PERFORMANCE ANALYTICS','数据中心','从真实训练记录里看跑量、配速和一致性。',btn('添加成绩','edit:records:','plus','primary')) + performanceCards(s) +
+  '<div class="split">' + panel('跑量趋势','<div class="weekly-summary">' + metric('累计跑量',num(sum(series,'distance')),'km') + metric('综合配速',pace(sum(series,'distance'),sum(series,'minutes')),'/km') + metric('训练天数',series.filter(item=>item.count).length,'天') + metric('本月跑量',num(sum(monthly,'distance')),'km') + '</div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · 配速 ' + pace(selected.distance,selected.minutes) : '点击某天查看跑量和配速。') + '</div>', '<div class="segmented">' + [1,7,30].map(n => '<button type="button" aria-pressed="' + (n===chartRange) + '" data-action="range:' + n + '">' + n + ' 天</button>').join('') + '</div>') +
   panel('训练类型',distribution.length ? '<div class="distribution">' + distribution.map(([type,n]) => '<div><span>' + type + '</span><progress max="' + runs.length + '" value="' + n + '">' + n + '</progress><strong>' + n + ' 次</strong></div>').join('') + '</div>' : empty('chart','暂无训练分布','完成记录后，可按训练类型查看次数。')) +
   panel('个人最好成绩',personalBest(s)) +
-  panel('成绩历史',rows(desc(s.records),'records',item => [item.event,item.date + ' · ' + duration(item.seconds),''],'flag','还没有成绩记录','支持常见比赛距离和自定义项目。')) + '</div>';
+  panel('成绩历史',rows(desc(s.records),'records',item => [item.event,item.date + ' · ' + duration(item.seconds),'手动 · 未验证'],'flag','还没有成绩记录','支持常见比赛距离和自定义项目。')) + '</div>';
 }
 const articles = [
   ['跑步入门','配速怎么读？','配速是跑完一个单位距离所用的时间。6:00 /km 表示每公里用时 6 分钟。破风用总耗时除以总距离计算平均配速。'],
@@ -193,9 +206,10 @@ function academy() {
   return head('TRAINING INTELLIGENCE','知识库与训练引擎','比较国际训练资料，根据实际日志预览和调整训练周期。',btn('生成训练周期','generate','spark','primary')) + '<div class="split">' + articles.map(([category,title,body]) => '<details class="panel article"><summary>' + tag(category,'red') + '<strong>' + title + '</strong></summary><p>' + body + '</p></details>').join('') + '</div>' + evidenceLibrary();
 }
 
-const pages = { home:dashboard, run:training, calendar:schedule, food:nutrition, chart:analytics, heart:recoveryPage, book:academy };
+const pages = { home:dashboard, run:training, calendar:schedule, food:nutrition, chart:analytics, heart:recoveryPage, book:academy, growth:growth };
 function render() {
   const route = currentRoute();
+  document.documentElement.dataset.theme = currentTheme;
   chrome(route);
   const banner = sample ? '<div class="notice">' + icon('spark',17) + '<span>演示模式 · 示例数据仅供体验</span>' + btn('返回我的记录','demo','','quiet') + '</div>' : '';
   main.innerHTML = banner + (storageError ? '<div class="notice" role="alert">' + escape(storageError) + '</div>' : '') + pages[route](state());
@@ -227,7 +241,8 @@ function field(config,item) {
     '<input name="' + name + '" type="' + type + '" value="' + value + '"' + req + (type === 'number' ? ' min="' + min + '" max="' + max + '" step="' + step + '"' : '') + (type === 'text' ? ' maxlength="100"' : '') + '>';
   return '<label class="' + (type === 'textarea' ? 'wide' : '') + '"><span>' + label + '</span>' + control + '</label>';
 }
-function modal(title, body) {
+function modal(title, body, variant = '') {
+  editor.dataset.variant = variant;
   if (!editor.open) opener = document.activeElement;
   editor.innerHTML = '<div class="dialog-head"><h2 id="dialog-title">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div>' + body;
   if (!editor.open) editor.showModal();
@@ -355,14 +370,25 @@ function moveDate(direction) {
   } else selectedDate = offset(selectedDate, direction * (calendarMode === 'week' ? 7 : 1));
 }
 const actions = {
-  generate: openGenerator,
+  generate: () => openGenerator(),
+  'generate-specialty': ([index]) => openGenerator(Object.keys(specialties)[Number(index)]),
+  'show-specialty': showSpecialty,
+  'plan-filter': ([filter]) => {planFilter=filter;render();},
+  'home-tab': ([tab]) => {homeTab=tab;render();},
+  'open-day': ([date]) => {selectedDate=date;calendarMode='day';location.hash=href('calendar');},
+  'open-plan': showWorkout,
+  'nutrition-date': ([direction]) => {foodDate=offset(foodDate,Number(direction));render();},
+  'metric-detail': ([kind]) => {detailPeriod=7;showPerformance(kind);},
+  'metric-period': ([n]) => {detailPeriod=Number(n);showPerformance(activeDetail);},
+  'rank-tab': ([tab]) => {rankingTab=tab;render();},
+  theme: setTheme,
   'review-cycle': showCycleReview,
   'save-draft': saveDraft,
   edit: ([collection,id]) => openEditor(collection,id),
   demo: leaveSample,
   close: () => editor.close(),
   profile: () => openEditor('goals'),
-  menu: () => modal('更多','<div class="menu-links">' + ['heart','book'].map(route => link(routes[route][1],route)).join('') + btn('训练目标','profile','flag') + '</div>'),
+  menu: () => modal('更多','<div class="menu-links">' + ['heart','book','growth'].map(route => link(routes[route][1],route)).join('') + btn('训练目标','profile','flag') + '</div>'),
   notifications: () => {
     const items = timeline(state(),day);
     const count = items.filter(item => conflicts(item,items).length).length;
@@ -415,7 +441,7 @@ document.addEventListener('click', event => {
   if (button) {
     const [action,...args] = button.dataset.action.split(':');
     actions[action]?.(args);
-    if (['chart','date','range','mode','move'].includes(action)) {
+    if (['chart','date','range','mode','move','home-tab','plan-filter','nutrition-date','metric-period','rank-tab','theme'].includes(action)) {
       document.querySelector('[data-action="' + button.dataset.action + '"]')?.focus({preventScroll:true});
     }
   } else if (editor.open && event.target.closest('a[href^="#"]')) editor.close();
@@ -434,6 +460,7 @@ function refreshDay() {
   const now = dateKey();
   if (now === day) return;
   if (selectedDate === day) selectedDate = now;
+  if (foodDate === day) foodDate = now;
   day = now;
   render();
 }
@@ -512,12 +539,12 @@ function auditCycle(data, plan, action, change) {
 let proposed;
 const levels = ['刚开始或重新起跑','近期规律跑步'];
 const riskOptions = ['请选择','目前没有这些情况','有疼痛、功能受限或仍在康复'];
-function openGenerator() {
+function openGenerator(eventName = '') {
   const s = state();
   const settings = proposed?.profile || s.cycleProfile;
   const available = s.goals.days || 3;
-  const values = {event:'跑步入门',age:'未提供',days:available,minutes:30,weeks:4,...settings,
-    raceDate:settings?.raceDate || s.goals.raceDate, level:settings?.level === 'regular' ? levels[1] : levels[0]};
+  const values = {age:'未提供',days:available,minutes:30,weeks:4,...settings,
+    event:eventName || settings?.event || '跑步入门',raceDate:settings?.raceDate || s.goals.raceDate, level:settings?.level === 'regular' ? levels[1] : levels[0]};
   const fields = [
     selectField('event','目标项目',Object.keys(specialties)),selectField('age','年龄段',ageGroups),
     selectField('level','跑步基础',levels),numberField('days','每周可训练天数',1,7,1,true),
@@ -674,7 +701,7 @@ function timerView() {
   const gps = activeWorkout.mode === 'gps';
   modal(gps?'手机 GPS · 前台跑步':'手动计时','<div class="timer"><span>ACTIVE TIME</span><strong id="elapsed">00:00</strong></div>' +
     (gps ? '<div id="gps-metrics"></div><p id="gps-status" role="status"></p><p>保持页面在前台。路线只存于当前浏览器。</p>' : '<p>结束后填写实际距离与训练反馈。</p>') +
-    '<div class="dialog-actions">' + btn('放弃草稿','cancel-timer','','quiet') + btn(activeWorkout.anchor?'暂停':'继续','run-pause','clock') + btn('结束并填写','finish','flag','primary') + '</div>');
+    '<div class="dialog-actions">' + btn('放弃草稿','cancel-timer','','quiet') + btn(activeWorkout.anchor?'暂停':'继续','run-pause','clock') + btn('结束并填写','finish','flag','primary') + '</div>','live');
   const tick = () => {
     const target = editor.querySelector('#elapsed');
     if (!target || !activeWorkout) return;
@@ -813,9 +840,9 @@ let mealDraft, selectedFood;
 function allFoods(s=state()) {
   return [...catalog,...s.foodLibrary];
 }
-function startMeal() {
+function startMeal([requestedMeal] = []) {
   if (sample) return openEditor('food');
-  mealDraft={date:day,meal:meals[new Date().getHours()<10?0:new Date().getHours()<15?1:2],timing:'日常',items:[],query:'',tab:'search'};
+  mealDraft={date:currentRoute()==='food'?foodDate:day,meal:meals.includes(requestedMeal)?requestedMeal:meals[new Date().getHours()<10?0:new Date().getHours()<15?1:2],timing:'日常',items:[],query:'',tab:'search'};
   mealTab('search');
 }
 function keepMealFields() {
@@ -977,8 +1004,7 @@ editor.addEventListener('submit',event=>{
   render();
   notify('餐食已保存');
 });
-restoreWorkout();
-render();
+
 
 function installHeartZones(points) {
   if (!points.some((point,i)=>i>0 && heartSegment(points[i-1],point)>0)) return;
@@ -1036,3 +1062,143 @@ async function analyzeMealPhoto() {
     if (target.isConnected && input.files[0]===file) target.textContent='识别不可用或照片无法解码，请手动搜索。';
   } finally {bitmap?.close();if (button.isConnected) button.disabled=false;}
 }
+
+function segments(options, selected, action, label) {
+  return '<div class="segmented product-tabs" role="group" aria-label="'+label+'">'+options.map(([id,title])=>
+    '<button type="button" data-action="'+action+':'+id+'" aria-pressed="'+(selected===id)+'">'+title+'</button>').join('')+'</div>';
+}
+function homeSwitch() {
+  return segments([['training','训练'],['food','营养']],homeTab,'home-tab','今日重点');
+}
+function homeFuel(s,food) {
+  return '<div class="feature-surface fuel-feature"><div class="eyebrow"><i></i> FUEL / TODAY</div><h2>每一餐，支持每一跑。</h2>'+
+    (food.length?nutritionStats(food):'<p>今天还没有餐食记录。记录一餐，开始回顾训练前后的补给。</p>')+
+    '<div class="hero-actions">'+btn('添加餐食','food-start','plus','primary')+link('打开营养日志','food')+'</div></div>'+homeCalendar(s);
+}
+function homeCalendar(s) {
+  const start=weekStart(day);
+  return '<section class="panel week-preview"><div class="panel-head"><div><h2>本周训练日历</h2><p>点选日期查看训练与日程</p></div>'+link('打开日历','calendar')+'</div><div class="calendar-days">'+
+    Array.from({length:7},(_,i)=>{
+      const date=offset(start,i);
+      const plans=byDate(s.plans,date);
+      return '<button type="button" data-action="open-day:'+date+'" aria-label="'+escape(fullDate(date)+'，'+plans.length+' 项训练')+'" '+(date===day?'aria-current="date"':'')+'><small>周'+'一二三四五六日'[i]+'</small><strong>'+Number(date.slice(8))+'</strong><i class="'+(plans.length?'has-event':'')+'"></i></button>';
+    }).join('')+'</div></section>';
+}
+const groups = {all:'全部',intro:'入门',track:'场地',road:'公路',trail:'越野'};
+const specialtyGroup = ['intro','track','track','track','road','road','trail','road','road'];
+function planCarousel() {
+  return '<section class="discover"><div class="panel-head"><div><div class="eyebrow"><i></i> PLAN DISCOVERY</div><h2>找到你的下一站</h2><p>从专项基础开始，根据实际训练调整。</p></div></div>'+
+    segments(Object.entries(groups),planFilter,'plan-filter','专项筛选')+
+    '<div class="plan-carousel" aria-label="专项计划" tabindex="0">'+Object.entries(specialties).map(([name,item],i)=>
+      (planFilter==='all'||planFilter===specialtyGroup[i]) ? '<button type="button" class="plan-cover cover-'+specialtyGroup[i]+'" data-action="show-specialty:'+i+
+      '"><small>'+groups[specialtyGroup[i]]+' / '+String(i+1).padStart(2,'0')+'</small><strong>'+escape(name)+'</strong><span>'+escape(item.focus)+'</span><span class="cover-arrow">查看计划 '+icon('arrow',16)+'</span></button>' : ''
+    ).join('')+'</div></section>';
+}
+function showSpecialty([index]) {
+  const entry=Object.entries(specialties)[Number(index)];
+  if (!entry) return;
+  const [name,specialty]=entry;
+  modal(escape(name)+' · 专项计划','<div class="plan-detail-hero feature-surface"><div class="eyebrow"><i></i> FOUNDATION / 1–4 周</div><h3>'+escape(specialty.focus)+'</h3><p>'+escape(specialty.practice)+'</p></div>'+
+    '<p>草案根据近期训练、恢复和可用时间生成。每节课可查看训练目的、强度和调整依据。</p>'+
+    '<h3>研究依据</h3>'+sourcesList(specialty.references)+'<div class="dialog-actions">'+btn('用此专项生成','generate-specialty:'+index,'spark','primary')+'</div>','full');
+}
+function showWorkout([id]) {
+  const plan=state().plans.find(item=>item.id===id);
+  if (!plan) return;
+  const fromEngine=plan.engineVersion===cycleVersion;
+  const blocks=fromEngine ? [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['间歇恢复','按课次结构执行。基础跑以稳定轻松为主，草案未指定固定组间休息。'],['冷身','放慢收尾，结束后记录体感。']] :
+    [['课次说明',plan.note || '这节课没有记录分段说明。']];
+  modal('课次详情','<div class="report-title"><h3>'+escape(plan.name)+'</h3><p>'+escape(plan.date+' · '+plan.type+(plan.completed?' · 已完成':''))+'</p></div>'+
+    '<div class="mini-grid">'+metric('距离',plan.distance||'—','km')+metric('时长',plan.minutes||'—','min')+metric('配速',plan.pace||'—')+'</div>'+
+    '<ol class="workout-blocks">'+blocks.map(([title,copy])=>'<li><details><summary>'+title+'</summary><p>'+escape(copy)+'</p></details></li>').join('')+'</ol>'+
+    (fromEngine?sessionExplanation(plan):'')+'<div class="dialog-actions">'+btn(sample?'查看原始记录':'编辑课次','edit:plans:'+plan.id,'settings')+
+    (!sample&&!plan.completed?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
+}
+function nutritionDateNav() {
+  return '<div class="panel food-date-nav">'+btn('上一天','nutrition-date:-1','left','quiet')+'<strong>'+escape(fullDate(foodDate))+'</strong>'+
+    (foodDate<day?btn('下一天','nutrition-date:1','right','quiet'):'<span aria-hidden="true"></span>')+'</div>';
+}
+
+const performanceFields = {
+  distance:['跑量','km',item=>item.distance],
+  pace:['平均配速','/km',item=>item.distance>0?item.minutes/item.distance:null],
+  load:['主观训练负荷','分钟 × 强度',item=>item.load],
+  sleep:['睡眠','h',item=>item.sleep],
+  recovery:['疲劳反馈','/5',item=>item.fatigue],
+  meals:['餐食记录','餐',item=>item.meals]
+};
+function performanceSeries(s,period) {
+  return Array.from({length:period},(_,i)=>{
+    const date=offset(day,i-period+1);
+    const runs=byDate(s.runs,date);
+    const loadRuns=runs.filter(run=>Number.isFinite(run.effort)&&run.effort>0);
+    const recovery=byDate(s.recovery,date).at(-1);
+    return {date,distance:sum(runs,'distance'),minutes:sum(runs,'minutes'),
+      load:loadRuns.length?loadRuns.reduce((acc,run)=>acc+run.effort*run.minutes,0):null,
+      sleep:recovery?.sleep ?? null,fatigue:recovery?.fatigue ?? null,meals:byDate(s.food,date).length};
+  });
+}
+function performanceValue(key, rows) {
+  const [, ,value]=performanceFields[key];
+  const known=rows.map(value).filter(Number.isFinite);
+  if (key==='pace') return pace(sum(rows,'distance'),sum(rows,'minutes'));
+  if (!known.length) return '—';
+  const total=known.reduce((a,b)=>a+b,0);
+  return num(key==='sleep'||key==='recovery'?total/known.length:total);
+}
+function performanceCards(s) {
+  const rows=performanceSeries(s,7);
+  return '<section class="performance-cards" aria-label="近七日数据卡">'+Object.entries(performanceFields).map(([key,[label,unit]])=>
+    '<button type="button" class="panel metric-trigger" data-action="metric-detail:'+key+'"><small>'+label+'</small><strong>'+performanceValue(key,rows)+
+    '</strong><span>'+unit+' '+icon('arrow',14)+'</span></button>'
+  ).join('')+'</section>';
+}
+function showPerformance(kind) {
+  if (!Object.hasOwn(performanceFields,kind)) return;
+  activeDetail=kind;
+  const [label,unit,value]=performanceFields[kind];
+  const rows=performanceSeries(state(),detailPeriod);
+  const measurements=rows.map(value).filter(Number.isFinite);
+  const present=measurements.some(n=>n>0) || (['sleep','recovery','load'].includes(kind)&&measurements.length>0);
+  const chart=present?svgLine(rows,value,label+'（'+unit+'）',kind==='pace'):'';
+  modal(label+'趋势',segments([[1,'今天'],[7,'近 7 天'],[30,'近 30 天']],detailPeriod,'metric-period','统计范围')+
+    '<div class="detail-total">'+metric(label,performanceValue(kind,rows),unit)+'</div>'+
+    (kind==='load'?'<p>只累加填写了主观强度的跑步。该值用于回顾记录，不用于诊断或决定安全负荷。</p>':'')+
+    (present?chart+'<details class="plan-explanation"><summary>查看逐日数据</summary><ol class="split-list">'+rows.map(row=>{
+      const v=value(row);
+      return '<li><span>'+escape(fullDate(row.date))+'</span><strong>'+(Number.isFinite(v)?(kind==='pace'?pace(row.distance,row.minutes):num(v)):'—')+'</strong></li>';
+    }).join('')+'</ol></details>':empty('chart','该范围暂无记录','保存相关日志后再来查看。')),'sheet');
+}
+
+function growth(s) {
+  const runDays=new Set(s.runs.map(run=>run.date)).size;
+  const achievements=[
+    [s.runs.length>0,'第一步','保存第一条跑步记录'],
+    [runDays>=3,'三个训练日','在三个不同日期保存跑步记录'],
+    [s.recovery.length>0,'听见身体','记录一次睡眠与恢复'],
+    [s.plans.some(plan=>plan.completed),'计划落地','完成一次已安排的训练']
+  ];
+  const level=['起步','在路上','稳定实践','跑者习惯'][Math.min(3,achievements.filter(([done])=>done).length)];
+  const activity=s.runs.filter(run=>['fit','gpx','tcx','gps'].includes(run.source)).sort((a,b)=>b.distance-a.distance).slice(0,5);
+  const records=[...s.records].sort((a,b)=>a.event.localeCompare(b.event)||a.seconds-b.seconds).slice(0,10);
+  const board=rankingTab==='manual' ? records.map(run=>[run.event,duration(run.seconds),'手动成绩 · 未验证']) :
+    rankingTab==='device'?activity.map(run=>[run.name,num(run.distance)+' km',sourceNames[run.source]+' · 非赛事认证']):[];
+  return head('GROWTH STUDIO','跑者成长','回顾个人成就，选择适合自己的界面。')+
+    '<div class="split">'+panel('成就与段位','<div class="feature-level">'+tag('本地成长段位','red')+'<strong>'+level+'</strong></div><ul class="rows">'+achievements.map(([done,title,detail])=>
+      '<li><div class="row-text"><strong>'+title+'</strong><small>'+detail+'</small></div>'+tag(done?'已达成':'待完成',done?'red':'')+'</li>').join('')+'</ul>')+
+    panel('主题中心','<p class="library-note">主题只改变当前浏览器的显示。</p>'+segments(Object.entries(themes),currentTheme,'theme','本地主题'))+
+    panel('本地成绩榜',segments([['manual','手动成绩'],['device','设备与定位'],['official','官方验证']],rankingTab,'rank-tab','来源筛选')+
+      '<p class="library-note">仅展示当前浏览器的记录。'+(sample?'当前为演示模式。':'')+'</p>'+
+      (board.length?'<ol class="split-list local-board">'+board.map(([name,value,source])=>'<li><span><strong>'+escape(name)+'</strong><small>'+escape(source)+'</small></span><strong>'+escape(value)+'</strong></li>').join('')+'</ol>':
+        empty('flag',rankingTab==='official'?'暂无官方验证成绩':'当前来源暂无记录',rankingTab==='official'?'赛事认证服务尚未接入。':'在训练和数据页保存记录后可查看。')))+
+    panel('跑团与挑战',empty('growth','等待安全接入','公开榜单、跑团和挑战需先完成权限、同意与审核流程。'))+'</div>';
+}
+function setTheme([theme]) {
+  if (!Object.hasOwn(themes,theme)) return;
+  try {localStorage.setItem('breakwind.theme',theme);}
+  catch {notify('此浏览器无法保存主题，当前页面仍可预览。');}
+  currentTheme=theme;
+  render();
+}
+restoreWorkout();
+render();

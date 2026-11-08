@@ -112,3 +112,41 @@ dialog::backdrop{background:rgba(3,3,8,.76);backdrop-filter:blur(5px);-webkit-ba
   .hero::before,.hero:hover::before{transform:none}
   .panel:hover,.btn:hover,.btn:active,.icon-button:active,.bottom-nav a:active,.bottom-nav button:active{transform:none}
 }
+
+/* Production components adapted from the interaction lab. */
+.product-tabs{display:flex;flex-wrap:wrap;width:fit-content;max-width:100%;margin:0 0 14px;padding:3px}
+.product-tabs button{min-height:42px}
+.feature-surface{border:1px solid var(--line);border-radius:20px;padding:22px;background:radial-gradient(ellipse at 95% 0%,#4f222c 0%,transparent 52%),var(--surface)}
+.fuel-feature{margin-bottom:16px}.fuel-feature h2{font-size:clamp(1.5rem,5vw,2.35rem);margin-bottom:12px}.fuel-feature p{color:var(--sub)}
+.week-preview{margin-bottom:16px}.calendar-days button[aria-current=date]{color:var(--light-red);background:#32202a}.calendar-days button:hover{border-color:var(--light-red)}
+.discover{margin-bottom:20px;min-width:0}.plan-carousel{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(min(78%,230px),285px);gap:12px;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;padding:5px 4px 12px;scroll-padding-inline:4px}
+.plan-cover{scroll-snap-align:start;min-height:170px;display:flex;flex-direction:column;align-items:start;justify-content:end;gap:8px;text-align:left;padding:17px;color:var(--text);border:1px solid #59313d;border-radius:16px;background:radial-gradient(ellipse at 95% 0%,#62323d,transparent 64%),#21171d}
+.plan-cover.cover-track{background:radial-gradient(ellipse at 92% 5%,#593650,transparent 70%),#201a25}.plan-cover.cover-road{background:radial-gradient(ellipse at 92% 5%,#334561,transparent 70%),#181c29}.plan-cover.cover-trail{background:radial-gradient(ellipse at 92% 5%,#355449,transparent 70%),#182420}
+.plan-cover small,.plan-cover span{font-size:.76rem;color:#c5c3cd}.plan-cover strong{font-size:clamp(1.36rem,4.3vw,1.85rem)}.plan-cover .cover-arrow{display:flex;gap:6px;align-items:center;margin-top:8px;color:#f1c4ca}
+.plan-detail-hero{margin-bottom:14px}.plan-detail-hero h3{font-size:1.35rem;margin-bottom:6px}
+.workout-blocks{list-style:none;counter-reset:workout;padding:0;display:grid;gap:8px}.workout-blocks li{counter-increment:workout;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.workout-blocks summary{cursor:pointer;min-height:32px;font-weight:700}.workout-blocks summary::before{content:counter(workout,decimal-leading-zero);color:var(--light-red);margin-right:10px}.workout-blocks p{margin-top:4px}
+.food-date-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-bottom:14px;text-align:center}.food-date-nav>:first-child{justify-self:start}.food-date-nav>:last-child{justify-self:end}
+.meal-group+.meal-group{margin-top:14px}.meal-group header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px}.meal-group h3{font-size:.92rem}
+.performance-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));gap:10px;margin-bottom:16px}
+.metric-trigger{display:grid;justify-items:start;text-align:left;gap:5px;min-width:0;color:var(--text);width:100%}
+.metric-trigger strong,.feature-level strong{font-size:clamp(1.5rem,5vw,2.35rem);font-variant-numeric:tabular-nums}.metric-trigger span{color:var(--sub);font-size:.72rem}
+.detail-total{margin:12px 0}.local-board small{display:block;margin-top:3px}.feature-level{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+dialog[data-variant=sheet]{margin:auto auto 0;border-radius:24px 24px 0 0}
+dialog[data-variant=full]{width:min(640px,100%)}dialog[data-variant=live]{width:min(640px,100%);border-color:#6a3540}
+dialog[data-variant=live] .timer strong{font-size:clamp(3.4rem,13vw,6rem)}
+dialog[data-variant=live] .dialog-actions .btn{min-height:48px}
+:root[data-theme=track]{--red:#547ed8;--light-red:#a4c3ff}
+:root[data-theme=forest]{--red:#48ab8a;--light-red:#9de3cb}
+:root[data-theme=track] .btn.primary{background:#315baf;border-color:#6e95ea}
+:root[data-theme=forest] .btn.primary{background:#207b60;border-color:#4cab8b}
+@media(max-width:690px){
+  .plan-carousel{grid-auto-columns:minmax(min(70%,220px),74%)}
+  .feature-surface{padding:16px}.food-date-nav{padding:8px}.food-date-nav .btn{font-size:.72rem;gap:3px}
+  dialog[data-variant=live],dialog[data-variant=full]{inset:0;width:100%;height:100dvh;max-height:none;max-width:none;margin:0;border-radius:0;border:0;padding-top:max(16px,env(safe-area-inset-top))}
+  dialog[data-variant=live] .dialog-actions{position:sticky;bottom:0;padding:10px 0;background:#18191f}
+}
+@media(prefers-reduced-motion:reduce){
+  .plan-carousel{scroll-behavior:auto}
+  dialog[open],main,.hero::before,.panel,.btn{animation:none!important;transition:none!important}
+}
