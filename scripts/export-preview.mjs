@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 const target=new URL('../.expo/pages-preview/',import.meta.url);
 const source=new URL('../public/',import.meta.url);
 export const assets=[
-  'index.html','app.js','styles.css','model.js','engine.js','knowledge.js','running.js','fuel.js',
+  'index.html','app.js','styles.css','model.js','engine.js','pb-library.js','knowledge.js','running.js','fuel.js',
   'hero.jpg','icon.svg','icon-192.png','icon-512.png','manifest.webmanifest','sw.js'
 ];
 const revision=process.env.GITHUB_SHA || 'local';
