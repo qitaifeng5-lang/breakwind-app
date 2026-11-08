@@ -299,3 +299,70 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
   .calendar-days button{min-width:0;padding-inline:0}
   .calendar-days button small{white-space:nowrap;font-size:.67rem}
 }
+
+
+/* Compact, touch-first runner training — reduce visual noise without altering business logic. */
+.quick-page .page-head{margin-bottom:18px}
+.quick-page .page-head h1{letter-spacing:-.045em}
+.group-current{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(145deg,#282029 0%,#191a21 55%,#15161b 100%);
+  border:1px solid #493038;
+  border-radius:24px;
+  padding:clamp(18px,5vw,28px);
+  box-shadow:0 18px 48px #0005;
+}
+.group-current:before{
+  content:"";position:absolute;right:-56px;top:-90px;
+  width:205px;height:205px;
+  border:1px solid #fa657126;border-radius:50%;
+  box-shadow:0 0 0 24px #f53d4e0d,0 0 0 60px #f53d4e07;
+  pointer-events:none;
+}
+.group-current>*{position:relative}
+.group-current header{align-items:flex-start}
+.group-current h2{font-size:clamp(1.9rem,6.5vw,2.65rem);letter-spacing:-.055em;line-height:1.1;margin-block:12px}
+.group-current .group-date{margin-top:22px;font-size:.75rem;letter-spacing:.025em}
+.group-current .hero-actions .btn.primary{min-height:50px;border-radius:999px;padding-inline:22px}
+.group-week{margin-top:26px}
+.group-week h2{font-size:1.25rem;letter-spacing:-.035em;margin-bottom:14px}
+.group-week-days{gap:10px;padding-block:3px 13px;scroll-snap-type:x mandatory;scroll-padding-inline:3px}
+.group-week-days button{
+  border-radius:17px;min-height:102px;padding:14px;
+  background:#191a20;
+  transition:background .2s ease,transform .22s cubic-bezier(.2,.8,.2,1),border-color .2s ease;
+}
+.group-week-days button[aria-pressed=true]{
+  background:#2d1c25;border-color:#e24b5c;color:#fff;
+  box-shadow:inset 0 1px 0 #ff8e9a2e;
+}
+.group-week-days button:active{transform:scale(.975)}
+.group-week-days strong{font-size:.9rem;line-height:1.35}
+.quick-secondary{margin-top:16px;border-top-color:#282930}
+.quick-secondary summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:.86rem}
+.quick-events{gap:9px}
+.quick-events .btn{border-radius:14px}
+.quick-pb input{border-radius:13px;padding-inline:13px}
+@media(max-width:690px){
+  .quick-page{max-width:100%}
+  .quick-page .page-head h1{font-size:1.75rem}
+  .group-current{padding:21px}
+  .group-week-days{grid-auto-columns:minmax(142px,65%);overscroll-behavior-inline:contain}
+  .group-week-days button{min-height:105px}
+  dialog[data-variant=sheet] .dialog-body{
+    min-height:0;overflow-y:auto;overscroll-behavior:contain;
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
+  }
+  dialog[data-variant=sheet]{
+    max-height:min(86dvh,720px);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  dialog[data-variant=sheet]:not([open]){display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .group-week-days button{transition:none}
+  .group-week-days button:active{transform:none}
+}
