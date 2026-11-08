@@ -183,3 +183,8 @@ dialog[data-variant=live] .dialog-actions{background:var(--surface)}
   .page-actions,.hero-actions{row-gap:6px}.dialog-head h2{font-size:1.05rem}
 }
 @media(prefers-reduced-motion:reduce){.trend-point i,.plan-cover{transition:none!important}}
+
+@media(max-width:420px){
+  .calendar-days button{min-width:0;padding-inline:0}
+  .calendar-days button small{white-space:nowrap;font-size:.67rem}
+}

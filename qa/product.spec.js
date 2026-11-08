@@ -140,6 +140,8 @@ test('compact phone navigation keeps a reachable action and meal search fits a m
   const nav=page.getByRole('navigation',{name:'移动端导航'});
   const mobile=await nav.isVisible();
   const hero=page.getByRole('button',{name:'开始训练',exact:true});
+  const weekdays=await page.locator('.week-preview .calendar-days small').evaluateAll(labels=>labels.map(label=>({height:label.offsetHeight,line:parseFloat(getComputedStyle(label).fontSize)})));
+  expect(weekdays.every(label=>label.height<=label.line*1.6)).toBe(true);
   await hero.click();
   const dialog=page.getByRole('dialog');
   await expect(dialog.getByRole('button',{name:'手动填写',exact:true})).toBeVisible();
