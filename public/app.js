@@ -653,7 +653,9 @@ function openGroupSetup(index) {
     '<button class="btn '+(current?.event===event&&current.group===group?'primary':'secondary')+'" name="group" type="submit" value="'+group+'">'+label+'组</button>').join('')+
     '</fieldset><p class="form-error" role="alert" hidden></p></form>','sheet');
   const pb=editor.querySelector('#group-form').elements.pb;
-  pb.focus({preventScroll:true});
+  // Do not pop up the software keyboard when the plan sheet opens on a phone.
+  // Let the user choose to edit PB; desktop pointer/fine input retains keyboard convenience.
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) pb.focus({preventScroll:true});
   pb.addEventListener('keydown',event=>{
     if (event.key!=='Enter' || event.isComposing) return;
     event.preventDefault();
