@@ -26,7 +26,9 @@ const icons = {
 const icon = (name, size = 19) => '<svg aria-hidden="true" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + icons[name] + '"/></svg>';
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const routes = { home: ['总览','总览面板'], run: ['训练','训练工作台'], calendar: ['日程','训练与日程'], food: ['营养','运动营养'], chart: ['数据','数据中心'], heart: ['恢复','恢复日志'], book: ['学院','知识库与训练引擎'], growth: ['成长','跑者成长'] };
-const key = 'breakwind.local.v1';
+const hostedPreview = Boolean(document.querySelector('meta[name="breakwind-preview"]'));
+const storagePrefix = hostedPreview ? 'breakwind.preview' : 'breakwind';
+const key = storagePrefix + '.local.v1';
 const main = document.querySelector('#main');
 const editor = document.querySelector('#editor');
 let data = fresh();
@@ -55,11 +57,12 @@ let foodDate = day;
 let planFilter = 'all';
 let detailPeriod = 7;
 let activeDetail;
+let detailDay = '';
 let rankingTab = 'manual';
 const themes = {ember:'破风暗红',track:'赛道蓝',forest:'林地绿'};
 let currentTheme = 'ember';
 try {
-  const preference = localStorage.getItem('breakwind.theme');
+  const preference = localStorage.getItem(storagePrefix + '.theme');
   if (Object.hasOwn(themes,preference)) currentTheme = preference;
 } catch { /* Use default if browser preferences are unavailable. */ }
 
@@ -211,8 +214,10 @@ function render() {
   const route = currentRoute();
   document.documentElement.dataset.theme = currentTheme;
   chrome(route);
+  document.documentElement.dataset.preview = hostedPreview ? 'https' : '';
   const banner = sample ? '<div class="notice">' + icon('spark',17) + '<span>演示模式 · 示例数据仅供体验</span>' + btn('返回我的记录','demo','','quiet') + '</div>' : '';
-  main.innerHTML = banner + (storageError ? '<div class="notice" role="alert">' + escape(storageError) + '</div>' : '') + pages[route](state());
+  const preview = document.documentElement.dataset.preview ? '<div class="notice preview-notice">HTTPS 测试版 · 日志和定位只保存在当前浏览器。请使用测试资料。</div>' : '';
+  main.innerHTML = preview + banner + (storageError ? '<div class="notice" role="alert">' + escape(storageError) + '</div>' : '') + pages[route](state());
 }
 const textField = (name,label,required = false) => ({name,label,required,type:'text'});
 const numberField = (name,label,min,max,step = 1,required = false) => ({name,label,min,max,step,required,type:'number'});
@@ -244,8 +249,9 @@ function field(config,item) {
 function modal(title, body, variant = '') {
   editor.dataset.variant = variant;
   if (!editor.open) opener = document.activeElement;
-  editor.innerHTML = '<div class="dialog-head"><h2 id="dialog-title">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div>' + body;
+  editor.innerHTML = '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div><div class="dialog-body">' + body + '</div>';
   if (!editor.open) editor.showModal();
+  editor.querySelector('#dialog-title').focus({preventScroll:true});
 }
 function openEditor(collection,id = '',defaults = {}) {
   const schema = schemas[collection];
@@ -378,8 +384,9 @@ const actions = {
   'open-day': ([date]) => {selectedDate=date;calendarMode='day';location.hash=href('calendar');},
   'open-plan': showWorkout,
   'nutrition-date': ([direction]) => {foodDate=offset(foodDate,Number(direction));render();},
-  'metric-detail': ([kind]) => {detailPeriod=7;showPerformance(kind);},
-  'metric-period': ([n]) => {detailPeriod=Number(n);showPerformance(activeDetail);},
+  'metric-detail': ([kind]) => {detailPeriod=7;detailDay='';showPerformance(kind);},
+  'metric-period': ([n]) => {detailPeriod=Number(n);detailDay='';showPerformance(activeDetail);},
+  'metric-point': ([date]) => {detailDay=date;updateTrendSelection();},
   'rank-tab': ([tab]) => {rankingTab=tab;render();},
   theme: setTheme,
   'review-cycle': showCycleReview,
@@ -601,7 +608,7 @@ function saveDraft() {
   notify('已加入 ' + count + ' 项训练。可在日程中调整。');
 }
 
-const workoutKey = 'breakwind.run.draft';
+const workoutKey = storagePrefix + '.run.draft';
 let watchId, gpsStatus = '', pendingPlan, statsCache;
 function storeWorkout() {
   try { sessionStorage.setItem(workoutKey,JSON.stringify({...activeWorkout,elapsed:workoutElapsed(),anchor:null})); }
@@ -861,7 +868,7 @@ function mealTab(tab) {
     '<input type="file" id="barcode-file" accept="image/*" capture="environment" hidden>'+btn('从照片扫描','barcode-photo','flag')+
     '<p class="help-copy">支持时在设备上解码。仅查询本地食品库，未匹配时可按包装营养标签新建。</p><p id="food-message" role="status"></p>';
   const photo='<label class="food-search">拍摄或选择餐食照片<input type="file" id="food-photo" accept="image/*" capture="environment"></label><img id="meal-preview" class="meal-preview" alt="本次餐食照片预览" hidden>'+
-    '<p class="help-copy">照片默认只在浏览器预览。启用本机视觉模型后，可手动送去识别。AI 结果仅用于辅助核对，份量由你确认。</p>'+btn('用本机 AI 识别','vision-analyze','spark')+'<div id="vision-results" aria-live="polite"></div>'+search;
+    '<p class="help-copy">照片默认只在浏览器预览。启用本机视觉模型后，可手动送去识别。AI 结果仅用于辅助核对，份量由你确认。</p>'+(document.documentElement.dataset.preview?'<p>HTTPS 测试版可预览照片并手动搜索食物。</p>':btn('用本机 AI 识别','vision-analyze','spark'))+'<div id="vision-results" aria-live="polite"></div>'+search;
   modal('添加餐食',options+(tab==='search'?search:tab==='barcode'?barcode:tab==='photo'?photo:'')+
     '<div id="food-results"></div><div class="meal-tools">'+btn('自定义食物','food-custom','plus')+btn('单项手动记录','edit:food:','','quiet')+'</div>'+
     '<form id="meal-form"><div class="fields">'+field(dateField,mealDraft)+field(selectField('meal','餐别',meals),mealDraft)+
@@ -1128,15 +1135,26 @@ const performanceFields = {
   meals:['餐食记录','餐',item=>item.meals]
 };
 function performanceSeries(s,period) {
-  return Array.from({length:period},(_,i)=>{
-    const date=offset(day,i-period+1);
-    const runs=byDate(s.runs,date);
-    const loadRuns=runs.filter(run=>Number.isFinite(run.effort)&&run.effort>0);
-    const recovery=byDate(s.recovery,date).at(-1);
-    return {date,distance:sum(runs,'distance'),minutes:sum(runs,'minutes'),
-      load:loadRuns.length?loadRuns.reduce((acc,run)=>acc+run.effort*run.minutes,0):null,
-      sleep:recovery?.sleep ?? null,fatigue:recovery?.fatigue ?? null,meals:byDate(s.food,date).length};
-  });
+  const rows = Array.from({length:period},(_,i)=>({date:offset(day,i-period+1),distance:0,minutes:0,load:null,sleep:null,fatigue:null,meals:0}));
+  const lookup = new Map(rows.map(row=>[row.date,row]));
+  for (const run of s.runs) {
+    const row=lookup.get(run.date);
+    if (!row) continue;
+    row.distance+=Number(run.distance)||0;
+    row.minutes+=Number(run.minutes)||0;
+    if (Number.isFinite(run.effort)&&run.effort>0) row.load=(row.load||0)+run.effort*(Number(run.minutes)||0);
+  }
+  for (const item of s.recovery) {
+    const row=lookup.get(item.date);
+    if (!row) continue;
+    row.sleep=item.sleep ?? null;
+    row.fatigue=item.fatigue ?? null;
+  }
+  for (const item of s.food) {
+    const row=lookup.get(item.date);
+    if (row) row.meals++;
+  }
+  return rows;
 }
 function performanceValue(key, rows) {
   const [, ,value]=performanceFields[key];
@@ -1160,7 +1178,7 @@ function showPerformance(kind) {
   const rows=performanceSeries(state(),detailPeriod);
   const measurements=rows.map(value).filter(Number.isFinite);
   const present=measurements.some(n=>n>0) || (['sleep','recovery','load'].includes(kind)&&measurements.length>0);
-  const chart=present?svgLine(rows,value,label+'（'+unit+'）',kind==='pace'):'';
+  const chart=present?interactiveTrend(rows,kind):'';
   modal(label+'趋势',segments([[1,'今天'],[7,'近 7 天'],[30,'近 30 天']],detailPeriod,'metric-period','统计范围')+
     '<div class="detail-total">'+metric(label,performanceValue(kind,rows),unit)+'</div>'+
     (kind==='load'?'<p>只累加填写了主观强度的跑步。该值用于回顾记录，不用于诊断或决定安全负荷。</p>':'')+
@@ -1195,10 +1213,34 @@ function growth(s) {
 }
 function setTheme([theme]) {
   if (!Object.hasOwn(themes,theme)) return;
-  try {localStorage.setItem('breakwind.theme',theme);}
+  try {localStorage.setItem(storagePrefix + '.theme',theme);}
   catch {notify('此浏览器无法保存主题，当前页面仍可预览。');}
   currentTheme=theme;
   render();
 }
 restoreWorkout();
 render();
+
+function interactiveTrend(rows,kind) {
+  const [label,unit,value]=performanceFields[kind];
+  const max=Math.max(1,...rows.map(row=>value(row) ?? 0));
+  const active=rows.find(row=>row.date===detailDay) || [...rows].reverse().find(row=>Number.isFinite(value(row)));
+  detailDay=active?.date || '';
+  return '<div class="trend-plot" role="group" aria-label="'+label+'逐日趋势">'+rows.map(row=>{
+    const v=value(row);
+    const rendered=Number.isFinite(v)?(kind==='pace'?pace(row.distance,row.minutes):num(v))+' '+unit:'未记录';
+    const description=fullDate(row.date)+' · '+rendered;
+    return '<button type="button" class="trend-point" data-action="metric-point:'+row.date+'" data-value="'+escape(description)+
+      '" aria-label="'+escape(description)+'" aria-pressed="'+(row.date===detailDay)+'"><i style="--point:'+Math.max(3,(v||0)*90/max)+'%"></i><small>'+
+      Number(row.date.slice(8))+'</small></button>';
+  }).join('')+'</div><p id="trend-reading" class="trend-reading" aria-live="polite">'+(active?escape(fullDate(active.date)+' · '+
+    (kind==='pace'?pace(active.distance,active.minutes):num(value(active)))+' '+unit):'')+'</p>';
+}
+function updateTrendSelection() {
+  const points=editor.querySelectorAll('.trend-point');
+  for (const point of points) {
+    const picked=point.dataset.action==='metric-point:'+detailDay;
+    point.setAttribute('aria-pressed',String(picked));
+    if (picked) editor.querySelector('#trend-reading').textContent=point.dataset.value;
+  }
+}
