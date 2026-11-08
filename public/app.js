@@ -73,11 +73,24 @@ let dayFilter = '';
 let weekFilter = '';
 let comparePlans = [];
 let trainingDate = '';
-let pbLibraryEvent = '800 m';
+let pbLibraryEvent = '';
 let pbLibraryChoice = '';
 let pbLibraryMode = 'week';
 let pbLibraryDivision = 'all';
 let pbLibraryFocus = 'all';
+try {
+  const stored = JSON.parse(localStorage.getItem(storagePrefix+'.pb-catalog')||'null');
+  if (pbDistances.includes(stored?.event)) {
+    pbLibraryEvent=stored.event;
+    pbLibraryChoice=matchPB(stored.event,stored.pb)?.label||'';
+  }
+  if (['week','single'].includes(stored?.mode)) pbLibraryMode=stored.mode;
+} catch { /* PB catalogue may operate without local persistence. */ }
+function persistPBChoice() {
+  try {localStorage.setItem(storagePrefix+'.pb-catalog',JSON.stringify({
+    event:pbLibraryEvent,pb:pbLibraryChoice,mode:pbLibraryMode
+  }));} catch { /* Browsing remains available without storage. */ }
+}
 
 let detailPeriod = 7;
 let activeDetail;
@@ -130,7 +143,9 @@ function bars(series, highlighted = chartDate) {
   }).join('') + '</div>';
 }
 function workoutHero(s) {
-  const plan = groupWeek(s,day,s.groupPlan).find(item=>item.date===day) || byDate(s.plans,day).find(item=>!item.completed);
+  const scheduled=byDate(s.plans,day).find(item=>!item.completed);
+  // Do not present an unverified generic easy-run fallback as the user's complete PB training plan.
+  const plan = scheduled || (s.groupPlan?.pb ? null : groupWeek(s,day,s.groupPlan).find(item=>item.date===day));
   const paused=trainingPaused(s);
   const runnable=plan && !plan.completed && !['休息','交叉训练'].includes(plan.type);
   const secondary=paused ? btn('伤痛与暂停','training-safety','','quiet') :
@@ -139,7 +154,7 @@ function workoutHero(s) {
   const primary=activeWorkout ? btn('继续计时','timer','play','primary') :
     paused ? '' : btn('开始跑步','start:'+(runnable?plan.id:''),'play','primary');
   return '<section class="hero today-hero"><div class="hero-content"><h2>'+
-    escape(paused?'暂缓训练':plan?.name || '今天还没有课表')+'</h2>'+
+    escape(paused?'暂缓训练':plan?.name || (s.groupPlan?.pb?'从 PB 课程库选课':'今天还没有课表'))+'</h2>'+
     (paused ? '<p>有伤痛或尚未恢复时，请暂停相关训练。</p>' :
       plan?.minutes ? '<p>'+plan.minutes+' 分钟'+(plan.intensity?' · '+escape(plan.intensity):'')+'</p>' : '')+
     '<div class="hero-actions">'+primary+secondary+'</div></div></section>';
@@ -168,12 +183,13 @@ const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · 
 
 const pbCourseKinds = {interval:'间歇跑','speed-endurance':'间歇跑',tempo:'节奏跑',speed:'加速跑',combination:'间歇跑',aerobic:'轻松跑'};
 function pbLibrarySelection(s) {
-  const event=pbLibraryEvent;
+  const event=pbLibraryEvent || (pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m');
   const list=pbOptions(event);
   const existing=pbLibraryChoice || (s.groupPlan?.event===event ? s.groupPlan.pb : '');
   return matchPB(event,existing) || list[Math.min(list.length-1,Math.floor(list.length*0.4))];
 }
 function pbLibraryView(s) {
+  if (!pbLibraryEvent) pbLibraryEvent=pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m';
   const event=pbLibraryEvent;
   const selection=pbLibrarySelection(s);
   const pb=selection?.label;
@@ -204,7 +220,7 @@ function pbLibraryView(s) {
     '<div class="pb-library-mode" role="group" aria-label="训练计划形式">'+
     '<button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">整周课表</button>'+
     '<button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button></div>'+
-    '<div class="pb-library-meta"><b>'+escape(pb)+' · '+(pbLibraryMode==='week'?'周训练模板':'专项课程')+'</b><span>PB 档位分层 · 训练内容不同</span></div>'+
+    '<div class="pb-library-meta"><b>'+escape(pb)+' · '+(pbLibraryMode==='week'?'周训练模板':'专项课程')+'</b><span>'+({all:'全部',men:'男子',women:'女子'}[pbLibraryDivision])+' · 成绩分档</span></div>'+
     (locked?'<p class="pb-library-warning">近期有疼痛反馈：可以浏览课程，但暂停安排高强度训练，建议先接受专业评估。</p>':
       '<p class="pb-library-note">课程为分组示例，不会仅凭 PB 判断近期负荷承受力。训练前应结合当前训练与恢复情况调整。</p>')+
     samples+'</section>';
@@ -543,9 +559,9 @@ function moveDate(direction) {
   } else selectedDate = offset(selectedDate, direction * (calendarMode === 'week' ? 7 : 1));
 }
 const actions = {
-  'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;refreshPBView();},
-  'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event)return;pbLibraryEvent=event;pbLibraryChoice='';pbLibraryFocus='all';refreshPBView(false);},
-  'pb-choice': ([index]) => {const option=pbOptions(pbLibraryEvent)[Number(index)];if(!option)return;pbLibraryChoice=option.label;refreshPBView();},
+  'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;persistPBChoice();refreshPBView();},
+  'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event)return;pbLibraryEvent=event;pbLibraryChoice='';pbLibraryFocus='all';persistPBChoice();refreshPBView(false);},
+  'pb-choice': ([index]) => {const option=pbOptions(pbLibraryEvent)[Number(index)];if(!option)return;pbLibraryChoice=option.label;persistPBChoice();refreshPBView();},
   'pb-division': ([division]) => {if(!['all','men','women'].includes(division))return;pbLibraryDivision=division;refreshPBView();},
   'pb-focus': ([id]) => {if(!['all','interval','speed-endurance','tempo','speed','combination','aerobic'].includes(id))return;pbLibraryFocus=id;refreshPBView();},
   'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds)[Number(index)],Number(index));},
