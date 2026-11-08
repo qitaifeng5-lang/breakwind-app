@@ -208,7 +208,12 @@ test('specialty search, filters, comparison and favorites use the live catalog',
   await expect(dialog.getByRole('heading',{name:'5000 m',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('plan-comparison.png'),animations:'disabled'});
   await click(page,'关闭');
+  await search.focus();
+  // The dialog close event is queued. It must not steal a newer input focus.
+  await page.locator('#editor').evaluate(node=>node.dispatchEvent(new Event('close')));
+  await expect(search).toBeFocused();
   await search.clear();
+  await expect(search).toHaveValue('');
   await page.getByText('训练条件',{exact:true}).click();
   await page.getByRole('combobox',{name:'适用水平',exact:true}).selectOption('recovering');
   await page.getByRole('combobox',{name:'训练阶段',exact:true}).selectOption('recovery');

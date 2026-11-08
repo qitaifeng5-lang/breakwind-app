@@ -431,9 +431,15 @@ editor.addEventListener('submit', event => {
 });
 
 editor.addEventListener('close', () => {
+  // A queued close can arrive after another sheet opens or the user starts
+  // typing. Restore focus only when it has not already moved elsewhere.
+  if (editor.open) return;
   clearInterval(clockTimer);
-  if (opener?.isConnected) opener.focus();
-  else main.focus();
+  const active=document.activeElement;
+  if (active===document.body || active===opener || editor.contains(active)) {
+    if (opener?.isConnected) opener.focus({preventScroll:true});
+    else main.focus({preventScroll:true});
+  }
 });
 function leaveSample() {
   sample = !sample;
