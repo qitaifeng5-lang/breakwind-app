@@ -6,6 +6,7 @@ const specifications = {
   '3000 m': [900,480,30,'3000m'],
   '5000 m': [2100,840,60,'5km'],
   '10000 m': [4200,1800,120,'10km'],
+  '越野跑': [3000,1200,120,'越野6km · 赛道差异大'],
   '半程马拉松': [9000,3600,300,'半马'],
   '全程马拉松': [19800,7200,600,'全马']
 };
@@ -58,6 +59,7 @@ export function pbCourses(event,pb) {
   const strength=index<4?'基础技术':index<9?'进阶发展':index<13?'专项提高':'高水平专项';
   const middle=event==='800 m'||event==='1500 m';
   const short=event==='800 m';
+  const crossCountry=event==='越野跑';
   const reps=Math.min(8,3+Math.floor(index/2));
   const repeats=short?(index<6?200:index<12?300:400):(event==='1500 m'?400:(index<8?600:1000));
   const combos=short
@@ -84,8 +86,17 @@ export function pbCourses(event,pb) {
       (index<5?'轻松跑并完成基础技术练习':index<11?'轻松跑与放松加速练习':'稳定有氧跑，保持可谈话强度'),
       '轻松', '支持恢复和有氧基础；并非所有训练日都应高强度',30+Math.floor(grade*20))
   ];
+  if (crossCountry) {
+    course[0].name='越野节奏间歇';
+    course[0].main='选择熟悉且安全的起伏路段，'+reps+' 组受控节奏练习，留足恢复';
+    course[1].name='坡度变化适应';
+    course[1].main='在安全坡道进行短段步频与姿态练习，重点控制动作';
+    course[4].name='越野地形组合';
+    course[4].main='结合上坡、平地与下坡的稳定节奏练习，避免危险地形冲刺';
+    for (const item of [course[0],course[1],course[4]]) item.blocks[1].detail=item.main;
+  }
   return course.map(item=>({...item,event,pb:selected.label,grade:strength,level:index,
-    caution:'此为课程库示例。PB 不能证明近期负荷承受力；需考虑训练背景与伤病情况。'}));
+    caution:'此为课程库示例。PB 不能证明近期负荷承受力；越野 PB 只能比较距离与赛道条件相近的赛事。'}));
 }
 export function pbWeek(event,pb) {
   const selected=matchPB(event,pb);
