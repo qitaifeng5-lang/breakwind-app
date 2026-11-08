@@ -8,6 +8,8 @@ export const assets=[
 ];
 const revision=process.env.GITHUB_SHA || 'local';
 if (!/^(local|[0-9a-f]{40})$/.test(revision)) throw new Error('Invalid preview revision');
+const modules=new Set(assets.filter(name=>name.endsWith('.js') && name!=='sw.js'));
+const versionedAssets=[...modules,'styles.css'];
 await mkdir(target,{recursive:true});
 const allowed=new Set([...assets,'.nojekyll']);
 const unexpected=(await readdir(target)).filter(name=>!allowed.has(name));
@@ -17,10 +19,15 @@ for (const name of assets) {
   if (name==='index.html') content=content.toString().replace('<head>',
     '<head>\n  <meta name="breakwind-preview" content="'+revision+'">\n  <meta name="robots" content="noindex,nofollow">\n'+
     '  <meta http-equiv="Content-Security-Policy" content="default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' blob:; connect-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">');
-  const versionedAssets=['app.js','styles.css'];
   if (name==='index.html' || name==='sw.js') {
     content=content.toString();
     for (const asset of versionedAssets) content=content.replaceAll(asset,asset+'?v='+revision);
+  }
+  // An older installed worker may still handle fetches while the new shell starts.
+  // Give every imported module the same revision as the entry point and shell.
+  if (modules.has(name)) {
+    content=content.toString().replace(/(from ['"]\.\/)([^'"]+\.js)(['"])/g,(original,start,asset,end)=>
+      modules.has(asset) ? start+asset+'?v='+revision+end : original);
   }
   if (name==='sw.js') content=content.replace(/breakwind-shell-v\d+/, 'breakwind-preview-'+revision);
   await writeFile(new URL(name,target),content);
