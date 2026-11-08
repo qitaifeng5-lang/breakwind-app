@@ -8,6 +8,7 @@ const assets = new Map(Object.entries({
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/knowledge.js': ['knowledge.js', 'text/javascript; charset=utf-8'],
   '/engine.js': ['engine.js', 'text/javascript; charset=utf-8'],
+  '/pb-library.js': ['pb-library.js', 'text/javascript; charset=utf-8'],
   '/running.js': ['running.js', 'text/javascript; charset=utf-8'],
   '/fuel.js': ['fuel.js', 'text/javascript; charset=utf-8'],
   '/model.js': ['model.js', 'text/javascript; charset=utf-8'],
