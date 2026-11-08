@@ -32,6 +32,16 @@ const key = storagePrefix + '.local.v1';
 const main = document.querySelector('#main');
 const editor = document.querySelector('#editor');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+// Safari keeps the layout viewport behind the keyboard. Fit sheets to the
+// visual viewport instead; never resize the page or discard a form draft.
+function fitEditorViewport() {
+  const viewport=window.visualViewport;
+  if (!viewport || viewport.scale!==1) return;
+  editor.style.setProperty('--visible-height',viewport.height+'px');
+  editor.style.setProperty('--keyboard-inset',Math.max(0,window.innerHeight-viewport.height-viewport.offsetTop)+'px');
+}
+window.visualViewport?.addEventListener('resize',fitEditorViewport);
+window.visualViewport?.addEventListener('scroll',fitEditorViewport);
 let data = fresh();
 let storageError = '';
 function load() {
@@ -153,7 +163,7 @@ function training(s) {
   const selected=week.find(plan=>plan.date===trainingDate) || week.find(plan=>plan.date===day);
   const choices='<div class="quick-events" aria-label="专项">'+quickEvents.map(([event,entry],i)=>
     '<button type="button" class="btn secondary" aria-pressed="'+(s.groupPlan?.event===event)+'" data-action="group-setup:'+i+'">'+entry.label+'</button>').join('')+'</div>';
-  return '<div class="quick-page">'+head('','训练工作台','',btn('记录跑步','run-options','plus','quiet'))+
+  return '<div class="quick-page">'+head('','训练','',btn('记录跑步','run-options','plus','quiet'))+
     (selected?groupSchedule(s,week,selected):'<section class="quick-entry"><h2>选一个专项</h2>'+choices+'</section>')+
     (selected?'<details class="quick-secondary"><summary>更换专项</summary>'+choices+'</details>':'')+
     '<div class="quick-safety">'+btn(trainingPaused(s)?'伤痛与暂停':'有伤痛？','training-safety','','quiet')+'</div>'+
@@ -168,14 +178,14 @@ function groupSchedule(s,week,plan) {
   const detail=plan.external?'open-plan:'+plan.id:'group-workout:'+plan.date;
   const canStart=plan.date===day && !plan.completed && !trainingPaused(s) && !['休息','交叉训练'].includes(plan.type);
   const main=plan.blocks?.find(([title])=>['主训练','训练内容'].includes(title))?.[1] || plan.note;
-  return '<section class="group-current" id="group-today" tabindex="-1" data-swipe-day="group"><header><span>'+groupEvents[event].label+' · '+trainingGroups[group]+'组'+(pb?' · PB '+escape(pb):'')+
-    '</span>'+btn('修改 PB 和组别','group-setup:'+setupIndex,'','quiet')+'</header><p class="group-date">'+(plan.date===day?'今日课表':escape(fullDate(plan.date)))+
+  const weekStrip='<section class="group-week"><h2>本周课表</h2><div class="group-week-days" aria-label="本周课表">'+week.map(item=>
+    '<button type="button" data-action="group-date:'+item.date+'" aria-pressed="'+(item.date===plan.date)+'"><small>'+escape(fullDate(item.date))+
+    '</small><strong>'+escape(item.name)+'</strong></button>').join('')+'</div></section>';
+  return weekStrip+'<section class="group-current" id="group-today" tabindex="-1" data-swipe-day="group"><header><span>'+groupEvents[event].label+' · '+trainingGroups[group]+'组'+(pb?' · PB '+escape(pb):'')+
+    '</span><button class="btn quiet" aria-label="修改 PB 和组别" data-action="group-setup:'+setupIndex+'">调整</button></header><p class="group-date">'+(plan.date===day?'今日课表':escape(fullDate(plan.date)))+
     '</p><h2>'+escape(plan.name)+'</h2>'+(main?'<p>'+escape(main)+'</p>':'')+
     (plan.minutes?'<p class="group-intensity">'+escape([plan.minutes+' 分钟',plan.pace || plan.intensity].filter(Boolean).join(' · '))+'</p>':'')+
-    '<div class="hero-actions">'+(canStart?btn('开始跑步','start:'+plan.id,'play','primary'):'')+btn('课次详情',detail,'','quiet')+'</div></section>'+
-    '<section class="group-week"><h2>本周课表</h2><div class="group-week-days" aria-label="本周课表">'+week.map(item=>
-      '<button type="button" data-action="group-date:'+item.date+'" aria-pressed="'+(item.date===plan.date)+'"><small>'+escape(fullDate(item.date))+
-      '</small><strong>'+escape(item.name)+'</strong></button>').join('')+'</div></section>';
+    '<div class="hero-actions">'+(canStart?btn('开始跑步','start:'+plan.id,'play','primary'):'')+btn('课次详情',detail,'','quiet')+'</div></section>';
 }
 function showGroupWorkout([date]) {
   const plan=groupWeek(state(),day,state().groupPlan).find(item=>item.date===date);
@@ -261,7 +271,8 @@ function render() {
   chrome(route);
   document.documentElement.dataset.preview = hostedPreview ? 'https' : '';
   const banner = sample ? '<div class="notice">' + icon('spark',17) + '<span>演示模式 · 示例数据仅供体验</span>' + btn('返回我的记录','demo','','quiet') + '</div>' : '';
-  const preview = document.documentElement.dataset.preview ? '<div class="notice preview-notice">HTTPS 测试版 · 日志和定位只保存在当前浏览器。请使用测试资料。</div>' : '';
+  const revision=document.querySelector('meta[name="breakwind-preview"]')?.content.slice(0,7);
+  const preview = document.documentElement.dataset.preview ? '<div class="notice preview-notice">测试版 '+escape(revision)+' · 记录保存在此浏览器</div>' : '';
   const previous = main.querySelector('.ring')?.style.getPropertyValue('--progress');
   main.innerHTML = preview + banner + (storageError ? '<div class="notice" role="alert">' + escape(storageError) + '</div>' : '') + pages[route](state());
   const ring = main.querySelector('.ring');
@@ -306,6 +317,7 @@ function modal(title, body, variant = '') {
     '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div><div class="dialog-body">' + body + '</div>';
   const wasOpen=editor.open;
   if (!editor.open) editor.showModal();
+  fitEditorViewport();
   if (wasOpen && !reducedMotion.matches && (variant==='live' || previous==='live') && variant!==previous) {
     editor.querySelector('.dialog-body').animate(
       [{opacity:0.6,transform:'translateX('+ (variant==='live'?'-18px':'18px') +')'},{opacity:1,transform:'none'}],

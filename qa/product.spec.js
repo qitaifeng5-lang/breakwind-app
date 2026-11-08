@@ -4,11 +4,38 @@ const now = new Date('2026-11-07T15:00:00Z');
 const click = (page,name) => page.getByRole('button',{name,exact:true}).click();
 test.beforeEach(async ({page})=>page.clock.setFixedTime(now));
 
+test('PB sheet waits for touch and stays usable when the visual viewport shrinks',async({page,isMobile},info)=>{
+  test.skip(!isMobile,'Touch keyboard scenario');
+  await page.goto('/#run');
+  await click(page,'1500m');
+  const pb=page.getByRole('textbox',{name:/PB/});
+  await expect(pb).not.toBeFocused();
+  await page.screenshot({path:info.outputPath('pb-before-keyboard.png')});
+  await pb.fill('4:55');
+  // Model a keyboard resize, not a claim of testing the iOS software keyboard.
+  await page.evaluate(()=>{
+    Object.defineProperty(visualViewport,'height',{configurable:true,value:320});
+    visualViewport.dispatchEvent(new Event('resize'));
+  });
+  const bounds=await page.getByRole('dialog').boundingBox();
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.y+bounds.height).toBeLessThanOrEqual(321);
+  await click(page,'竞技组');
+  await expect(page.locator('#group-today')).toContainText('竞技组 · PB 4:55');
+  await page.evaluate(()=>{
+    delete visualViewport.height;
+    visualViewport.dispatchEvent(new Event('resize'));
+  });
+  await click(page,'修改 PB 和组别');
+  await expect(pb).toHaveValue('4:55');
+  await expect(pb).not.toBeFocused();
+});
+
 test('dashboard, training, nutrition, analytics and growth fit the viewport and capture screenshots',async({page},info)=>{
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   const routes = [
-    ['home','今日训练'],['run','训练工作台'],['food','运动营养'],['chart','数据中心'],['growth','跑者成长']
+    ['home','今日训练'],['run','训练'],['food','运动营养'],['chart','数据中心'],['growth','跑者成长']
   ];
   for (const [route,title] of routes) {
     await page.goto('/#'+route+'?demo=1');
@@ -46,6 +73,8 @@ test('1500m, PB and group immediately show today and the week',async({page},info
   await expect(page.locator('#group-today')).toContainText('1500m · 竞技组 · PB 4:20');
   await expect(page.locator('#group-today')).toContainText('轻松跑＋动作练习');
   await expect(page.locator('.group-week-days button')).toHaveCount(7);
+  const weekBounds=await page.locator('.group-week-days').boundingBox();
+  expect(weekBounds.y+weekBounds.height).toBeLessThan(page.viewportSize().height-60);
   await expect(page.getByText('为什么安排这节训练？')).toHaveCount(0);
   await page.screenshot({path:info.outputPath('1500m-group.png'),animations:'disabled'});
   await click(page,'课次详情');
