@@ -184,6 +184,75 @@ dialog[data-variant=live] .dialog-actions{background:var(--surface)}
 }
 @media(prefers-reduced-motion:reduce){.trend-point i,.plan-cover{transition:none!important}}
 
+@property --progress {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+main { animation:none }
+.home-title { display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:14px }
+.home-title h1 { margin:0;font-size:clamp(1.55rem,5vw,2.15rem);letter-spacing:-.05em }
+.home-title p,.home-feedback { margin:0;color:var(--sub);font-size:.82rem }
+.today-hero { min-height:190px;margin-bottom:16px;border-color:var(--line);background:#17171d }
+.today-hero::before { opacity:.28;filter:saturate(.55) }
+.today-hero::after { background:linear-gradient(90deg,#16161dfb 12%,#17171dcc 52%,transparent 100%) }
+.today-hero .hero-content { padding:24px;justify-content:center }
+.today-hero .hero-kicker { color:#e8c8cf;letter-spacing:.08em }
+.today-hero h2 { font-size:clamp(1.65rem,6vw,3rem);max-width:16ch }
+.today-hero p { margin-bottom:0 }
+.home-status { display:block }
+.home-feedback { margin-top:12px;line-height:1.55 }
+.home-day-plans { display:flex;flex-wrap:wrap;gap:6px;margin-top:9px }
+[data-swipe-day] { touch-action:pan-y }
+.plan-search { display:grid;gap:4px;max-width:420px;margin-bottom:10px }
+.plan-search span,.catalog-filters label span { color:var(--sub);font-size:.8rem }
+.plan-search input,.catalog-filters select { min-height:44px }
+.plan-search input { color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:8px 12px }
+.plan-search input::placeholder { color:var(--sub) }
+.discover .product-tabs { flex-wrap:nowrap;overflow:auto;max-width:100%;overscroll-behavior-inline:contain }
+.discover .product-tabs button { flex:none;white-space:nowrap }
+.catalog-filters { margin-bottom:6px }
+.catalog-filters summary { cursor:pointer;width:fit-content;padding:7px 0 }
+.catalog-filters .fields { margin:6px 0 12px }
+.catalog-toolbar { display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--sub);font-size:.8rem;min-height:38px }
+.catalog-scroll { display:flex;gap:5px;margin-inline-start:auto }
+.catalog-card { min-width:0;scroll-snap-align:start;border:1px solid var(--line);border-radius:16px;background:var(--surface);overflow:hidden }
+.catalog-card .plan-cover { width:100%;min-height:132px;border:0;border-radius:0;background:linear-gradient(150deg,#25242c,var(--surface) 80%);justify-content:center }
+.catalog-card .cover-track { background:linear-gradient(150deg,#322831,var(--surface) 80%) }
+.catalog-card .cover-road { background:linear-gradient(150deg,#252e41,var(--surface) 80%) }
+.catalog-card .cover-trail { background:linear-gradient(150deg,#263b34,var(--surface) 80%) }
+.catalog-card .plan-cover:focus-visible { outline-offset:-4px }
+.catalog-actions { display:flex;gap:5px;padding:5px 10px;border-top:1px solid var(--line) }
+.catalog-actions [aria-pressed=true] { color:var(--light-red);background:#30262b }
+.catalog-actions .btn { min-height:44px }
+.catalog-empty { padding:12px 0;color:var(--sub) }
+.template-summary { display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;font-size:.83rem;margin:14px 0 }
+.template-summary dt { font-weight:700 }
+.template-summary dd { margin:0;color:var(--sub) }
+.comparison-list section+section { border-top:1px solid var(--line);padding-top:12px;margin-top:12px }
+.athlete-result { width:fit-content;font-weight:700;border-bottom:2px solid var(--red);padding-bottom:5px }
+.sheet-handle { flex:none;min-height:36px;display:grid;place-items:center;touch-action:none;cursor:grab }
+.sheet-handle:active { cursor:grabbing }
+.sheet-handle i { width:38px;height:4px;border-radius:10px;background:#a5a1ad }
+dialog[data-variant=sheet] .dialog-head { padding-top:0 }
+.workout-blocks details p { overflow:hidden }
+.btn,.plan-cover,.metric-trigger { transition:transform .17s var(--bw-ease),filter .17s ease }
+.btn:active,.plan-cover:active,.metric-trigger:active { transform:scale(.975);filter:brightness(1.1) }
+::view-transition-old(root) { animation:bw-route-out 150ms ease-in both }
+::view-transition-new(root) { animation:bw-route-in 220ms ease-out both }
+@keyframes bw-route-out { to { transform:translateX(-10px);opacity:.3 } }
+@keyframes bw-route-in { from { transform:translateX(12px);opacity:.65 } to { transform:none;opacity:1 } }
+@media(max-width:690px){
+  .today-hero { min-height:190px }
+  .today-hero .hero-content { padding:17px }
+  .home-title { margin-bottom:10px }
+  .home-title p { font-size:.75rem }
+  .catalog-scroll .btn { min-height:44px }
+}
+@media(prefers-reduced-motion:reduce){
+  .btn:active,.plan-cover:active,.metric-trigger:active { transform:none }
+}
+
 @media(max-width:420px){
   .calendar-days button{min-width:0;padding-inline:0}
   .calendar-days button small{white-space:nowrap;font-size:.67rem}

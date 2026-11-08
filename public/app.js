@@ -1,6 +1,6 @@
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
 import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
-import { ageGroups, cycleVersion, draftCycle, reviewCycle, specialties } from './engine.js';
+import { ageGroups, athleteTiers, backgrounds, cycleVersion, draftCycle, phases, recentPain, reviewCycle, specialties, templateDetails } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, week, conflicts, insight, readData, demo } from './model.js';
 
@@ -31,6 +31,7 @@ const storagePrefix = hostedPreview ? 'breakwind.preview' : 'breakwind';
 const key = storagePrefix + '.local.v1';
 const main = document.querySelector('#main');
 const editor = document.querySelector('#editor');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let data = fresh();
 let storageError = '';
 function load() {
@@ -55,6 +56,14 @@ let opener;
 let homeTab = 'training';
 let foodDate = day;
 let planFilter = 'all';
+let planSearch = '';
+let tierFilter = '';
+let phaseFilter = '';
+let dayFilter = '';
+let weekFilter = '';
+let comparePlans = [];
+let homeDate = day;
+let reportedPain = false;
 let detailPeriod = 7;
 let activeDetail;
 let detailDay = '';
@@ -105,31 +114,33 @@ function bars(series, highlighted = chartDate) {
   }).join('') + '</div>';
 }
 function workoutHero(s) {
+  if (trainingPaused(s)) return '<section class="hero today-hero"><div class="hero-content"><div class="hero-kicker">今日训练</div>'+
+    '<h2>暂停推荐训练</h2><p>近期有疼痛反馈。请复核训练安排，持续疼痛或动作受影响时寻求专业评估。</p><div class="hero-actions">'+
+    (activeWorkout ? btn('查看跑步草稿','timer','clock') : btn('复核训练','review-cycle','calendar'))+'</div></div></section>';
   const plan = byDate(s.plans,day).find(item => !item.completed);
   const completed = byDate(s.plans,day).some(item => item.completed);
-  const planMetrics = plan ? '<div class="hero-metrics">' + metric('计划距离', plan.distance || '—', plan.distance ? 'km' : '') + metric('预计时长', plan.minutes || '—', plan.minutes ? 'min' : '') + metric('建议配速', plan.pace || '—') + '</div>' : '';
-  return '<section class="hero"><div class="hero-content"><div class="hero-kicker"><i></i> 今日训练 <span> / TODAY</span></div><h2>' + escape(plan?.name || (completed ? '今日训练已完成' : '每一步，从今天开始')) + '</h2><p>' + escape(plan?.note || (plan ? plan.type : completed ? '在训练日志回顾今天的表现。' : '安排今天的训练，或者记录一场已经完成的跑步。')) + '</p>' + planMetrics + '<div class="hero-actions">' + (activeWorkout ? btn('继续计时','timer','play','primary') : btn('开始训练','start:' + (plan?.id || ''),'play','primary')) + btn(plan ? '调整计划' : '安排训练','edit:plans:' + (plan?.id || ''),'calendar','hero-secondary') + '</div></div><span class="hero-index" aria-hidden="true">01 / TRAINING</span></section>';
+  const facts = plan ? [plan.type,plan.distance && plan.distance+' km',plan.minutes && plan.minutes+' 分钟'].filter(Boolean).join(' · ') : '';
+  return '<section class="hero today-hero"><div class="hero-content"><div class="hero-kicker">今日训练</div><h2>' +
+    escape(plan?.name || (completed ? '已完成' : '按自己的节奏跑')) + '</h2><p>' +
+    escape(facts || (completed ? '完成的记录已保存到训练日志。' : '今天没有课表，随时可以开始一次跑步。')) + '</p><div class="hero-actions">' +
+    (activeWorkout ? btn('继续计时','timer','play','primary') : btn('开始跑步','start:' + (plan?.id || ''),'play','primary')) +
+    (plan ? btn('课次详情','open-plan:'+plan.id,'calendar','hero-secondary') : link('查看计划','run')) + '</div></div></section>';
 }
 
 function dashboard(s) {
-  const series = week(s.runs, day);
+  const series = week(s.runs,homeDate);
   const total = sum(series,'distance');
   const count = sum(series,'count');
-  const selected = series.find(item => item.date === chartDate);
-  const percent = s.goals.weekly ? Math.min(100, Math.round(total / s.goals.weekly * 100)) : 0;
-  const recovery = byDate(s.recovery,day).at(-1);
-  const food = byDate(s.food,day);
-  const [title, copy] = insight(s, day);
-  const name = '准备好破风了吗？';
-  return head('PERFORMANCE DASHBOARD', name, fullDate(day) + ' · 把今天的训练、恢复和补给安排好。', btn('记录跑步','run-options','plus','primary')) + homeSwitch() + (homeTab === 'food' ? homeFuel(s,food) : workoutHero(s) + homeCalendar(s)) +
-    '<div class="dashboard-grid"><div class="stack">' +
-    panel('本周训练概览', '<div class="weekly-summary">' + metric('本周跑量',num(total),'km') + metric('训练次数',count,'次') + '<div class="goal-meter"><div class="ring" style="--progress:' + percent + '%"><strong>' + (s.goals.weekly ? percent + '%' : '—') + '</strong></div><div><small>周跑量目标</small><strong>' + (s.goals.weekly ? num(s.goals.weekly) + ' km' : '待设置') + '</strong></div></div></div>' + bars(series) + '<div class="chart-caption">' + (selected ? escape(fullDate(selected.date)) + ' · ' + num(selected.distance) + ' km · ' + selected.count + ' 次' : count ? '点击任意一天查看记录' : '本周暂无跑步记录') + '</div>',link('查看数据','chart'), '每周一更新统计周期') +
-    panel('个人纪录', personalBest(s), btn('添加','edit:records:','plus','quiet'), '按距离查看最快的记录') +
-    '</div><div class="stack">' +
-    '<section class="panel coach"><div class="coach-label"><span class="tile red">' + icon('spark',19) + '</span><div><h2>训练洞察</h2><small>基于日志的规则分析</small></div></div><h3>' + title + '</h3><p>' + escape(copy) + '</p>' + '<div class="insight-links">' + link('查看恢复','heart') + link('训练引擎','book') + '</div></section>' +
-    panel('恢复状态', recovery ? '<div class="mini-grid">' + metric('睡眠',recovery.sleep,'h') + metric('疲劳',recovery.fatigue,'/ 5') + metric('疼痛反馈',recovery.pain ? '有' : '无') + '</div>' : empty('moon','等待今日反馈','记录睡眠、疲劳与疼痛。'), link('恢复日志','heart')) +
-    panel('今日营养', food.length ? nutritionStats(food) : empty('food','今天还没有餐食记录','记录一餐，查看能量和营养构成。'), link('营养日志','food')) +
-    '</div></div>';
+  const selected = series.find(item => item.date === homeDate);
+  const percent = s.goals.weekly ? Math.min(100,Math.round(total/s.goals.weekly*100)) : 0;
+  const [,copy] = insight(s,day);
+  return '<header class="home-title"><h1>准备好破风了吗？</h1><p>'+escape(fullDate(day))+'</p></header>'+homeSwitch()+
+    (homeTab === 'food' ? homeFuel(s,byDate(s.food,day)) : workoutHero(s)+homeCalendar(s)+
+    '<div class="dashboard-grid home-status">'+panel('近期训练状态','<div class="weekly-summary">' +
+    metric('该周跑量',num(total),'km')+metric('训练次数',count,'次')+
+    (s.goals.weekly ? '<div class="goal-meter"><div class="ring" style="--progress:'+percent+'%"><strong>'+percent+'%</strong></div><small>周目标 '+num(s.goals.weekly)+' km</small></div>' : '')+
+    '</div>'+bars(series,homeDate)+'<p class="chart-caption" aria-live="polite">'+escape(fullDate(homeDate))+' · <span data-count="'+selected.distance+'">'+num(selected.distance)+'</span> km · '+selected.count+' 次</p>'+
+    '<p class="home-feedback">'+escape(copy)+'</p>',link('查看数据','chart'))+'</div>');
 }
 function personalBest(s) {
   const groups = distances.map(event => s.records.filter(item => item.event === event).sort((a,b) => a.seconds - b.seconds)[0]).filter(Boolean);
@@ -149,9 +160,9 @@ function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
 const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 function training(s) {
-  return head('TRAINING STUDIO','训练工作台','安排训练，回顾距离、配速和主观强度。',btn('记录跑步','run-options','plus','primary') + btn('生成训练周期','generate','spark') + btn('设备与同步','devices','settings')) +
+  return head('TRAINING STUDIO','训练工作台','',btn('记录跑步','run-options','plus','primary') + btn('生成训练周期','generate','spark')) +
   planCarousel() + cycleOverview(s) + '<div class="split">' + panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有训练计划','从轻松跑开始，或创建自定义训练。'),btn('安排训练','edit:plans:','plus','quiet')) +
-  panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录','训练结束后可以填写实际距离和耗时。')) + '</div>';
+  panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录','训练结束后可以填写实际距离和耗时。'),btn('设备与同步','devices','settings','quiet')) + '</div>';
 }
 function schedule(s) {
   const start = calendarMode === 'month' ? selectedDate.slice(0,7) + '-01' : weekStart(selectedDate);
@@ -163,7 +174,7 @@ function schedule(s) {
     return '<button type="button" data-action="date:' + date + '" aria-pressed="' + (date === selectedDate) + '"><small>' + '日一二三四五六'[new Date(date+'T12:00:00').getDay()] + '</small><strong>' + Number(date.slice(8)) + '</strong><i class="' + (timeline(s,date).length ? 'has-event' : '') + '"></i></button>';
   }).join('');
   return head('SCHEDULE','训练与日程','把工作、学习和跑步放进同一张日历。',btn('新建事项','edit:events:','plus','primary') + btn('安排训练','edit:plans:','calendar')) +
-  '<div class="split">' + panel('日历', '<div class="calendar-controls">' + btn('上一周期','move:-1','left','quiet') + '<strong>' + escape(calendarMode === 'month' ? selectedDate.slice(0,7) : fullDate(selectedDate)) + '</strong>' + btn('下一周期','move:1','right','quiet') + '</div><div class="calendar-days">' + dateButtons + '</div>', '<div class="segmented">' + [['day','日'],['week','周'],['month','月']].map(([mode,label]) => '<button type="button" aria-pressed="' + (calendarMode===mode) + '" data-action="mode:' + mode + '">' + label + '</button>').join('') + '</div>') +
+  '<div class="split">' + panel('日历', '<div data-swipe-day="calendar"><div class="calendar-controls">' + btn('上一周期','move:-1','left','quiet') + '<strong>' + escape(calendarMode === 'month' ? selectedDate.slice(0,7) : fullDate(selectedDate)) + '</strong>' + btn('下一周期','move:1','right','quiet') + '</div><div class="calendar-days">' + dateButtons + '</div></div>', '<div class="segmented">' + [['day','日'],['week','周'],['month','月']].map(([mode,label]) => '<button type="button" aria-pressed="' + (calendarMode===mode) + '" data-action="mode:' + mode + '">' + label + '</button>').join('') + '</div>') +
   panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
@@ -217,7 +228,13 @@ function render() {
   document.documentElement.dataset.preview = hostedPreview ? 'https' : '';
   const banner = sample ? '<div class="notice">' + icon('spark',17) + '<span>演示模式 · 示例数据仅供体验</span>' + btn('返回我的记录','demo','','quiet') + '</div>' : '';
   const preview = document.documentElement.dataset.preview ? '<div class="notice preview-notice">HTTPS 测试版 · 日志和定位只保存在当前浏览器。请使用测试资料。</div>' : '';
+  const previous = main.querySelector('.ring')?.style.getPropertyValue('--progress');
   main.innerHTML = preview + banner + (storageError ? '<div class="notice" role="alert">' + escape(storageError) + '</div>' : '') + pages[route](state());
+  const ring = main.querySelector('.ring');
+  if (ring && !reducedMotion.matches) {
+    const target=ring.style.getPropertyValue('--progress');
+    if (target !== previous) ring.animate([{'--progress':previous || '0%'},{'--progress':target}],{duration:340,easing:'ease-out'});
+  }
 }
 const textField = (name,label,required = false) => ({name,label,required,type:'text'});
 const numberField = (name,label,min,max,step = 1,required = false) => ({name,label,min,max,step,required,type:'number'});
@@ -247,10 +264,19 @@ function field(config,item) {
   return '<label class="' + (type === 'textarea' ? 'wide' : '') + '"><span>' + label + '</span>' + control + '</label>';
 }
 function modal(title, body, variant = '') {
+  const previous = editor.dataset.variant;
   editor.dataset.variant = variant;
+  editor.style.removeProperty('transform');
   if (!editor.open) opener = document.activeElement;
-  editor.innerHTML = '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div><div class="dialog-body">' + body + '</div>';
+  editor.innerHTML = (variant==='sheet' ? '<div class="sheet-handle" aria-hidden="true"><i></i></div>' : '') +
+    '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div><div class="dialog-body">' + body + '</div>';
+  const wasOpen=editor.open;
   if (!editor.open) editor.showModal();
+  if (wasOpen && !reducedMotion.matches && (variant==='live' || previous==='live') && variant!==previous) {
+    editor.querySelector('.dialog-body').animate(
+      [{opacity:0.6,transform:'translateX('+ (variant==='live'?'-18px':'18px') +')'},{opacity:1,transform:'none'}],
+      {duration:220,easing:'ease-out'});
+  }
   editor.querySelector('#dialog-title').focus({preventScroll:true});
 }
 function openEditor(collection,id = '',defaults = {}) {
@@ -379,9 +405,17 @@ const actions = {
   generate: () => openGenerator(),
   'generate-specialty': ([index]) => openGenerator(Object.keys(specialties)[Number(index)]),
   'show-specialty': showSpecialty,
-  'plan-filter': ([filter]) => {planFilter=filter;render();},
+  'plan-filter': ([filter]) => {planFilter=filter;refreshPlanResults();},
+  'plan-scroll': ([direction]) => {
+    const carousel=main.querySelector('.plan-carousel');
+    carousel?.scrollBy({left:Number(direction)*carousel.clientWidth*0.8,behavior:reducedMotion.matches?'instant':'smooth'});
+  },
+  'plan-favorite': ([index]) => togglePlanFavorite(index),
+  'plan-compare': ([index]) => togglePlanComparison(index),
+  'compare-plans': showComparison,
   'home-tab': ([tab]) => {homeTab=tab;render();},
   'open-day': ([date]) => {selectedDate=date;calendarMode='day';location.hash=href('calendar');},
+  'home-date': ([date]) => changeHomeDate(date),
   'open-plan': showWorkout,
   'nutrition-date': ([direction]) => {foodDate=offset(foodDate,Number(direction));render();},
   'metric-detail': ([kind]) => {detailPeriod=7;detailDay='';showPerformance(kind);},
@@ -418,7 +452,11 @@ const actions = {
   mode: ([mode]) => {calendarMode = mode; render();},
   move: ([delta]) => {moveDate(Number(delta)); render();},
   range: ([range]) => {chartRange = Number(range); chartDate = ''; render();},
-  chart: ([date]) => {chartDate = date; render();},
+  chart: ([date]) => {
+    if (currentRoute() === 'home') return changeHomeDate(date);
+    chartDate = date;
+    render();
+  },
   start: ([id]) => runOptions(id),
   timer: timerView,
   'run-options': () => runOptions(),
@@ -453,12 +491,16 @@ document.addEventListener('click', event => {
     }
   } else if (editor.open && event.target.closest('a[href^="#"]')) editor.close();
 });
-window.addEventListener('hashchange', () => {
-  if (editor.open) editor.close();
+function updateRoute() {
   sample = location.hash.includes('demo=1');
   render();
-  main.focus();
+  main.focus({preventScroll:true});
   window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', () => {
+  if (editor.open) editor.close();
+  if (!reducedMotion.matches && document.startViewTransition) document.startViewTransition(updateRoute);
+  else updateRoute();
 });
 window.addEventListener('storage', event => {
   if (event.key === key || event.key === null) {load(); render();}
@@ -468,6 +510,7 @@ function refreshDay() {
   if (now === day) return;
   if (selectedDate === day) selectedDate = now;
   if (foodDate === day) foodDate = now;
+  if (homeDate === day) homeDate = now;
   day = now;
   render();
 }
@@ -487,7 +530,7 @@ function evidenceLink(source) {
 }
 function sourcesList(ids) {
   return '<ul class="reference-list">' + evidence.filter(source => ids.includes(source.id)).map(source =>
-    '<li><a href="' + source.url + '" target="_blank" rel="noopener">' + escape(source.authors) + ' · ' + (source.year ?? '未标注年份') + ' · ' + source.level + '</a></li>').join('') + '</ul>';
+    '<li><a href="' + source.url + '" target="_blank" rel="noopener">' + escape(source.authors) + ' · ' + (source.year ?? '未标注年份') + ' · ' + escape(source.kind) + '</a></li>').join('') + '</ul>';
 }
 function evidenceLibrary() {
   const methodology = [
@@ -497,13 +540,14 @@ function evidenceLibrary() {
     ['马拉松专项方法的书目','世界田联档案可核验 Arcelli 与 Canova 的出版记录。当前证据不足以比较其剂量或训练效果。',['canova']],
     ['马拉松周期','Pfitzinger 面向有经验的长距离跑者。按赛事组织周次的概念可用于比较，付费计划和跑量档位不进入生成器。',['pfitzinger']],
     ['反馈驱动','Hudson 的教练框架与产品的反馈复核有共同关注点。其书目条目不是该方法效果的独立研究。',['hudson']],
-    ['中距离与越野','场地速度、动作与地形控制是不同研究和教练情境。精英课表不外推至大众。',['middle','japan','usatf','kenya','ethiopia']],
+    ['中距离专项','800 米侧重放松速度，1500 米侧重有氧支持和均匀节奏。精英综述用于区分目的，训练剂量受个人日志和恢复约束。',['middle','japan']],
+    ['5000 米与越野','5000 米案例展示分区方法的差别，越野教练教育提供专项背景。可控节奏和地形练习是短周期草案，负荷上限来自个人记录。',['five-k','intensity','usatf']],
     ['青年发展','成熟度、训练环境和长期参与比套用成人专项更重要。可参考国际共识与加拿大教练教育路径。',['ioc-youth','youth-running','canada']]
   ];
   return '<section class="stack evidence-grid"><h2>训练体系比较</h2><div class="split">' + methodology.map(([title,copy,ids]) =>
     '<details class="panel article"><summary><strong>' + title + '</strong></summary><p>' + copy + '</p>' + sourcesList(ids) + '</details>').join('') +
-    '</div><h2>全球资料索引</h2><p class="library-note">证据标签描述来源性质。研究质量与适用人群需逐条阅读。</p><div class="split">' +
-    evidence.map(source => '<details class="panel article"><summary>' + tag(source.level + ' · ' + source.kind,'red') +
+    '</div><h2>全球资料索引</h2><p class="library-note">来源性质与研究质量分别标注。官方目录用于定位教练教育。未经充分验证的经验目前不参与自动排课。</p><div class="split">' +
+    evidence.map(source => '<details class="panel article"><summary>' + tag(source.category) + ' ' + tag(source.kind) +
       '<strong>' + escape(source.title) + '</strong><small>' + escape(source.region + ' · ' + (source.year ?? '年份未标注')) + '</small></summary>' +
       '<div class="evidence-copy"><p>' + escape(source.authors + ' · ' + source.organization + ' · ' + source.language) + '</p>' +
       '<p><strong>适用对象</strong> ' + escape(source.population + ' / ' + source.events) + '</p>' +
@@ -520,7 +564,7 @@ function sessionExplanation(plan) {
 }
 function cycleOverview(s) {
   const cycle = s.cycles.at(-1);
-  if (!cycle) return panel('训练周期',empty('spark','生成你的基础训练周期','按专项、训练时间和近期记录预览 1–4 周课表。'),link('查看研究','book'));
+  if (!cycle) return '';
   const current = cycle.weeks.find(item => item.start <= day && day <= item.end);
   const planned = s.plans.filter(item => item.cycleId === cycle.id);
   const completed = planned.filter(item => item.completed).length;
@@ -544,35 +588,82 @@ function auditCycle(data, plan, action, change) {
   data.cycleAudit.push({at:new Date().toISOString(),cycleId:plan.cycleId,planId:plan.id,action,name:plan.name,before:load(plan),after:change ? load(change) : null});
 }
 let proposed;
-const levels = ['刚开始或重新起跑','近期规律跑步'];
 const riskOptions = ['请选择','目前没有这些情况','有疼痛、功能受限或仍在康复'];
+const readinessOptions = {uncertain:'尚不确定',ready:'近期能正常恢复',tired:'近期明显疲劳'};
+const choiceKey = (options,value) => Object.keys(options).find(key => options[key] === value);
 function openGenerator(eventName = '') {
   const s = state();
   const settings = proposed?.profile || s.cycleProfile;
   const available = s.goals.days || 3;
-  const values = {age:'未提供',days:available,minutes:30,weeks:4,...settings,
-    event:eventName || settings?.event || '跑步入门',raceDate:settings?.raceDate || s.goals.raceDate, level:settings?.level === 'regular' ? levels[1] : levels[0]};
+  const remembered = eventName || settings?.event;
+  const event = Object.hasOwn(specialties,remembered) ? remembered : '跑步入门';
+  const template = templateDetails(event);
+  const values = {age:'未提供',days:Number(dayFilter) || available,minutes:30,weeks:Number(weekFilter) || 4,...settings,
+    event,raceDate:settings?.raceDate || s.goals.raceDate,
+    background:backgrounds[settings?.background || (settings?.level === 'regular' ? 'recreational' : 'auto')],
+    readiness:readinessOptions[proposed?.profile.readiness || 'uncertain'],
+    phase:phases[(eventName && phaseFilter) || settings?.phase] || '自动编排'};
+  if (eventName && dayFilter) values.days = Number(dayFilter);
+  if (eventName && weekFilter) values.weeks = Number(weekFilter);
+  values.weeks = Math.min(values.weeks,Math.max(...template.weeks));
+  if (phaseFilter && eventName && template.phases.includes(phaseFilter)) values.phase = phases[phaseFilter];
   const fields = [
-    selectField('event','目标项目',Object.keys(specialties)),selectField('age','年龄段',ageGroups),
-    selectField('level','跑步基础',levels),numberField('days','每周可训练天数',1,7,1,true),
+    selectField('event','目标项目',Object.keys(specialties)),selectField('background','跑步背景',Object.values(backgrounds)),
+    selectField('age','年龄段',ageGroups),numberField('years','跑龄（年）',0,80,0.5),
+    selectField('phase','训练阶段',['自动编排',...Object.values(phases)]),numberField('days','每周可训练天数',1,7,1,true),
     numberField('minutes','每次可用时间（分钟）',5,120,1,true),numberField('weeks','周期周数',1,4,1,true),
-    {name:'raceDate',label:'比赛日期（可选）',type:'date'},selectField('risk','本次疼痛或康复确认',riskOptions)
+    {name:'raceDate',label:'比赛日期（可选）',type:'date'},selectField('risk','本次疼痛或康复确认',riskOptions),
+    selectField('readiness','近期恢复感受',Object.values(readinessOptions))
   ];
+  const history = [numberField('weeklyDays','近四周平均跑步天数 / 周',0,7),numberField('recentKm','近四周平均跑量（km / 周）',0,350,0.1),
+    numberField('recentLongest','近四周最长一跑（km）',0,120,0.1),numberField('raceStarts','过去两年专项参赛次数',0,100),
+    numberField('raceSeconds','近期专项完赛成绩（秒）',1,86400)];
   modal('生成训练周期','<form id="engine-form"><div class="fields">' + fields.map(config => field(config,values)).join('') + '</div>' +
-    '<p>只将本次健康选项用于当前安全检查，不保存该选项、不发送给外部服务。近期跑量和频率从日志计算。</p>' +
+    '<details class="plan-explanation"'+(eventName && eventName !== '跑步入门' ? ' open' : '')+'><summary>补充训练和比赛背景</summary>' +
+    '<p>没有导入跑步日志时，可填过去四周的实际训练量。有日志时优先用日志。</p><div class="fields">' +
+    history.map(config => field(config,values)).join('') + '</div></details>' +
+    '<div id="return-clearance" hidden>' + field({name:'returnCleared',label:'专业人员已确认我可进行轻松交叉训练',type:'checkbox'},{}) + '</div>' +
+    '<p>疼痛、恢复感受和活动许可只用于本次检查。训练背景保存在当前浏览器。</p>' +
     '<div class="dialog-actions"><button class="btn primary" type="submit">查看草案</button></div></form>');
+  const form = editor.querySelector('#engine-form');
+  updateGenerator(form);
+  form.addEventListener('change',event => {
+    updateGenerator(form);
+    if (event.target.name==='background' && [backgrounds.competitive,backgrounds.professional].includes(event.target.value)) {
+      form.querySelector('details').open=true;
+    }
+  });
+}
+function updateGenerator(form) {
+  const controls = form.elements;
+  const template = templateDetails(controls.event.value);
+  const phase = controls.phase.value;
+  controls.phase.replaceChildren(...['自动编排',...template.phases.map(key => phases[key])].map(label=>new Option(label,label,false,label===phase)));
+  controls.weeks.max = Math.max(...template.weeks);
+  if (Number(controls.weeks.value) > Number(controls.weeks.max)) controls.weeks.value = controls.weeks.max;
+  form.querySelector('#return-clearance').hidden = controls.background.value !== backgrounds.recovering || controls.event.value !== '恢复与交叉训练';
 }
 editor.addEventListener('submit', event => {
   if (event.target.id !== 'engine-form') return;
   event.preventDefault();
   const form = new FormData(event.target);
   const profile = {
-    event:form.get('event'), age:form.get('age'), level:form.get('level') === levels[1] ? 'regular' : 'beginner',
+    event:form.get('event'), age:form.get('age'), background:choiceKey(backgrounds,form.get('background')),
+    phase:choiceKey(phases,form.get('phase')), readiness:choiceKey(readinessOptions,form.get('readiness')),returnCleared:form.has('returnCleared'),
     days:Number(form.get('days')),minutes:Number(form.get('minutes')),weeks:Number(form.get('weeks')),raceDate:form.get('raceDate'),
     risk:form.get('risk') === riskOptions[1] ? 'clear' : form.get('risk') === riskOptions[2] ? 'reported' : 'unknown'
   };
+  for (const name of ['years','weeklyDays','recentKm','recentLongest','raceStarts','raceSeconds']) {
+    if (form.get(name) !== '') profile[name] = Number(form.get(name));
+  }
+  if (profile.background === 'auto' && profile.years === undefined && !state().runs.length && !state().records.length) profile.years = 0;
   proposed = draftCycle(state(),day,profile);
-  modal('训练周期草案','<ul class="draft-reasons">' + proposed.reasons.map(reason => '<li>' + escape(reason) + '</li>').join('') + '</ul>' +
+  if (!sample && profile.risk !== 'unknown') {
+    reportedPain = profile.risk === 'reported' || (profile.background === 'recovering' && !profile.returnCleared);
+    if (currentRoute()==='home') render();
+  }
+  modal('训练周期草案',(proposed.athlete ? '<p class="athlete-result">'+athleteTiers[proposed.athlete.tier]+'</p>' : '') +
+    '<ul class="draft-reasons">' + proposed.reasons.map(reason => '<li>' + escape(reason) + '</li>').join('') + '</ul>' +
     proposed.weeks.map((week,index) => '<section class="draft-week"><h3>第 ' + (index+1) + ' 周 · ' + week.phase + '</h3><small>' + week.start + ' 至 ' + week.end +
       ' · 新增 ' + week.count + ' 项</small>' + proposed.plans.filter(plan => plan.date >= week.start && plan.date <= week.end).map(plan =>
       '<div class="draft-session"><strong>' + escape(plan.name) + '</strong><small>' + plan.date + ' · 最多 ' + plan.minutes + ' 分钟' + (plan.distance ? ' / ' + plan.distance + ' km' : '') + '</small>' + sessionExplanation(plan) + '</div>').join('') + '</section>').join('') +
@@ -589,7 +680,7 @@ function saveDraft() {
       throw new Error('Draft changed');
     }
     const id = crypto.randomUUID();
-    const {risk,...profile} = proposed.profile;
+    const {risk,readiness,returnCleared,...profile} = proposed.profile;
     next.cycleProfile = profile;
     next.cycles.push({id,event:profile.event,raceDate:profile.raceDate || next.goals.raceDate,version:proposed.version,weeks:proposed.weeks,sources:proposed.sources});
     next.plans.push(...proposed.plans.map(plan => ({...plan,id:crypto.randomUUID(),cycleId:id})));
@@ -1083,46 +1174,152 @@ function homeFuel(s,food) {
     '<div class="hero-actions">'+btn('添加餐食','food-start','plus','primary')+link('打开营养日志','food')+'</div></div>'+homeCalendar(s);
 }
 function homeCalendar(s) {
-  const start=weekStart(day);
-  return '<section class="panel week-preview"><div class="panel-head"><div><h2>本周训练日历</h2><p>点选日期查看训练与日程</p></div>'+link('打开日历','calendar')+'</div><div class="calendar-days">'+
+  const start=weekStart(homeDate);
+  const plans=byDate(s.plans,homeDate);
+  return '<section class="panel week-preview" data-swipe-day="home"><div class="panel-head"><div><h2>'+(start===weekStart(day)?'本周训练日历':'训练日历')+
+    '</h2><p>左右滑动或点选日期</p></div>'+btn('当天日程','open-day:'+homeDate,'calendar','quiet')+'</div><div class="calendar-days">'+
     Array.from({length:7},(_,i)=>{
       const date=offset(start,i);
-      const plans=byDate(s.plans,date);
-      return '<button type="button" data-action="open-day:'+date+'" aria-label="'+escape(fullDate(date)+'，'+plans.length+' 项训练')+'" '+(date===day?'aria-current="date"':'')+'><small>周'+'一二三四五六日'[i]+'</small><strong>'+Number(date.slice(8))+'</strong><i class="'+(plans.length?'has-event':'')+'"></i></button>';
-    }).join('')+'</div></section>';
+      const count=byDate(s.plans,date).length;
+      return '<button type="button" data-action="home-date:'+date+'" aria-label="'+escape(fullDate(date)+'，'+count+' 项训练')+'" '+(date===homeDate?'aria-current="date"':'')+'><small>周'+'一二三四五六日'[i]+'</small><strong>'+Number(date.slice(8))+'</strong><i class="'+(count?'has-event':'')+'"></i></button>';
+    }).join('')+'</div>'+(plans.length && homeDate!==day ? '<div class="home-day-plans">'+plans.map(plan=>btn(plan.name,'open-plan:'+plan.id,'','quiet')).join('')+'</div>' : '')+'</section>';
 }
-const groups = {all:'全部',intro:'入门',track:'场地',road:'公路',trail:'越野'};
-const specialtyGroup = ['intro','track','track','track','road','road','trail','road','road'];
+function changeHomeDate(date) {
+  if (date===homeDate) return;
+  const from=Number(main.querySelector('[data-count]')?.dataset.count) || 0;
+  const focused=document.activeElement?.dataset.action?.split(':')[0];
+  homeDate=date;
+  render();
+  if (focused==='home-date' || focused==='chart') main.querySelector('[data-action="'+focused+':'+date+'"]')?.focus({preventScroll:true});
+  const value=main.querySelector('[data-count]');
+  if (value && !reducedMotion.matches) {
+    const to=Number(value.dataset.count);
+    if (from===to) return;
+    const start=performance.now();
+    const frame=now=>{
+      if (!value.isConnected) return;
+      const progress=Math.min(1,(now-start)/240);
+      value.textContent=num(from+(to-from)*(1-(1-progress)**3));
+      if (progress<1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+}
+const groups = {all:'全部',intro:'入门',track:'场地',road:'公路',trail:'越野',support:'训练目标',favorites:'收藏'};
+const planCatalog = Object.entries(specialties).map(([name,specialty],index)=>({
+  name,specialty,index,template:templateDetails(name),
+  group:specialty.group || (index === 0 ? 'intro' : index === 3 ? 'track' : 'road'),
+  aliases:{'5000 m':'5km 5公里','10000 m':'10km 10公里','越野跑':'Cross Country XC','半程马拉松':'半马 half marathon','全程马拉松':'全马 marathon'}[name] || ''
+}));
+const normalizeQuery = value => value.toLowerCase().replace(/\s/g,'');
+const catalogSelect = (id,label,options,value) => '<label><span>'+label+'</span><select id="'+id+'">'+
+  options.map(([key,title])=>'<option value="'+key+'"'+(key===value?' selected':'')+'>'+title+'</option>').join('')+'</select></label>';
 function planCarousel() {
-  return '<section class="discover"><div class="panel-head"><div><div class="eyebrow"><i></i> PLAN DISCOVERY</div><h2>找到你的下一站</h2><p>从专项基础开始，根据实际训练调整。</p></div></div>'+
+  return '<section class="discover"><div class="panel-head"><div><h2>找训练计划</h2><p>选项目和阶段，再按近期训练生成课表。</p></div></div>'+
+    '<label class="plan-search"><span>搜索训练计划</span><input id="plan-search" type="search" placeholder="例如 800m、5km、越野" value="'+escape(planSearch)+'"></label>'+
     segments(Object.entries(groups),planFilter,'plan-filter','专项筛选')+
-    '<div class="plan-carousel" aria-label="专项计划" tabindex="0">'+Object.entries(specialties).map(([name,item],i)=>
-      (planFilter==='all'||planFilter===specialtyGroup[i]) ? '<button type="button" class="plan-cover cover-'+specialtyGroup[i]+'" data-action="show-specialty:'+i+
-      '"><small>'+groups[specialtyGroup[i]]+' / '+String(i+1).padStart(2,'0')+'</small><strong>'+escape(name)+'</strong><span>'+escape(item.focus)+'</span><span class="cover-arrow">查看计划 '+icon('arrow',16)+'</span></button>' : ''
-    ).join('')+'</div></section>';
+    '<details class="catalog-filters"'+(tierFilter||phaseFilter||dayFilter||weekFilter?' open':'')+'><summary>训练条件</summary><div class="fields">'+
+    catalogSelect('tier-filter','适用水平',[['','全部水平'],...Object.entries(athleteTiers).filter(([key])=>key!=='unclassified')],tierFilter)+
+    catalogSelect('phase-filter','训练阶段',[['','全部阶段'],...Object.entries(phases)],phaseFilter)+
+    catalogSelect('day-filter','每周训练天数',[['','不限'],...[1,2,3,4,5].map(n=>[String(n),n+' 天'])],dayFilter)+
+    catalogSelect('week-filter','周期周数',[['','不限'],...[1,2,3,4].map(n=>[String(n),n+' 周'])],weekFilter)+
+    '</div></details><div id="catalog-results">'+planResults()+'</div></section>';
+}
+function planResults() {
+  const favorites = data.planFavorites;
+  const query = normalizeQuery(planSearch);
+  const items = planCatalog.filter(({name,specialty,group,template,aliases})=>
+    (planFilter==='all' || planFilter===group || (planFilter==='favorites' && favorites.includes(name))) &&
+    (!query || normalizeQuery(name+' '+aliases+' '+specialty.focus).includes(query)) &&
+    (!tierFilter || template.tiers.includes(tierFilter)) && (!phaseFilter || template.phases.includes(phaseFilter)) &&
+    (!dayFilter || template.days.includes(Number(dayFilter))) && (!weekFilter || template.weeks.includes(Number(weekFilter))));
+  return '<div class="catalog-toolbar"><span role="status">'+items.length+' 项计划</span>'+
+    (comparePlans.length ? btn('比较已选（'+comparePlans.length+'）','compare-plans','','quiet') : '')+
+    (items.length > 1 ? '<div class="catalog-scroll">'+btn('上一项','plan-scroll:-1','left','quiet')+btn('下一项','plan-scroll:1','right','quiet')+'</div>' : '')+'</div>'+
+    (items.length ? '<div class="plan-carousel" aria-label="专项计划" tabindex="0">'+items.map(({name,specialty,group,index})=>
+      '<article class="catalog-card"><button type="button" class="plan-cover cover-'+group+'" data-action="show-specialty:'+index+'"><small>'+
+      groups[group]+'</small><strong>'+escape(name)+'</strong><span>'+escape(specialty.focus)+'</span></button><div class="catalog-actions">'+
+      '<button type="button" class="btn quiet" data-action="plan-favorite:'+index+'" aria-pressed="'+favorites.includes(name)+'">收藏</button>'+
+      '<button type="button" class="btn quiet" data-action="plan-compare:'+index+'" aria-pressed="'+comparePlans.includes(index)+'">比较</button></div></article>'
+    ).join('')+'</div>' : '<p class="catalog-empty">没有符合条件的计划。</p>');
+}
+function refreshPlanResults(keepScroll = false) {
+  const results=main.querySelector('#catalog-results');
+  if (!results) return;
+  const action=document.activeElement?.dataset.action;
+  const position=keepScroll ? results.querySelector('.plan-carousel')?.scrollLeft : 0;
+  results.innerHTML=planResults();
+  if (position) results.querySelector('.plan-carousel')?.scrollTo({left:position,behavior:'instant'});
+  for (const button of main.querySelectorAll('[data-action^="plan-filter:"]')) button.setAttribute('aria-pressed',String(button.dataset.action === 'plan-filter:'+planFilter));
+  if (action) results.querySelector('[data-action="'+action+'"]')?.focus({preventScroll:true});
+}
+main.addEventListener('input',event=>{
+  if (event.target.id !== 'plan-search') return;
+  planSearch=event.target.value;
+  refreshPlanResults();
+});
+main.addEventListener('change',event=>{
+  if (event.target.id==='tier-filter') tierFilter=event.target.value;
+  else if (event.target.id==='phase-filter') phaseFilter=event.target.value;
+  else if (event.target.id==='day-filter') dayFilter=event.target.value;
+  else if (event.target.id==='week-filter') weekFilter=event.target.value;
+  else return;
+  refreshPlanResults();
+});
+function togglePlanFavorite(index) {
+  const entry=planCatalog[Number(index)];
+  if (!entry) return;
+  if (sample) return notify('返回个人模式后可以收藏。');
+  if (commit(next=> {
+    next.planFavorites=next.planFavorites.includes(entry.name) ? next.planFavorites.filter(name=>name!==entry.name) : [...next.planFavorites,entry.name];
+  })) refreshPlanResults(true);
+}
+function togglePlanComparison(index) {
+  const id=Number(index);
+  if (!planCatalog[id]) return;
+  if (comparePlans.includes(id)) comparePlans=comparePlans.filter(item=>item!==id);
+  else if (comparePlans.length>=3) return notify('一次最多比较三项计划。');
+  else comparePlans.push(id);
+  refreshPlanResults(true);
+}
+function templateSummary(template) {
+  return '<dl class="template-summary"><dt>适用水平</dt><dd>'+template.tiers.map(tier=>athleteTiers[tier]).join('、')+
+    '</dd><dt>训练阶段</dt><dd>'+template.phases.map(phase=>phases[phase]).join('、')+
+    '</dd><dt>周期及频率</dt><dd>'+template.weeks.join(' / ')+' 周 · 每周 '+template.days.join(' / ')+' 天'+
+    '</dd><dt>负荷要求</dt><dd>'+template.load+'</dd><dt>恢复条件</dt><dd>'+template.recovery+'</dd><dt>适用限制</dt><dd>'+template.limits+'</dd></dl>';
+}
+function showComparison() {
+  if (!comparePlans.length) return;
+  modal('比较训练计划','<div class="comparison-list">'+comparePlans.map(id=>{
+    const {name,template,specialty}=planCatalog[id];
+    return '<section><h3>'+escape(name)+'</h3><p>'+escape(specialty.focus)+'</p>'+templateSummary(template)+'</section>';
+  }).join('')+'</div>','sheet');
 }
 function showSpecialty([index]) {
-  const entry=Object.entries(specialties)[Number(index)];
+  const entry=planCatalog[Number(index)];
   if (!entry) return;
-  const [name,specialty]=entry;
-  modal(escape(name)+' · 专项计划','<div class="plan-detail-hero feature-surface"><div class="eyebrow"><i></i> FOUNDATION / 1–4 周</div><h3>'+escape(specialty.focus)+'</h3><p>'+escape(specialty.practice)+'</p></div>'+
-    '<p>草案根据近期训练、恢复和可用时间生成。每节课可查看训练目的、强度和调整依据。</p>'+
+  const {name,specialty,template}=entry;
+  modal(escape(name)+' · 专项计划','<div class="plan-detail-hero"><h3>'+escape(specialty.focus)+'</h3><p>'+escape(specialty.practice)+'</p></div>'+
+    templateSummary(template)+
     '<h3>研究依据</h3>'+sourcesList(specialty.references)+'<div class="dialog-actions">'+btn('用此专项生成','generate-specialty:'+index,'spark','primary')+'</div>','full');
 }
 function showWorkout([id]) {
   const plan=state().plans.find(item=>item.id===id);
   if (!plan) return;
   const fromEngine=plan.engineVersion===cycleVersion;
-  const blocks=fromEngine ? [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['间歇恢复','按课次结构执行。基础跑以稳定轻松为主，草案未指定固定组间休息。'],['冷身','放慢收尾，结束后记录体感。']] :
+  const blocks=fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
     [['课次说明',plan.note || '这节课没有记录分段说明。']];
   modal('课次详情','<div class="report-title"><h3>'+escape(plan.name)+'</h3><p>'+escape(plan.date+' · '+plan.type+(plan.completed?' · 已完成':''))+'</p></div>'+
     '<div class="mini-grid">'+metric('距离',plan.distance||'—','km')+metric('时长',plan.minutes||'—','min')+metric('配速',plan.pace||'—')+'</div>'+
     '<ol class="workout-blocks">'+blocks.map(([title,copy])=>'<li><details><summary>'+title+'</summary><p>'+escape(copy)+'</p></details></li>').join('')+'</ol>'+
     (fromEngine?sessionExplanation(plan):'')+'<div class="dialog-actions">'+btn(sample?'查看原始记录':'编辑课次','edit:plans:'+plan.id,'settings')+
-    (!sample&&!plan.completed?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
+    (!sample&&!plan.completed&&!trainingPaused(state())?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
+}
+function trainingPaused(s) {
+  return (!sample && reportedPain) || recentPain(s,day);
 }
 function nutritionDateNav() {
-  return '<div class="panel food-date-nav">'+btn('上一天','nutrition-date:-1','left','quiet')+'<strong>'+escape(fullDate(foodDate))+'</strong>'+
+  return '<div class="panel food-date-nav" data-swipe-day="food">'+btn('上一天','nutrition-date:-1','left','quiet')+'<strong>'+escape(fullDate(foodDate))+'</strong>'+
     (foodDate<day?btn('下一天','nutrition-date:1','right','quiet'):'<span aria-hidden="true"></span>')+'</div>';
 }
 
@@ -1244,3 +1441,88 @@ function updateTrendSelection() {
     if (picked) editor.querySelector('#trend-reading').textContent=point.dataset.value;
   }
 }
+
+let dateGesture;
+let sheetGesture;
+let suppressDateClick = 0;
+main.addEventListener('pointerdown',event=>{
+  const zone=event.target.closest('[data-swipe-day]');
+  if (!zone || event.button!==0 || !event.isPrimary) return;
+  dateGesture={id:event.pointerId,x:event.clientX,y:event.clientY,zone};
+});
+main.addEventListener('pointercancel',()=>{dateGesture=undefined;});
+window.addEventListener('pointerup',event=>{
+  if (dateGesture?.id!==event.pointerId) return;
+  const {zone,x,y}=dateGesture;
+  dateGesture=undefined;
+  if (!zone.isConnected) return;
+  const dx=event.clientX-x;
+  if (Math.abs(dx)<48 || Math.abs(dx)<Math.abs(event.clientY-y)*1.5) return;
+  const direction=dx<0?1:-1;
+  suppressDateClick=performance.now()+250;
+  const kind=zone.dataset.swipeDay;
+  if (kind==='home') changeHomeDate(offset(homeDate,direction));
+  else if (kind==='calendar') actions.date([offset(selectedDate,direction)]);
+  else if (kind==='food' && offset(foodDate,direction)<=day) actions['nutrition-date']([direction]);
+  const next=main.querySelector('[data-swipe-day="'+kind+'"]');
+  if (next && !reducedMotion.matches) next.animate(
+    [{transform:'translateX('+(direction*14)+'px)',opacity:0.78},{transform:'none',opacity:1}],{duration:210,easing:'ease-out'});
+});
+main.addEventListener('click',event=>{
+  if (event.detail && performance.now()<suppressDateClick && event.target.closest('[data-swipe-day]')) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+},true);
+
+editor.addEventListener('pointerdown',event=>{
+  const handle=event.target.closest('.sheet-handle');
+  if (!handle || event.button!==0 || !event.isPrimary) return;
+  sheetGesture={id:event.pointerId,y:event.clientY,offset:0};
+  handle.setPointerCapture(event.pointerId);
+});
+editor.addEventListener('pointermove',event=>{
+  if (sheetGesture?.id!==event.pointerId) return;
+  sheetGesture.offset=Math.max(0,event.clientY-sheetGesture.y);
+  editor.style.transform='translateY('+sheetGesture.offset+'px)';
+});
+function settleSheet(event) {
+  if (sheetGesture?.id!==event.pointerId) return;
+  const distance=sheetGesture.offset;
+  const dismiss=event.type==='pointerup' && distance>=Math.min(125,editor.clientHeight*0.26);
+  sheetGesture=undefined;
+  const from=editor.style.transform || 'none';
+  editor.style.removeProperty('transform');
+  if (reducedMotion.matches) {
+    if (dismiss) editor.close();
+    return;
+  }
+  const animation=editor.animate([{transform:from},{transform:dismiss?'translateY(100%)':'none'}],{duration:190,easing:'ease-out',fill:'forwards'});
+  animation.onfinish=()=>{
+    if (dismiss && editor.open) editor.close();
+    animation.cancel();
+  };
+}
+editor.addEventListener('pointerup',settleSheet);
+editor.addEventListener('pointercancel',settleSheet);
+
+const expandedWorkouts = new WeakMap();
+editor.addEventListener('click',event=>{
+  const summary=event.target.closest('.workout-blocks summary');
+  if (!summary || reducedMotion.matches) return;
+  const details=summary.parentElement;
+  const content=summary.nextElementSibling;
+  event.preventDefault();
+  expandedWorkouts.get(details)?.cancel();
+  const opening=!details.open;
+  if (opening) details.open=true;
+  const height=content.getBoundingClientRect().height;
+  const openFrame={height:height+'px',opacity:1};
+  const closedFrame={height:'0px',opacity:0};
+  const animation=content.animate(opening?[closedFrame,openFrame]:[openFrame,closedFrame],{duration:210,easing:'ease-out'});
+  expandedWorkouts.set(details,animation);
+  animation.onfinish=()=>{
+    details.open=opening;
+    expandedWorkouts.delete(details);
+  };
+});
