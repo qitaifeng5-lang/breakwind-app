@@ -1,86 +1,121 @@
 import { offset, sum } from './model.js';
 
-export const evidence = [
-  {
-    id:'volume', region:'丹麦研究团队 · 多国跑者', year:2025, kind:'前瞻性队列',
-    title:'单次跑量跳升与过度使用损伤',
-    author:'Frandsen 等', url:'https://bjsm.bmj.com/content/59/17/1203.long',
-    finding:'5,205 名跑者的随访中，单次距离比过去 30 天最长跑超过 10% 时，过度使用损伤率更高。',
-    limits:'观察性关联，存在自报和选择偏差。研究中的分组阈值不能作为个人安全界线。',
-    application:'基础草案的单次距离取值保守，上限低于近期最长距离。'
-  },
-  {
-    id:'intensity', region:'西班牙 · 次精英耐力跑者', year:2007, kind:'小样本随机对照',
-    title:'强度分配与耐力跑表现',
-    author:'Esteve-Lanao 等', url:'https://pubmed.ncbi.nlm.nih.gov/17685689/',
-    finding:'12 名受过良好训练的跑者中，低强度训练占比更高的一组，在试验所测跑步表现中提升更大。',
-    limits:'样本小，研究对象已有训练基础，不能据此确定所有跑者的最优强度比例。',
-    application:'基础草案优先安排轻松训练，后续专项强度模型需要独立证据。'
-  },
-  {
-    id:'talk', region:'美国 · 活跃成年人', year:2015, kind:'交叉实验',
-    title:'用说话舒适度调节运动强度',
-    author:'Woltmann 等', url:'https://doi.org/10.1519/JSC.0000000000000811',
-    finding:'16 名志愿者参与不同说话舒适度条件下的稳态跑。能舒适说话的阶段通常对应较低强度。',
-    limits:'小样本实验。说话舒适度随情境变化，不能用于诊断或精确测量阈值。',
-    application:'轻松跑以能自然交谈作为体感提示。'
-  }
-];
-export const engineVersion = 'base-1';
+export const specialties = {
+  '跑步入门': { focus:'稳定习惯与轻松体感', practice:'练习走跑切换，保持步态自然。', references:['england','talk'] },
+  '800 m': { focus:'有氧基础与动作协调', practice:'在熟悉的平坦场地跑，关注放松摆臂和步态。', references:['middle'] },
+  '1500 m': { focus:'有氧支持与节奏感', practice:'在熟悉的平坦路线中保持均匀节奏。', references:['middle'] },
+  '3000 m': { focus:'持续节奏与跑步经济性', practice:'用相似体感跑完各段，比较节奏是否稳定。', references:['japan','norway'] },
+  '5000 m': { focus:'有氧耐力与配速稳定性', practice:'在平坦路线观察起跑后体感如何变化。', references:['intensity'] },
+  '10000 m': { focus:'持续有氧与耐力分配', practice:'全程保持相近的呼吸与主观用力程度。', references:['kenya','intensity'] },
+  '越野跑': { focus:'地面变化中的步态与用力控制', practice:'选择熟悉且稳定的低技术难度地面，地形变化时以体感调整速度。', references:['usatf'] },
+  '半程马拉松': { focus:'持续有氧与配速纪律', practice:'从轻松体感起步，全程以稳定用力为主。', references:['volume','hudson'] },
+  '全程马拉松': { focus:'长距离有氧基础与耐力习惯', practice:'沿熟悉路线保持稳定体感，记录可持续时间。', references:['volume','pfitzinger'] }
+};
+export const cycleVersion = 'cycle-1';
+export const ageGroups = ['未提供','未满18岁','18–39岁','40–59岁','60岁及以上'];
 
-export function draftTraining(data, day, level) {
-  const from = offset(day,-29);
-  const runs = data.runs.filter(item => item.date >= from && item.date <= day);
-  const latest = [...data.recovery].filter(item => item.date <= day && item.date >= offset(day,-2)).sort((a,b) => a.date.localeCompare(b.date)).at(-1);
-  const result = { version:engineVersion, level, plans:[], reasons:[], sources:[] };
-  const hasPain = latest?.pain || runs.some(item => item.date >= offset(day,-2) && item.pain);
-  if (hasPain) {
-    result.reasons.push('最近三天的日志包含疼痛反馈。训练引擎暂停安排跑步，请先回顾记录。');
-    return result;
+export function draftCycle(data, day, profile) {
+  const { event, age, level, days, minutes, weeks, risk, raceDate } = profile;
+  const specialty = Object.hasOwn(specialties,event) ? specialties[event] : null;
+  const result = {version:cycleVersion,profile, plans:[], weeks:[], reasons:[], sources:['ioc-load']};
+  const stop = message => { result.reasons.push(message); return result; };
+  if (!specialty || !ageGroups.includes(age) || !['regular','beginner'].includes(level) ||
+      !Number.isInteger(days) || days < 1 || days > 7 || !Number.isInteger(minutes) || minutes < 5 || minutes > 120 ||
+      ![1,2,3,4].includes(weeks) || !['clear','reported','unknown'].includes(risk)) {
+    return stop('请检查专项、年龄段、训练时间和周期设置。');
   }
-  const race = data.goals.raceDate;
-  if (race && race >= day && race <= offset(day,6)) {
-    result.reasons.push('目标赛事落在未来七天，基础引擎暂停生成课表，保留原有安排。');
-    return result;
+  if (risk === 'reported') {
+    result.sources.push('ais');
+    return stop('你报告了持续或明显运动疼痛、功能受限或尚在康复。请停止相关训练负荷，并寻求适当的专业评估；草案暂停排课。');
   }
-  if (latest?.fatigue === 5) {
-    result.reasons.push('最近恢复记录为最高疲劳等级。先保留恢复时间，稍后可根据新反馈重新生成。');
-    return result;
+  if (risk === 'unknown') return stop('本次未确认疼痛和康复情况。请确认后再生成草案。');
+  const race = raceDate || data.goals.raceDate;
+  if (race && (!/^\d{4}-\d{2}-\d{2}$/.test(race) || offset(race,0) !== race || race < day)) return stop('请在训练目标中更新已过去的比赛日期，或为本周期选择新日期。');
+  const recentRecovery = data.recovery.filter(item => item.date >= offset(day,-6) && item.date <= day).sort((a,b) => a.date.localeCompare(b.date));
+  const recentRuns = data.runs.filter(item => item.date >= offset(day,-29) && item.date <= day);
+  if (recentRecovery.some(item => item.pain) || recentRuns.some(item => item.date >= offset(day,-6) && item.pain)) {
+    result.sources.push('ais');
+    return stop('近七天记录了疼痛。请回顾症状；如果持续、明显或影响功能，请停止相关负荷并寻求适当的专业评估。');
   }
-  const familiar = level === 'regular' && runs.length >= 4;
-  const reduced = latest?.fatigue === 4;
-  const maxSessions = reduced ? 1 : familiar ? 3 : 2;
-  const requested = Math.min(data.goals.days || maxSessions,maxSessions);
-  const occupied = new Set([...data.events,...data.plans,...runs].map(item => item.date));
-  const existingDays = new Set([...data.plans,...runs].filter(item => item.date >= day && item.date <= offset(day,6) && item.type !== '休息').map(item => item.date));
-  const count = Math.max(0,requested - existingDays.size);
-  const longest = Math.max(0,...runs.map(item => Number(item.distance) || 0));
-  const existingDistance = sum(data.plans.filter(item => item.date >= day && item.date <= offset(day,6) && !item.completed), 'distance') + sum(runs.filter(item => item.date === day),'distance');
-  const remaining = Math.max(0,Math.min(sum(runs,'distance') * 7 / 30,data.goals.weekly || Infinity) - existingDistance);
-  const distance = familiar ? Math.floor(Math.min(longest * 0.8,remaining / Math.max(1,count),reduced ? 3 : 8) * 10) / 10 : 0;
-  const useDistance = distance >= 0.5;
-  if (familiar && !useDistance) {
-    result.reasons.push('近期周均跑量或本周期剩余距离不足，暂不追加跑步安排。');
-    return result;
+  const latest = recentRecovery.at(-1);
+  if (latest?.fatigue === 5 && latest.date >= offset(day,-2)) return stop('最近恢复记录为最高疲劳等级，暂缓排课，更新反馈后再评估。');
+  if (race && race <= offset(day,6)) return stop('距比赛不足一周，停止追加训练。可以与教练核对现有赛前安排。');
+
+  const youth = age === '未满18岁';
+  const guarded = youth || age === '未提供';
+  const shortSleep = recentRecovery.filter(item => Number.isFinite(item.sleep) && item.sleep < (youth ? 8 : 7)).length >= 3;
+  const harderRun = recentRuns.some(item => item.date >= offset(day,-2) && item.effort >= 8);
+  const reduced = shortSleep || harderRun || (latest?.fatigue >= 4 && latest.date >= offset(day,-2));
+  const rollingFrequency = Math.min(3,Math.floor(new Set(recentRuns.map(item => item.date)).size * 7 / 30));
+  const hasBaseline = !guarded && level === 'regular' && rollingFrequency >= 2 &&
+    recentRuns.filter(item => item.date >= offset(day,-13)).length >= 2;
+  const sessionLimit = Math.min(days,data.goals.days || days,guarded || reduced ? 1 : hasBaseline ? rollingFrequency : 2);
+  const historyLimit = sum(recentRuns,'distance') * 7 / 30;
+  const longest = Math.max(0,...recentRuns.map(item => Number(item.distance) || 0));
+  const availableMinutes = Math.min(minutes, guarded || reduced ? 12 : hasBaseline ? 45 : 15);
+  const occupied = new Set([...data.plans,...data.events,...recentRuns].map(item => item.date));
+  const runDates = new Set([...data.plans.filter(item => item.type !== '休息'),...recentRuns].map(item => item.date));
+  const referenceIds = ['talk',...specialty.references];
+  if (hasBaseline) referenceIds.push('volume','intensity');
+  if (guarded) referenceIds.push('ioc-youth','youth-running');
+  result.sources = [...new Set([...result.sources,...referenceIds])];
+  result.reasons.push('近 30 天记录 ' + recentRuns.length + ' 次，累计 ' + sum(recentRuns,'distance').toFixed(1) + ' km。' + (hasBaseline ? '以已记录的距离与频率约束本周期。' : '当前走跑分支按时长安排，不推定专项能力。'));
+  if (guarded) result.reasons.push(youth ? '青少年分支优先活动多样性和长期发展，专项强度留给教练审核。' : '未提供年龄段，按保守分支安排。');
+  if (reduced) result.reasons.push('近期日志包含持续较短睡眠、很吃力的跑步或较高疲劳，已缩减本次草案。');
+  if (!recentRecovery.length) result.reasons.push('近期没有恢复记录，计划无法据此判断训练反应。');
+  result.reasons.push('每周保留空闲日期并避开已有事项。目标成绩与单场成绩不会用来增加训练负荷。');
+
+  for (let index = 0; index < weeks; index++) {
+    const start = offset(day,index * 7);
+    const end = offset(start,6);
+    if (race && race < start) break;
+    const preparation = Boolean(race && race <= end);
+    const phase = preparation ? '赛前保留' : index === 0 || !hasBaseline ? '基础适应' : index === weeks - 1 ? '恢复巩固' : '专项基础';
+    const existing = data.plans.filter(item => item.date >= start && item.date <= end && item.type !== '休息');
+    const recorded = recentRuns.filter(item => item.date >= start && item.date <= end);
+    const usedDays = new Set([...existing,...recorded].map(item => item.date)).size;
+    const count = preparation ? 0 : Math.max(0,sessionLimit - usedDays);
+    const plannedKm = sum(existing.filter(item => !item.completed),'distance') + sum(recorded,'distance');
+    const availableKm = Math.max(0,Math.min(historyLimit,data.goals.weekly || Infinity) - plannedKm);
+    const weekDistance = Math.floor(Math.min(longest,availableKm / Math.max(1,count), phase === '恢复巩固' ? longest * 0.65 : longest * 0.8) * 10) / 10;
+    // If a scheduled run has no distance, its contribution to the weekly cap is unknown.
+    const unknownLoad = existing.some(item => !item.completed && !(item.distance > 0));
+    const sessions = [];
+    for (let delta = 0; delta < 7 && sessions.length < count; delta++) {
+      const date = offset(start,delta);
+      if (occupied.has(date) || runDates.has(offset(date,-1)) || runDates.has(offset(date,1))) continue;
+      if (hasBaseline && (weekDistance < 0.5 || unknownLoad)) break;
+      const time = phase === '恢复巩固' ? Math.max(5,Math.floor(availableMinutes * 0.75)) : availableMinutes;
+      const specific = hasBaseline && phase === '专项基础';
+      const objective = specific ? specialty.focus : hasBaseline ? '轻松有氧与稳定性' : '走跑适应与观察体感';
+      const structure = hasBaseline ? '先轻松热身，再均匀慢跑，最后放慢收尾。达到时间或距离上限即结束。' : '从步行开始，自选短段慢跑与步行，最后用步行收尾。';
+      const note = structure + (specific ? specialty.practice : '');
+      sessions.push({date,name:specific ? event + ' · 专项基础' : hasBaseline ? '轻松有氧跑' : '入门走跑',
+        type:'轻松跑', distance:hasBaseline ? weekDistance : null, minutes:time, pace:'', start:'', end:'', completed:false, note,
+        engineVersion:cycleVersion, sources:result.sources, event, phase, objective, structure,
+        intensity:'轻松，能自然交谈。', adjustment:'如果出现明显疼痛或动作受影响，停止相关训练并重新评估。',
+        rationale:specific ? '在近期训练能力内练习' + specialty.focus + '，为日后专项训练建立基础。' : '通过低强度训练观察当前耐受，为下一阶段提供真实反馈。'});
+      occupied.add(date);
+      runDates.add(date);
+    }
+    result.weeks.push({start,end,phase,count:sessions.length,existing:usedDays});
+    result.plans.push(...sessions);
   }
-  result.reasons.push('近 30 天记录 ' + runs.length + ' 次、' + sum(runs,'distance').toFixed(1) + ' km。' + (useDistance ? '本次按近期周均跑量和最长单次距离控制距离。' : '使用短时入门走跑，按体感自行选择步行或慢跑。'));
-  if (reduced) result.reasons.push('最近记录的疲劳为 4 / 5，草案减少训练次数。');
-  if (!latest) result.reasons.push('最近三天缺少恢复反馈，无法据此评估疲劳或疼痛。');
-  result.reasons.push('避开已有安排和跑步的日期，新增训练之间至少间隔一天。距离、次数与疲劳阈值是此版本的保守产品规则。');
-  result.sources = useDistance ? ['volume','intensity','talk'] : ['talk'];
-  for (let index = 0; index < 7 && result.plans.length < count; index++) {
-    const date = offset(day,index);
-    if (occupied.has(date) || [...data.plans,...runs].some(item => item.date === offset(date,-1) || item.date === offset(date,1))) continue;
-    result.plans.push({
-      name:useDistance ? '基础有氧轻松跑' : '入门走跑',
-      date, type:'轻松跑', distance:useDistance ? distance : null, minutes:useDistance ? null : reduced ? 8 : 12,
-      pace:'', start:'',end:'',completed:false,
-      note:useDistance ? '用可以自然交谈的节奏完成。' : '在舒适的步行与慢跑之间自行切换，保持可以自然交谈的节奏。',
-      engineVersion, sources:result.sources
-    });
-    index++;
-  }
-  if (!result.plans.length) result.reasons.push('当前七天内没有可追加的训练日期。');
+  if (!result.plans.length) result.reasons.push('本周期没有可安全追加的训练。可能已有较多安排、已到赛前，或无法估算已排训练的负荷。');
   return result;
 }
 
+export function reviewCycle(data, day) {
+  const future = data.plans.filter(plan => plan.engineVersion === cycleVersion && plan.date >= day && !plan.completed);
+  const recent = data.recovery.filter(item => item.date >= offset(day,-6) && item.date <= day);
+  const past = data.plans.filter(plan => plan.engineVersion === cycleVersion && plan.date >= offset(day,-7) && plan.date < day);
+  const completed = past.filter(plan => plan.completed).length;
+  const reasons = [];
+  if (past.length) reasons.push('最近七天已完成 ' + completed + ' / ' + past.length + ' 项计划。未完成的训练不自动补做。');
+  if (recent.some(item => item.pain) || data.runs.some(item => item.date >= offset(day,-6) && item.date <= day && item.pain)) reasons.push('近期有疼痛反馈，请暂停相关负荷并复核计划；疼痛持续、明显或影响动作时，请寻求专业评估。');
+  if (recent.some(item => item.fatigue >= 4) || recent.filter(item => Number.isFinite(item.sleep) && item.sleep < 7).length >= 3) reasons.push('近期记录到高疲劳或多日短睡，建议复核接下来的训练。');
+  if (data.runs.some(item => item.date >= offset(day,-6) && item.date <= day && item.effort >= 8)) reasons.push('近期有高主观强度训练，建议查看恢复再决定是否缩短或推迟下一次。');
+  if (future.some(plan => data.events.some(event => event.date === plan.date))) reasons.push('未来训练与新增事项落在同一天，可检查是否需要调整。');
+  if (future.some(plan => data.goals.raceDate && data.goals.raceDate <= plan.date)) reasons.push('有训练落在目前记录的比赛日期或之后，请复核比赛与训练安排。');
+  return {reasons, future};
+}
