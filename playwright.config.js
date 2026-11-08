@@ -12,6 +12,7 @@ export default defineConfig({
   use:{baseURL:url,browserName:'chromium',channel:process.env.BREAKWIND_TEST_BROWSER || undefined,locale:'zh-CN',timezoneId:'America/Toronto',
     serviceWorkers:'block',reducedMotion:'reduce',screenshot:'only-on-failure',trace:'retain-on-failure'},
   projects:[
+    {name:'compact-320',use:{viewport:{width:320,height:568},isMobile:true,hasTouch:true}},
     {name:'iphone-small',use:{...devices['iPhone SE'],defaultBrowserType:'chromium'}},
     {name:'iphone-standard',use:{...devices['iPhone 13'],defaultBrowserType:'chromium'}},
     {name:'iphone-large',use:{...devices['iPhone 14 Pro Max'],defaultBrowserType:'chromium'}},

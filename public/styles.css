@@ -150,3 +150,36 @@ dialog[data-variant=live] .dialog-actions .btn{min-height:48px}
   .plan-carousel{scroll-behavior:auto}
   dialog[open],main,.hero::before,.panel,.btn{animation:none!important;transition:none!important}
 }
+
+/* Keep modal controls and mobile chrome clear of the iOS browser and home indicator. */
+dialog[open]{display:flex;flex-direction:column;overflow:hidden;padding:0}
+dialog .dialog-head{flex:none;padding:14px 18px;margin:0;border-bottom:1px solid var(--line)}
+.dialog-head h2:focus{outline:none}
+.dialog-head .icon-button{flex:none;width:44px;height:44px}
+.dialog-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 18px 20px;scroll-padding:16px 0}
+dialog[data-variant=live] .dialog-actions{background:var(--surface)}
+.preview-notice{border-color:#4c4358;background:#211e2a;color:#ddd3eb}
+.trend-plot{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(34px,1fr);align-items:stretch;gap:3px;overflow-x:auto;overscroll-behavior-inline:contain;padding:6px 5px 8px;border-radius:12px;background:var(--surface)}
+.trend-point{display:grid;grid-template-rows:90px auto;align-items:end;justify-items:center;gap:4px;min-width:0;padding:3px 2px;color:var(--sub);background:none;border:1px solid transparent;border-radius:7px}
+.trend-point i{width:min(20px,70%);height:var(--point);border-radius:5px 5px 2px 2px;background:var(--red);opacity:.55}
+.trend-point[aria-pressed=true]{border-color:var(--light-red);color:var(--text)}.trend-point[aria-pressed=true] i{opacity:1}
+.trend-reading{padding-top:8px;color:var(--sub);min-height:1.5em;font-variant-numeric:tabular-nums}
+.plan-carousel,.trend-plot{scrollbar-width:thin;scrollbar-color:#595462 transparent}
+@media(max-width:690px){
+  html{scroll-padding-block:calc(58px + env(safe-area-inset-top)) calc(58px + env(safe-area-inset-bottom))}
+  .topbar{height:calc(58px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}
+  .top-actions .icon-button,.top-actions .avatar{width:44px;height:44px}
+  .hero{min-height:270px}.hero-content{padding:20px 15px 24px}
+  .hero-actions{gap:7px}.hero-actions .btn,.page-actions .btn{min-height:44px}
+  .hero-metrics{gap:8px 12px}.hero-metrics .metric strong{font-size:1.05rem}
+  .dialog-body{padding:14px 14px calc(18px + env(safe-area-inset-bottom));scroll-padding-block-end:calc(22px + env(safe-area-inset-bottom))}
+  dialog[data-variant=live] .dialog-head,dialog[data-variant=full] .dialog-head{padding-top:max(12px,env(safe-area-inset-top))}
+  dialog[data-variant=live] .dialog-actions{bottom:calc(-1 * env(safe-area-inset-bottom));margin-inline:-14px;padding-inline:14px;border-top:1px solid var(--line)}
+  .food-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.food-tabs button{min-height:44px;padding-inline:4px}
+  .plan-carousel{scroll-snap-type:x proximity}.plan-cover:focus-visible,.trend-point:focus-visible{outline-offset:-2px}
+}
+@media(max-width:360px){
+  .panel{padding:14px}.hero h2{font-size:clamp(1.6rem,8.5vw,2rem)}.top-actions{gap:1px}
+  .page-actions,.hero-actions{row-gap:6px}.dialog-head h2{font-size:1.05rem}
+}
+@media(prefers-reduced-motion:reduce){.trend-point i,.plan-cover{transition:none!important}}

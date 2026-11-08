@@ -101,3 +101,9 @@ SQLite 持久化草稿、路点及报告。此开发版只按用户操作读取�
 ## 自动检查与视觉回归
 
 完整运行方式见 docs/quality-and-backlog.md。正式 Web 页面已接入专项卡片、餐食日期、数据详情抽屉和本地成长页。Design Lab 仍用于比较交互设计。浏览器截图使用合成演示数据；设备视口并非 iOS 或 Android 真机验收。
+
+## V3 HTTPS 测试地址
+
+测试地址为 https://qitaifeng5-lang.github.io/breakwind-app/ 。这是可公开访问的测试前端。发布只包含 scripts/export-preview.mjs 列出的运行资产，浏览器使用单独的本地日志命名空间。测试站禁用网络请求与本机 AI 模型接口。请使用测试数据。
+
+预览从 preview/v3 分支部署到 GitHub Pages，源功能 PR 无需合并即可供手机测试。更新时仅将已通过检查的提交快进推送到该预览分支。真机签名与 iPhone 验收清单见 docs/iphone-validation.md。
