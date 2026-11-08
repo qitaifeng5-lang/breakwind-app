@@ -252,6 +252,24 @@ function openPBWorkout(course,dayIndex=null) {
 function openPBSchedule(courseId,dayIndex) {
   if(trainingPaused(state())) return showTrainingHold();
   const choice=pbLibrarySelection(state());
+  const recordedNames=[pbLibraryEvent,{'5000 m':'5 km','10000 m':'10 km'}[pbLibraryEvent]].filter(Boolean);
+  const recordTimes=state().records.filter(item=>recordedNames.includes(item.event)&&item.seconds>0).map(item=>item.seconds);
+  if (state().groupPlan?.event===pbLibraryEvent) {
+    const time=Number(state().groupPlan.pb?.includes(':')?state().groupPlan.pb.split(':').reduce((n,v)=>n*60+Number(v),0):state().groupPlan.pb);
+    if(Number.isFinite(time)&&time>0) recordTimes.push(time);
+  }
+  const personalBest=recordTimes.length?Math.min(...recordTimes):null;
+  if(personalBest===null) {
+    modal('先确认当前 PB','<p>可以自由浏览所有课程。安排到自己的日程前，请先记录该专项 PB，避免把高水平模板误当作适合自己的训练。</p>'+
+      btn('确认我的 PB','pb-confirm','','primary'),'sheet');
+    return;
+  }
+  if(choice.seconds+0.5<personalBest) {
+    modal('档位高于当前 PB','<p>你目前记录的 PB 为 '+escape(matchPB(pbLibraryEvent,personalBest)?.label||'未知')+
+      '，这节课程属于更快的成绩档位。你可以继续浏览，但安排训练前需要先更新真实 PB。</p>'+
+      btn('更新我的 PB','pb-confirm','','primary'),'sheet');
+    return;
+  }
   const course=pbCourses(pbLibraryEvent,choice.seconds).find(item=>item.id===courseId);
   if(!course) return;
   const date=dayIndex==='x'?day:offset(weekStart(day),Number(dayIndex));
@@ -567,6 +585,7 @@ const actions = {
   'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds)[Number(index)],Number(index));},
   'pb-course': ([id]) => {openPBWorkout(pbCourses(pbLibraryEvent,pbLibrarySelection(state()).seconds).find(x=>x.id===id));},
   'pb-add': ([id,index]) => openPBSchedule(id,index),
+  'pb-confirm': () => {const index=quickEvents.findIndex(([event])=>event===pbLibraryEvent);if(index!==-1)openGroupSetup(index);},
   'group-setup': ([index]) => openGroupSetup(index),
   'group-date': ([date]) => {
     const position=main.querySelector('.group-week-days')?.scrollLeft || 0;
@@ -771,7 +790,7 @@ function openGroupSetup(index) {
   if (sample) return modal('试用分组训练','<p>返回个人模式即可选择并保存训练组。</p>'+btn('返回我的记录','demo','','primary'),'sheet');
   const [event,specialty]=entry;
   const current=data.groupPlan;
-  const previous=current?.event===event ? current.pb : '';
+  const previous=pbLibraryEvent===event && pbLibraryChoice ? pbLibraryChoice : current?.event===event ? current.pb : '';
   const recordName={'5000 m':'5 km','10000 m':'10 km'}[event] || event;
   const record=data.records.filter(item=>[event,recordName].includes(item.event) && item.seconds>0).sort((a,b)=>a.seconds-b.seconds)[0];
   const long=specialty.example.split(':').length===3;
