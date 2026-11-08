@@ -1,0 +1,52 @@
+import { chromium,devices,expect } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+const revision=process.argv[2];
+if (!/^[a-f0-9]{40}$/.test(revision || '')) throw new Error('Pass the expected full commit SHA');
+const base='https://qitaifeng5-lang.github.io/breakwind-app/';
+const output=new URL('../.expo/verified-preview/',import.meta.url);
+await mkdir(output,{recursive:true});
+const browser=await chromium.launch({channel:process.env.BREAKWIND_TEST_BROWSER || undefined});
+try {
+  const context=await browser.newContext({...devices['iPhone 13'],locale:'zh-CN',reducedMotion:'reduce'});
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  const button=name=>page.getByRole('button',{name,exact:true});
+  const capture=name=>page.screenshot({path:fileURLToPath(new URL(name+'.png',output)),animations:'disabled'});
+  const response=await page.goto(base+'#run');
+  expect(response.status()).toBe(200);
+  await expect(page.locator('meta[name=breakwind-preview]')).toHaveAttribute('content',revision);
+  await button('1500m').click();
+  await expect(page.getByRole('textbox',{name:/PB/})).not.toBeFocused();
+  await capture('pb');
+  await page.getByRole('textbox',{name:/PB/}).fill('4:55');
+  await button('竞技组').click();
+  await expect(page.locator('#group-today')).toContainText('1500m · 竞技组 · PB 4:55');
+  await expect(page.locator('.group-week-days button')).toHaveCount(7);
+  await capture('training');
+  await page.goto(base+'#home');
+  await capture('home');
+  await page.goto(base+'#food');
+  await button('添加午餐').click();
+  await page.getByRole('searchbox').fill('米饭');
+  await capture('search');
+  await page.getByRole('button',{name:/^白米饭（熟）/}).click();
+  await button('150 g').click();
+  await capture('portion');
+  await button('保存到午餐').click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.reload();
+  await expect(page.locator('.meal-list')).toContainText('150 g');
+  await capture('nutrition');
+  await page.evaluate(async()=>{await (await navigator.serviceWorker.ready).update();});
+  await expect.poll(()=>page.evaluate(async()=>(await caches.keys()).filter(key=>key.startsWith('breakwind-preview-')))).toEqual(['breakwind-preview-'+revision]);
+  const modules=await page.evaluate(()=>performance.getEntriesByType('resource').filter(item=>/\/(app|engine|model|fuel|running|knowledge)\.js/.test(item.name)).map(item=>new URL(item.name).searchParams.get('v')));
+  expect(modules.length).toBeGreaterThanOrEqual(6);
+  expect(modules.every(value=>value===revision)).toBe(true);
+  expect(errors).toEqual([]);
+  console.log(JSON.stringify({revision,https:200,modules:'single revision',cache:'current only',training:'1500m / 4:55 / competitive',meal:'rice 150g lunch persisted',screenshots:fileURLToPath(output),device:'Chromium iPhone 13 emulation, not a physical iPhone'}));
+} finally {
+  await browser.close();
+}

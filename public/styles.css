@@ -260,7 +260,15 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
 .quick-events .btn { justify-content:center;min-height:48px;padding:8px 4px;color:var(--text) }
 .quick-events [aria-pressed=true],.group-week-days [aria-pressed=true] { background:var(--surface);border-color:#95939f;color:var(--text) }
 .quick-pb { display:grid;gap:6px }
-.quick-pb input,.food-search input,.meal-select select,#portion-form input { min-height:46px;font-size:1rem }
+.quick-pb input,.food-search input,.meal-select select,#portion-form input {
+  min-height:46px;min-width:0;width:100%;font:inherit;font-size:1rem;
+  appearance:none;border:1px solid #454650;border-radius:12px;
+  background:#101116;color:var(--text);padding:10px 12px;
+}
+.quick-pb input::placeholder,.food-search input::placeholder {color:var(--muted);opacity:1}
+.quick-pb input:focus-visible,.food-search input:focus-visible,.meal-select select:focus-visible,#portion-form input:focus-visible {
+  outline:2px solid var(--light-red);outline-offset:2px;
+}
 .quick-pb small { color:var(--sub) }
 .quick-groups { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0;margin:16px 0 0 }
 .quick-groups legend { margin-bottom:8px }
@@ -325,7 +333,7 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
 .group-current h2{font-size:clamp(1.9rem,6.5vw,2.65rem);letter-spacing:-.055em;line-height:1.1;margin-block:12px}
 .group-current .group-date{margin-top:22px;font-size:.75rem;letter-spacing:.025em}
 .group-current .hero-actions .btn.primary{min-height:50px;border-radius:999px;padding-inline:22px}
-.group-week{margin-top:26px}
+.group-week{margin:0 0 12px}
 .group-week h2{font-size:1.25rem;letter-spacing:-.035em;margin-bottom:14px}
 .group-week-days{gap:10px;padding-block:3px 13px;scroll-snap-type:x mandatory;scroll-padding-inline:3px}
 .group-week-days button{
@@ -346,16 +354,25 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
 .quick-pb input{border-radius:13px;padding-inline:13px}
 @media(max-width:690px){
   .quick-page{max-width:100%}
-  .quick-page .page-head h1{font-size:1.75rem}
-  .group-current{padding:21px}
+  .quick-page .page-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .quick-page .page-actions{margin:0}
+  .quick-page .page-head h1{font-size:1.5rem}
+  .group-current{padding:16px}
+  .group-current header{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;font-size:.75rem}
+  .group-current header .btn{flex:none;padding:8px;min-height:44px}
+  .group-current h2{font-size:1.5rem;line-height:1.3;margin-block:8px}
+  .group-current p{font-size:.85rem;line-height:1.65}
+  .group-current .group-date{margin-top:8px}
+  .group-week h2{font-size:.85rem;color:var(--sub);margin-bottom:6px}
   .group-week-days{grid-auto-columns:minmax(142px,65%);overscroll-behavior-inline:contain}
-  .group-week-days button{min-height:105px}
+  .group-week-days button{min-height:76px;padding:10px}
   dialog[data-variant=sheet] .dialog-body{
     min-height:0;overflow-y:auto;overscroll-behavior:contain;
     padding-bottom:calc(20px + env(safe-area-inset-bottom));
   }
   dialog[data-variant=sheet]{
-    max-height:min(86dvh,720px);
+    max-height:min(86dvh,720px,calc(var(--visible-height,100dvh) - 12px));
+    bottom:var(--keyboard-inset,0px);
     overflow:hidden;
     display:flex;
     flex-direction:column;
