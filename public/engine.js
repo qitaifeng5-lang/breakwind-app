@@ -260,3 +260,94 @@ export function reviewCycle(data, day) {
   if (future.some(plan => data.goals.raceDate && data.goals.raceDate <= plan.date)) reasons.push('有训练落在目前记录的比赛日期或之后，请复核比赛与训练安排。');
   return {reasons, future};
 }
+
+export const groupEvents = {
+  '800 m':{label:'800m',km:0.8,example:'2:05.30',format:'strides'},
+  '1500 m':{label:'1500m',km:1.5,example:'4:20',format:'rhythm'},
+  '3000 m':{label:'3000m',km:3,example:'10:30',format:'repeats'},
+  '5000 m':{label:'5km',km:5,example:'21:30',format:'tempo'},
+  '10000 m':{label:'10km',km:10,example:'45:00',format:'steady'},
+  '越野跑':{label:'越野',example:'1:12:00',format:'terrain'},
+  '半程马拉松':{label:'半马',km:21.0975,example:'1:45:00',format:'steady'},
+  '全程马拉松':{label:'全马',km:42.195,example:'3:45:00',format:'steady'}
+};
+export const trainingGroups = {novice:'入门',base:'基础',advanced:'进阶',competitive:'竞技'};
+const groupWeeks = {
+  novice:['walk','rest','rest','walk','rest','rest','rest'],
+  base:['easy','rest','rest','easy','rest','easy','rest'],
+  advanced:['easy','rest','quality','rest','easy','endurance','rest'],
+  competitive:['technique','rest','quality','rest','easy','endurance','rest']
+};
+
+export function parseGroupPB(event, text) {
+  const entry = Object.hasOwn(groupEvents,event) && groupEvents[event];
+  if (!entry || typeof text !== 'string') return null;
+  const value = text.trim().replaceAll('：',':');
+  const long = !entry.km || entry.km > 10;
+  const pattern = long ? /^\d{1,2}:[0-5]\d:[0-5]\d$/ : /^\d{1,3}:[0-5]\d(?:\.\d{1,2})?$/;
+  if (!pattern.test(value)) return null;
+  const seconds=value.split(':').reduce((total,part)=>total*60+Number(part),0);
+  return seconds > 0 && seconds < 86400 && (!entry.km || seconds/entry.km >= 110) ? seconds : null;
+}
+
+export function groupWeek(data, today, profile) {
+  const event = profile?.event;
+  const group = profile?.group;
+  const start = profile?.start;
+  if (!Object.hasOwn(groupEvents,event) || !Object.hasOwn(groupWeeks,group) ||
+      typeof start !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(start) || offset(start,0)!==start || start>today) return [];
+  const elapsed=Math.round((Date.parse(today)-Date.parse(start))/86400000);
+  const weekStart=offset(today,-elapsed%7);
+  const dates=groupWeeks[group].map((_,index)=>offset(weekStart,index));
+  const context=recentContext(data,today,{});
+  const typical = context.runs.filter(run=>run.distance>0 && run.minutes>0 && run.effort>=2 && run.effort<=5)
+    .map(run=>run.minutes*60/run.distance).sort((a,b)=>a-b);
+  const normalPace = typical.length>=3 ? typical[Math.floor(typical.length/2)] : null;
+  const knownLoad = context.logged && context.frequency>=3 && normalPace!==null;
+  const paused = data.trainingHold || recentPain(data,today);
+  const latest = context.recovery.at(-1);
+  const fatigued = (latest?.date>=offset(today,-2) && latest.fatigue>=4) ||
+    context.runs.some(run=>run.date>=offset(today,-2) && run.effort>=8);
+  const entry = groupEvents[event];
+  const pb = parseGroupPB(event,profile.pb || '');
+  const sources = [...new Set(['ioc-load','talk',...specialties[event].references])];
+  const historicalMinutes = Math.max(0,...context.runs.map(run=>Number(run.minutes)||0));
+  const pastWeekMinutes = sum(context.runs,'minutes')*7/30;
+  const upcoming=data.plans.filter(plan=>dates.includes(plan.date) && plan.type!=='休息' && !plan.completed);
+  const existingMinutes = sum(upcoming,'minutes');
+  const recordedMinutes = sum(context.runs.filter(run=>dates.includes(run.date)),'minutes');
+  const cap = context.logged ? Math.max(0,Math.floor(Math.min(historicalMinutes,knownLoad?Infinity:15,(pastWeekMinutes-existingMinutes-recordedMinutes)/4))) : 15;
+  const qualityReady = knownLoad && !fatigued && data.cycleProfile?.age!=='未满18岁' && cap>=28 && upcoming.every(plan=>plan.minutes>0) &&
+    context.runs.some(run=>run.date>=offset(today,-13) && run.effort>=5 && run.effort<=7);
+  const easyPace = pb && entry.km && normalPace ? Math.max(pb/entry.km*1.23,normalPace) : 0;
+  const hardDays = [...context.runs.filter(run=>run.effort>=6),...data.plans.filter(plan=>plan.quality ||
+    ['节奏跑','阈值跑','间歇跑','坡道跑','比赛配速跑','加速跑'].includes(plan.type))].map(item=>item.date);
+  return dates.map((date,index)=>{
+    const id=['group',event,group,start,date].join('~');
+    const existing = data.plans.find(plan=>plan.date===date && plan.type!=='休息');
+    const finished = data.runs.some(run=>run.groupWorkoutId===id);
+    const dayRuns = context.runs.some(run=>run.date===date);
+    const slot = groupWeeks[group][index];
+    const base = {id,date,groupWorkout:true,event,phase:'分组训练',sources,distance:null,pace:'',completed:finished};
+    if (paused && date>=today) return {...base,name:'暂缓训练',type:'休息',note:'有伤痛或尚未恢复。请暂停相关训练并寻求专业评估。'};
+    if (existing) return {...existing,external:true};
+    if (finished || dayRuns) return {...base,name:'已记录跑步',type:'休息',completed:true};
+    if (slot==='rest' || cap<5 || (fatigued && date===today)) return {...base,name:'休息',type:'休息',note:'留出恢复时间。'};
+    if (!knownLoad && index>=4 && group!=='novice') return {...base,name:'轻松交叉训练',type:'交叉训练',minutes:15,intensity:'轻松，能完整交谈。',
+      note:'选择熟悉的低冲击活动，轻松活动最多 15 分钟。',blocks:[['轻松活动','可选择散步或轻松骑行，保持舒适。']]};
+    const quality = slot==='quality' && qualityReady && ![-2,-1,0,1,2].some(delta=>hardDays.includes(offset(date,delta)));
+    const format = qualityWork[entry.format];
+    const minutes=Math.min(cap,quality?35:slot==='endurance'?40:25);
+    const [name,type,main] = quality ? [entry.label+' · '+format[0],format[1],format[2]] :
+      slot==='walk' ? ['轻松走跑','轻松跑','步行热身 3 分钟。做 3 组 1 分钟轻松跑＋1 分钟步行，最后步行放松。'] :
+      slot==='technique' || slot==='quality' ? ['轻松跑＋动作练习','轻松跑','轻松慢跑。途中做 3 次约 20 秒的放松步态练习，每次之间慢跑约 1 分钟，保持原有强度。'] :
+      [slot==='endurance'?'轻松耐力跑':'轻松跑','轻松跑','以能完整交谈的速度跑，最后放慢。'];
+    const note = main+' 达到时长上限或出现疼痛时结束。';
+    return {...base,name,type,note,minutes,quality,objective:specialties[event].focus,
+      intensity:quality?'受控，有余力。持续节奏约 5–6/10。':'轻松，能完整交谈。',
+      pace:!quality && slot!=='walk' && easyPace ? Math.floor(Math.ceil(easyPace/5)*5/60)+':'+String(Math.ceil(easyPace/5)*5%60).padStart(2,'0')+' /km 或更慢' : '',
+      structure:note,adjustment:'出现疼痛或动作受影响时停止。',rationale:quality?'既有负荷支持受控专项练习，前后保留低强度与恢复。':
+        '按组别安排轻松练习，具体强度服从近期可承受的训练负荷。',blocks:quality?
+        [['热身','轻松慢跑 10 分钟。'],['主训练',main],['放松','预留至少 5 分钟轻松慢跑。']]:[['训练内容',main]]};
+  });
+}
