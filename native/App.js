@@ -24,7 +24,7 @@ function Metric({label,value,unit}) {
     <Text style={styles.number}>{value} {unit && <Text style={styles.unit}>{unit}</Text>}</Text></View>;
 }
 
-function Route({points}) {
+const Route = React.memo(function Route({points}) {
   const valid=points.filter(coordinate);
   if (valid.length<2) return <View style={styles.routeEmpty}><Text style={styles.muted}>等待有效路线采样</Text></View>;
   const left=valid[0].lon;
@@ -44,7 +44,7 @@ function Route({points}) {
     </Svg>
     <Text style={styles.muted}>路线示意 · 仅存于设备</Text>
   </View>;
-}
+});
 
 function Metrics({distance,elapsed,climb,live}) {
   return <View style={styles.metrics}>

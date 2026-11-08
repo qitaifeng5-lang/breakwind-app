@@ -97,3 +97,7 @@ SQLite 持久化草稿、路点及报告。此开发版只按用户操作读取�
 
 - USDA FoodData Central 原始数据及许可 https://fdc.nal.usda.gov/api-guide/
 - Ollama 本机视觉与关闭云功能 https://docs.ollama.com/capabilities/vision 和 https://docs.ollama.com/faq
+
+## 自动检查与视觉回归
+
+完整运行方式见 docs/quality-and-backlog.md。正式 Web 页面已接入专项卡片、餐食日期、数据详情抽屉和本地成长页。Design Lab 仍用于比较交互设计。浏览器截图使用合成演示数据；设备视口并非 iOS 或 Android 真机验收。

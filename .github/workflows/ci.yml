@@ -1,0 +1,97 @@
+name: Breakwind CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      BREAKWIND_HEALTHKIT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        id: install
+        run: npm ci
+      - name: Verify project integrity
+        id: integrity
+        run: npm run check:integrity
+      - name: Check JavaScript and JSX syntax
+        id: syntax
+        run: npm run check:syntax
+      - name: Run ESLint
+        id: lint
+        run: npm run lint
+      - name: Run unit and storage tests
+        id: unit
+        run: npm test
+      - name: Install Chromium for browser tests
+        id: browser_install
+        run: npx playwright install --with-deps chromium
+      - name: Run functional and responsive browser checks
+        id: browser
+        run: npm run test:browser
+      - name: Check Expo iOS config and build Hermes bundle
+        id: build
+        run: |
+          npm run check:ios
+          npm run mobile:bundle -- --max-workers 2
+      - name: Audit dependency advisories
+        id: audit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm audit --audit-level=high
+      - name: Store screenshots and browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breakwind-browser-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Classify a failed run
+        if: failure()
+        env:
+          INSTALL: ${{ steps.install.outcome }}
+          INTEGRITY: ${{ steps.integrity.outcome }}
+          SYNTAX: ${{ steps.syntax.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          BROWSER_INSTALL: ${{ steps.browser_install.outcome }}
+          BROWSER: ${{ steps.browser.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### Breakwind CI failed"
+            echo "Open the [job log]($JOB_URL)."
+            for stage in INSTALL INTEGRITY SYNTAX LINT UNIT BROWSER_INSTALL BROWSER BUILD AUDIT; do
+              if [ "${!stage}" = failure ]; then
+                case "$stage" in
+                  SYNTAX|LINT) triage="low-risk candidate after review" ;;
+                  *) triage="manual investigation required" ;;
+                esac
+                echo "- $stage · $triage"
+              fi
+            done
+            echo "Browser diagnostics are attached when produced. No repair executor is configured, so this run does not edit code or retry itself."
+          } >> "$GITHUB_STEP_SUMMARY"
