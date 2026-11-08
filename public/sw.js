@@ -12,7 +12,9 @@ self.addEventListener('activate', event => {
   ]));
 });
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET' || !urls.has(event.request.url)) return;
+  const resource = new URL(event.request.url);
+  resource.hash = '';
+  if (event.request.method !== 'GET' || !urls.has(resource.href)) return;
   event.respondWith(caches.open(cacheName).then(async cache => {
     if (event.request.mode === 'navigate' && cacheNamespace === 'breakwind-preview-') {
       try {
@@ -20,7 +22,7 @@ self.addEventListener('fetch', event => {
         if (online.ok) return online;
       } catch { /* Read the installed shell when offline. */ }
     }
-    const cached = await cache.match(event.request);
+    const cached = await cache.match(resource.href);
     return cached || fetch(event.request);
   }));
 });
