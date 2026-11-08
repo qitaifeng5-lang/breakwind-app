@@ -253,6 +253,48 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
   .btn:active,.plan-cover:active,.metric-trigger:active { transform:none }
 }
 
+.visually-hidden { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap }
+.quick-page { max-width:780px;margin-inline:auto }
+.quick-entry h2,.group-week h2 { margin:0 0 10px;font-size:1.05rem }
+.quick-events { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px }
+.quick-events .btn { justify-content:center;min-height:48px;padding:8px 4px;color:var(--text) }
+.quick-events [aria-pressed=true],.group-week-days [aria-pressed=true] { background:var(--surface);border-color:#95939f;color:var(--text) }
+.quick-pb { display:grid;gap:6px }
+.quick-pb input,.food-search input,.meal-select select,#portion-form input { min-height:46px;font-size:1rem }
+.quick-pb small { color:var(--sub) }
+.quick-groups { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0;margin:16px 0 0 }
+.quick-groups legend { margin-bottom:8px }
+.quick-groups .btn { min-height:46px;justify-content:center }
+.group-current { border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:16px;margin-bottom:18px }
+.group-current header,.meal-group header,.meal-entry,.meal-select label { display:flex;align-items:center;justify-content:space-between;gap:8px }
+.group-current header { font-size:.84rem;color:var(--sub);flex-wrap:wrap }
+.group-current .group-date { margin:12px 0 2px;color:var(--sub);font-size:.82rem }
+.group-current h2 { margin:0 0 6px;font-size:1.3rem }
+.group-current p { margin:0 0 8px;color:var(--sub) }
+.group-intensity { font-weight:700;color:var(--text)!important }
+.group-week-days { display:grid;grid-auto-flow:column;grid-auto-columns:minmax(120px,1fr);gap:7px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:7px }
+.group-week-days button { min-width:0;min-height:70px;padding:8px;color:var(--sub);text-align:left;background:transparent;border:1px solid var(--line);border-radius:10px;scroll-snap-align:start }
+.group-week-days small,.group-week-days strong { display:block }
+.group-week-days strong { margin-top:4px;font-size:.83rem }
+.quick-safety { margin-top:8px }
+.quick-secondary { margin-top:12px;padding:8px 0;border-top:1px solid var(--line) }
+.quick-secondary summary { padding-block:6px;color:var(--sub);cursor:pointer }
+.quick-secondary[open] summary { margin-bottom:10px }
+.quick-steps { padding-left:1.2em }
+.quick-steps p { margin:3px 0 10px }
+.meal-list .meal-group { padding-block:8px;border-bottom:1px solid var(--line);margin:0 }
+.meal-list h2 { margin:0;font-size:1rem }
+.meal-entry,.food-pick { text-align:left;border:0;background:none;color:var(--text);width:100%;min-height:44px;padding:6px 0 }
+.meal-entry small,.food-pick small { color:var(--sub) }
+.food-pick { display:grid;gap:2px }
+.meal-select { margin-top:8px }
+.meal-select select { width:auto;min-width:7em }
+.food-tabs { display:flex;flex-wrap:nowrap;overflow:auto;max-width:100%;width:100%;margin-bottom:12px }
+.food-tabs button { flex:none;min-height:44px;white-space:nowrap }
+.food-tabs [aria-pressed=true] { background:var(--surface);color:var(--text);border-color:var(--line) }
+.portion-choices { display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 }
+#portion-form>label { display:grid;gap:4px }
+
 @media(max-width:420px){
   .calendar-days button{min-width:0;padding-inline:0}
   .calendar-days button small{white-space:nowrap;font-size:.67rem}
