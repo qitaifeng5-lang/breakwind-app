@@ -4,31 +4,31 @@ const now = new Date('2026-11-07T15:00:00Z');
 const click = (page,name) => page.getByRole('button',{name,exact:true}).click();
 test.beforeEach(async ({page})=>page.clock.setFixedTime(now));
 
-test('PB sheet waits for touch and stays usable when the visual viewport shrinks',async({page,isMobile},info)=>{
-  test.skip(!isMobile,'Touch keyboard scenario');
+test('PB numeric picker preserves selection and cancellation without a keyboard',async({page,isMobile},info)=>{
   await page.goto('/#run');
   await click(page,'1500m');
-  const pb=page.getByRole('textbox',{name:/PB/});
-  await expect(pb).not.toBeFocused();
-  await page.screenshot({path:info.outputPath('pb-before-keyboard.png')});
-  await pb.fill('4:55');
-  // Model a keyboard resize, not a claim of testing the iOS software keyboard.
-  await page.evaluate(()=>{
-    Object.defineProperty(visualViewport,'height',{configurable:true,value:320});
-    visualViewport.dispatchEvent(new Event('resize'));
-  });
-  const bounds=await page.getByRole('dialog').boundingBox();
-  expect(bounds.y).toBeGreaterThanOrEqual(0);
-  expect(bounds.y+bounds.height).toBeLessThanOrEqual(321);
-  await click(page,'竞技组');
-  await expect(page.locator('#group-today')).toContainText('竞技组 · PB 4:55');
-  await page.evaluate(()=>{
-    delete visualViewport.height;
-    visualViewport.dispatchEvent(new Event('resize'));
-  });
-  await click(page,'修改 PB 和组别');
-  await expect(pb).toHaveValue('4:55');
-  await expect(pb).not.toBeFocused();
+  await click(page,'4:20');
+  await click(page,'自定义成绩');
+  const dialog=page.getByRole('dialog');
+  await expect(dialog.locator('input:visible')).toHaveCount(0);
+  await expect(dialog.getByRole('combobox',{name:'分',exact:true})).toHaveValue('4');
+  await dialog.getByRole('combobox',{name:'秒',exact:true}).selectOption('55');
+  await page.screenshot({path:info.outputPath('pb-picker.png')});
+  await click(page,'取消');
+  await expect(page.locator('.pb-tiers-label')).toContainText('4:20');
+  await click(page,'自定义成绩');
+  await expect(dialog.getByRole('combobox',{name:'秒',exact:true})).toHaveValue('20');
+  await dialog.getByRole('combobox',{name:'秒',exact:true}).selectOption('55');
+  if(isMobile) {
+    await page.evaluate(()=>{Object.defineProperty(visualViewport,'height',{configurable:true,value:320});visualViewport.dispatchEvent(new Event('resize'));});
+    const bounds=await dialog.boundingBox();
+    expect(bounds.y+bounds.height).toBeLessThanOrEqual(321);
+  }
+  await click(page,'保存成绩');
+  await expect(dialog).not.toBeVisible();
+  await page.reload();
+  await expect(page.locator('.pb-tiers-label')).toContainText('4:55');
+  await expect(page.locator('.course-card')).toHaveCount(7);
 });
 
 test('dashboard, training, nutrition, analytics and growth fit the viewport and capture screenshots',async({page},info)=>{
@@ -62,37 +62,43 @@ test('dashboard, training, nutrition, analytics and growth fit the viewport and 
   expect(await signature()).toEqual(before);
 });
 
-test('1500m, PB and group immediately show today and the week',async({page},info)=>{
+test('experienced 1500m runner with no logs discovers complete courses and saves one without a questionnaire',async({page},info)=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/#run');
   await click(page,'1500m');
+  await click(page,'4:20');
+  await expect(page.locator('.course-card')).toHaveCount(7);
+  await expect(page.locator('.course-card').first()).toContainText('3 × 500m');
+  await expect(page.locator('main')).not.toContainText('轻松走跑');
+  await page.screenshot({path:info.outputPath('course-discovery.png')});
+  await click(page,'500m 稳定间歇');
   const dialog=page.getByRole('dialog');
-  await expect(dialog.locator('input')).toHaveCount(1);
-  await dialog.getByRole('textbox',{name:/PB/}).fill('4:20');
-  await click(page,'竞技组');
+  await expect(dialog).toContainText('组内恢复 · 3 分钟');
+  await expect(dialog).toContainText('待专业审核');
+  await expect(dialog.locator('input:not([type=date])')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('course-detail.png')});
+  await click(page,'加入日程');
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator('#group-today')).toContainText('1500m · 竞技组 · PB 4:20');
-  await expect(page.locator('#group-today')).toContainText('轻松跑＋动作练习');
-  await expect(page.locator('.group-week-days button')).toHaveCount(7);
-  const weekBounds=await page.locator('.group-week-days').boundingBox();
-  expect(weekBounds.y+weekBounds.height).toBeLessThan(page.viewportSize().height-60);
-  await expect(page.getByText('为什么安排这节训练？')).toHaveCount(0);
-  await page.screenshot({path:info.outputPath('1500m-group.png'),animations:'disabled'});
-  await click(page,'课次详情');
-  await expect(dialog.getByText('为什么安排这节训练？')).toBeVisible();
-  await click(page,'关闭');
   await page.reload();
-  await expect(page.locator('#group-today')).toContainText('竞技组');
-  await click(page,'修改 PB 和组别');
-  await click(page,'进阶组');
-  await expect(page.locator('#group-today')).toContainText('进阶组');
-  await click(page,'开始跑步');
+  await expect(page.locator('.pb-tiers-label')).toContainText('4:20');
+  await click(page,'一周课表');
+  await expect(page.locator('.week-outline li')).toHaveCount(7);
+  await expect(page.locator('.week-outline')).toContainText('恢复日');
+  await page.screenshot({path:info.outputPath('course-week.png')});
+  await click(page,'训练日程');
+  await expect(page.locator('main')).toContainText('500m 稳定间歇');
+  await page.goto('/#home');
+  await click(page,'课次详情');
+  await expect(dialog).toContainText('3 × 500m');
+  await click(page,'开始记录');
+  await dialog.getByRole('checkbox').check();
+  await click(page,'确认并记录');
   await click(page,'手动填写');
-  await expect(page.getByRole('textbox',{name:'训练名称'})).toHaveValue('轻松跑');
   await page.getByRole('spinbutton',{name:'实际距离（km）'}).fill('2');
-  await page.getByRole('spinbutton',{name:'实际耗时（分钟）'}).fill('15');
+  await page.getByRole('spinbutton',{name:'实际耗时（分钟）'}).fill('20');
   await click(page,'保存记录');
-  await click(page,'关闭');
-  await expect(page.locator('#group-today')).toContainText('已记录跑步');
+  await expect(dialog).toContainText('2');
+  expect(errors).toEqual([]);
 });
 
 test('running and rice at lunch persist and drive interactive data cards',async({page},info)=>{
@@ -245,12 +251,12 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
   }
   await page.goto('/#run');
   await click(page,'1500m');
-  await click(page,'竞技组');
-  const dates=page.locator('#group-today');
+  await click(page,'一周课表');
+  const dates=page.locator('.week-feature');
   await dates.scrollIntoViewIfNeeded();
   const strip=await dates.boundingBox();
   await drag(strip.x+127,strip.y+65,strip.x+35,strip.y+65);
-  await expect(page.locator('.group-week-days [aria-pressed=true]')).toHaveAttribute('data-action','group-date:2026-11-08');
+  await expect(page.locator('.course-dates [aria-pressed=true]')).toHaveAttribute('data-action','course-day:1');
   await page.getByText('计划资料与收藏',{exact:true}).click();
   await click(page,'下一项');
   await expect.poll(()=>page.locator('.plan-carousel').evaluate(node=>node.scrollLeft)).toBeGreaterThan(20);
@@ -268,14 +274,17 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
   expect(await sheet.evaluate(node=>node.getAnimations().length)).toBe(0);
 });
 
-test('reported pain pauses the selected group and remains after reload',async({page})=>{
+test('reported pain prevents scheduling while the full course remains browsable',async({page})=>{
   await page.goto('/#run');
   await click(page,'800m');
-  await click(page,'竞技组');
-  await click(page,'有伤痛？');
-  await expect(page.getByRole('dialog')).toContainText('专业评估');
+  await click(page,'2:20');
+  await click(page,'伤痛与恢复');
   await click(page,'暂停训练建议');
   await page.reload();
-  await expect(page.locator('#group-today')).toContainText('暂缓训练');
-  await expect(page.getByRole('button',{name:'开始跑步',exact:true})).toHaveCount(0);
+  await expect(page.locator('.course-card')).toHaveCount(7);
+  await expect(page.locator('.course-risk')).toContainText('已知伤痛');
+  await click(page,'200m 节奏重复');
+  await expect(page.getByRole('dialog')).toContainText('专业评估');
+  await expect(page.getByRole('button',{name:'加入日程',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'开始记录',exact:true})).toHaveCount(0);
 });

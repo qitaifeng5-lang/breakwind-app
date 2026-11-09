@@ -1,7 +1,7 @@
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
-import { pbDistances, pbDistanceLabel, pbOptions, matchPB, pbCourses, pbWeek } from './pb-library.js';
+import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek, courseCategories, coursePhases } from './pb-library.js';
 import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
-import { athleteTiers, cycleVersion, groupEvents, groupWeek, parseGroupPB, phases, recentPain, reviewCycle, specialties, templateDetails, trainingGroups } from './engine.js';
+import { athleteTiers, cycleVersion, courseReadiness, groupEvents, groupWeek, phases, recentPain, reviewCycle, specialties, templateDetails } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, conflicts, readData, demo } from './model.js';
 
@@ -75,14 +75,13 @@ let comparePlans = [];
 let trainingDate = '';
 let pbLibraryEvent = '';
 let pbLibraryChoice = '';
-let pbLibraryMode = 'week';
-let pbLibraryDivision = 'all';
+let pbLibraryMode = 'single';
 let pbLibraryFocus = 'all';
 try {
   const stored = JSON.parse(localStorage.getItem(storagePrefix+'.pb-catalog')||'null');
   if (pbDistances.includes(stored?.event)) {
     pbLibraryEvent=stored.event;
-    pbLibraryChoice=matchPB(stored.event,stored.pb)?.label||'';
+    pbLibraryChoice=pbSeconds(stored.pb)?stored.pb:'';
   }
   if (['week','single'].includes(stored?.mode)) pbLibraryMode=stored.mode;
 } catch { /* PB catalogue may operate without local persistence. */ }
@@ -145,7 +144,7 @@ function bars(series, highlighted = chartDate) {
 function workoutHero(s) {
   const scheduled=byDate(s.plans,day).find(item=>!item.completed);
   // Do not present an unverified generic easy-run fallback as the user's complete PB training plan.
-  const plan = scheduled || (s.groupPlan?.pb ? null : groupWeek(s,day,s.groupPlan).find(item=>item.date===day));
+  const plan = scheduled;
   const paused=trainingPaused(s);
   const runnable=plan && !plan.completed && !['休息','交叉训练'].includes(plan.type);
   const secondary=paused ? btn('伤痛与暂停','training-safety','','quiet') :
@@ -181,134 +180,133 @@ function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
 const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 
-const pbCourseKinds = {interval:'间歇跑','speed-endurance':'间歇跑',tempo:'节奏跑',speed:'加速跑',combination:'间歇跑',aerobic:'轻松跑'};
+const pbCourseKinds={interval:'间歇跑',endurance:'间歇跑',tempo:'阈值跑',speed:'加速跑',combination:'间歇跑',aerobic:'轻松跑',hills:'坡道跑'};
+let courseSearch='';
+let courseSearchOpen=false;
+let coursePhase='develop';
+let courseDate=day;
+let activeCourse;
+let pbDraftEvent='';
+function courseOptions() {return {phase:coursePhase,youth:state().cycleProfile?.age==='未满18岁'};}
 function pbLibrarySelection(s) {
-  const event=pbLibraryEvent || (pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m');
-  const list=pbOptions(event);
-  const existing=pbLibraryChoice || (s.groupPlan?.event===event ? s.groupPlan.pb : '');
-  return matchPB(event,existing) || list[Math.min(list.length-1,Math.floor(list.length*0.4))];
+  const event=pbLibraryEvent || s.groupPlan?.event || '800 m';
+  const value=pbLibraryChoice;
+  const seconds=pbSeconds(value);
+  return {seconds,label:seconds?formatPB(seconds,{fraction:true}):'所有档位'};
+}
+function courseArt(id) {
+  const paths=id==='hills'?'M0 100 70 28 130 78 200 10 300 100 M0 120 85 50 150 105 220 38 320 120':
+    id==='tempo'?'M0 95 Q30 10 60 95 T120 95 T180 95 T240 95 T300 95':
+    id==='combination'?'M20 100V50H75V100 M95 100V25H145V100 M170 100V65H225V100 M245 100V40H290V100':
+    id==='aerobic'?'M-20 95 Q60 10 150 75 T330 45 M-20 110 Q60 25 150 90 T330 60':
+    'M-20 100H130a35 35 0 0 0 0-70H50 M-20 115H130a50 50 0 0 0 0-100H50 M-20 85H130a20 20 0 0 0 0-40H50';
+  return '<svg class="course-art art-'+id+'" viewBox="0 0 300 130" fill="none" aria-hidden="true"><path d="'+paths+'" stroke="currentColor" stroke-width="3"/><circle cx="245" cy="27" r="5" fill="currentColor"/></svg>';
+}
+const recoveryText=seconds=>seconds===null?'充分恢复，由现场指导确认':seconds>=60?num(seconds/60)+' 分钟':seconds+' 秒';
+function structureHTML(course) {
+  return '<ol class="course-segments">'+course.segments.map((part,index)=>'<li><span>'+String(index+1).padStart(2,'0')+'</span><div><strong>'+
+    escape(part.unit==='skill'?part.description:(part.repeats>1?part.repeats+' × ':'')+part.distance+({m:'m',min:' 分钟',sec:' 秒'}[part.unit]||''))+'</strong>'+
+    ((part.repeats>1 || index<course.segments.length-1)?'<small>组内恢复 · '+recoveryText(part.recoverySeconds)+'</small>':'')+'</div></li>').join('')+'</ol>'+
+    (course.sets>1?'<p class="set-recovery">共 '+course.sets+' 组 · 组间恢复 '+recoveryText(course.setRecovery)+'</p>':'');
+}
+function courseCard(course) {
+  return '<article class="course-card"><button class="course-cover cover-'+course.id+'" data-action="pb-course:'+course.id+'" aria-label="查看'+escape(course.name)+'">'+courseArt(course.id)+
+    '<span>'+escape(course.category)+'</span></button><div class="course-card-body"><small>'+escape(course.band.label)+' · '+escape(course.applicablePB)+'</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p>'+
+    '<details class="course-expansion"><summary>展开结构</summary><div>'+structureHTML(course)+'<p>'+escape(course.adjustment)+'</p></div></details></div></article>';
 }
 function pbLibraryView(s) {
-  if (!pbLibraryEvent) pbLibraryEvent=pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m';
-  const event=pbLibraryEvent;
-  const selection=pbLibrarySelection(s);
-  const pb=selection?.label;
-  if (!pb) return '';
-  const courses=pbCourses(event,pb);
-  const week=pbWeek(event,pb);
-  const categories=['all','interval','speed-endurance','tempo','speed','combination','aerobic'];
-  const labels={all:'全部',interval:'间歇','speed-endurance':'速度耐力',tempo:'Tempo',speed:'速度',combination:'组合课',aerobic:'有氧'};
-  const locked=trainingPaused(s);
-  const division=[['all','全部'],['men','男子'],['women','女子']].map(([id,name])=>
-    '<button type="button" data-action="pb-division:'+id+'" aria-pressed="'+(pbLibraryDivision===id)+'">'+name+'</button>').join('');
-  const events=pbDistances.map((item,index)=>
-    '<button type="button" data-action="pb-event:'+index+'" aria-pressed="'+(event===item)+'">'+escape(pbDistanceLabel(item))+'</button>').join('');
-  const choices=pbOptions(event).map(item=>
-    '<button type="button" class="pb-tier" data-action="pb-choice:'+item.index+'" aria-pressed="'+(item.label===pb)+'"><strong>'+escape(item.label)+'</strong><small>PB</small></button>').join('');
-  const samples=pbLibraryMode==='week' ?
-    '<div class="pb-week-cards">'+week.map((item,index)=>
-      '<button class="pb-session-card '+(item.id==='rest'?'is-rest':'')+'" type="button" data-action="pb-week:'+index+'"><span>'+item.dayLabel+' · '+escape(item.category)+'</span><strong>'+escape(item.name)+'</strong><small>'+escape(item.id==='rest'?'休息 / 充足恢复':item.main)+'</small></button>').join('')+'</div>'
-    :'<div class="pb-focus" role="group" aria-label="单节训练类型">'+categories.map(id=>
-      '<button type="button" data-action="pb-focus:'+id+'" aria-pressed="'+(pbLibraryFocus===id)+'">'+labels[id]+'</button>').join('')+'</div>'+
-      '<div class="pb-course-list">'+courses.filter(item=>pbLibraryFocus==='all'||pbLibraryFocus===item.id).map(item=>
-      '<button type="button" class="pb-course-card" data-action="pb-course:'+item.id+'"><span>'+escape(item.category)+' · '+item.minutes+' 分钟参考</span><strong>'+escape(item.name)+'</strong><small>'+escape(item.main)+'</small><i>查看详情 ›</i></button>').join('')+'</div>';
-  return '<section class="pb-library" id="pb-library" aria-label="按 PB 选择课程">'+
-    '<div class="pb-library-top"><div><h2>训练专区</h2><p>选择成绩档位，再选一周课程或一节课。</p></div><div class="pb-division" role="group" aria-label="赛事组别">'+division+'</div></div>'+
-    '<div class="pb-events" role="group" aria-label="训练专项">'+events+'</div>'+
-    '<div class="pb-tiers-label"><strong>'+escape(pbDistanceLabel(event))+' · PB 档位</strong><span>左右滑动选择</span></div>'+
-    '<div class="pb-tiers" role="group" aria-label="PB 成绩档位">'+choices+'</div>'+
-    '<div class="pb-library-mode" role="group" aria-label="训练计划形式">'+
-    '<button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">整周课表</button>'+
-    '<button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button></div>'+
-    '<div class="pb-library-meta"><b>'+escape(pb)+' · '+(pbLibraryMode==='week'?'周训练模板':'专项课程')+'</b><span>'+({all:'全部',men:'男子',women:'女子'}[pbLibraryDivision])+' · 成绩分档</span></div>'+
-    (locked?'<p class="pb-library-warning">近期有疼痛反馈：可以浏览课程，但暂停安排高强度训练，建议先接受专业评估。</p>':
-      '<p class="pb-library-note">课程为分组示例，不会仅凭 PB 判断近期负荷承受力。训练前应结合当前训练与恢复情况调整。</p>')+
-    samples+'</section>';
+  if (!pbDistances.includes(pbLibraryEvent)) {
+    pbLibraryEvent=pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m';
+    pbLibraryChoice=s.groupPlan?.event===pbLibraryEvent&&pbSeconds(s.groupPlan.pb)?s.groupPlan.pb:'';
+  }
+  const event=pbLibraryEvent,selection=pbLibrarySelection(s),options=courseOptions();
+  const courses=pbCourses(event,selection.seconds,options);
+  const selectedIndex=Math.max(0,Math.min(6,Math.round((Date.parse(courseDate)-Date.parse(day))/86400000)));
+  const week=pbWeek(event,selection.seconds,options);
+  const selected=week[selectedIndex];
+  const events=pbDistances.map((item,index)=>'<button data-action="pb-event:'+index+'" aria-pressed="'+(event===item)+'">'+escape(pbDistanceLabel(item))+'</button>').join('');
+  const choices='<button class="pb-tier" data-action="pb-all" aria-pressed="'+!selection.seconds+'">不限成绩</button>'+pbOptions(event).map(item=>
+    '<button class="pb-tier" data-action="pb-choice:'+item.index+'" aria-pressed="'+(item.seconds===selection.seconds)+'">'+item.label+'</button>').join('');
+  const filtered=courses.filter(item=>(pbLibraryFocus==='all'||pbLibraryFocus===item.id)&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
+  const single='<div class="pb-focus" role="group" aria-label="训练类型">'+[['all','全部'],...Object.entries(courseCategories)].map(([id,label])=>
+    '<button data-action="pb-focus:'+id+'" aria-pressed="'+(pbLibraryFocus===id)+'">'+label+'</button>').join('')+'</div><div class="course-rail" aria-label="训练课程">'+
+    (filtered.length?filtered.map(courseCard).join(''):'<p class="empty-courses">没有找到对应课程，试试其他关键词。</p>')+'</div>';
+  const weekContent='<div class="week-phase"><label>训练阶段<select id="course-phase">'+Object.entries(coursePhases).map(([id,label])=>'<option value="'+id+'"'+(id===coursePhase?' selected':'')+'>'+label+'</option>').join('')+'</select></label><small>周结构预览 · 不会自动加入日程</small></div>'+
+    '<div class="course-dates" aria-label="课程日期">'+week.map((item,index)=>'<button data-action="course-day:'+index+'" aria-pressed="'+(index===selectedIndex)+'"><small>'+escape(fullDate(offset(day,index)))+'</small><strong>'+escape(item.category)+'</strong></button>').join('')+'</div>'+
+    '<section class="week-feature" data-swipe-day="course"><p>'+escape(fullDate(offset(day,selectedIndex)))+' · '+escape(selected.category)+'</p><h2>'+escape(selected.name)+'</h2><p>'+escape(selected.main||'休息也是本周安排的一部分。')+'</p><p class="week-relation">'+escape(selected.relation)+'</p>'+
+    (selected.id!=='rest'?btn('查看完整课程','pb-week:'+selectedIndex,'arrow','primary'):'')+'</section>'+
+    '<ol class="week-outline">'+week.map((item,index)=>'<li><button data-action="pb-week:'+index+'"><span>'+escape(fullDate(offset(day,index)))+'</span><strong>'+escape(item.name)+'</strong><small>'+escape(item.relation)+'</small></button></li>').join('')+'</ol>';
+  return '<section id="pb-library" class="course-discover"><div class="pb-events" role="group" aria-label="训练专项">'+events+'</div>'+
+    '<div class="pb-tiers-label"><strong>'+escape(selection.label)+' <small>· 浏览档位</small></strong>'+btn('自定义成绩','pb-custom','','quiet')+'</div><div class="pb-tiers" role="group" aria-label="PB 成绩档位">'+choices+'</div>'+
+    '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">一周课表</button></div>'+
+    (trainingPaused(s)?'<div class="course-risk" role="status">已知伤痛：课程可以浏览，暂不安排执行。'+btn('查看原因','training-safety','','quiet')+'</div>':'')+
+    '<div class="course-status"><span>原创教学课程 · 待专业审核</span><span>'+ (options.youth?'青少年指导模式':'按专项与成绩浏览')+'</span></div>'+
+    (pbLibraryMode==='single'?single:weekContent)+'</section>';
 }
 function refreshPBView(keepPosition=true) {
   const root=main.querySelector('#pb-library');
-  if(!root) return render();
-  const left=keepPosition?root.querySelector('.pb-tiers')?.scrollLeft||0:0;
-  const eventLeft=root.querySelector('.pb-events')?.scrollLeft||0;
+  if (!root) return render();
+  const positions=['.pb-tiers','.pb-events','.pb-focus'].map(selector=>[selector,root.querySelector(selector)?.scrollLeft||0]);
   root.outerHTML=pbLibraryView(state());
-  main.querySelector('.pb-tiers')?.scrollTo({left,behavior:'instant'});
-  main.querySelector('.pb-events')?.scrollTo({left:eventLeft,behavior:'instant'});
+  for (const [selector,left] of positions) main.querySelector(selector)?.scrollTo({left:keepPosition?left:0,behavior:'instant'});
 }
 function openPBWorkout(course,dayIndex=null) {
-  if(!course) return;
-  const risk=trainingPaused(state());
-  const title=course.id==='rest'?'休息与恢复':course.name;
-  const details=course.blocks?.length?
-    '<ol class="pb-workout-steps">'+course.blocks.map(item=>
-      '<li><strong>'+escape(item.name)+'</strong><p>'+escape(item.detail)+'</p></li>').join('')+'</ol>':
-    '<p>'+escape(course.main)+'</p>';
-  const content='<div class="pb-workout-info"><p>'+escape(course.category)+' · '+escape(course.pb||pbLibrarySelection(state()).label)+
-    ' · '+escape(course.effort)+'</p><h3>'+escape(course.main)+'</h3>'+details+
-    '<p class="pb-library-note">'+escape(course.reason||'恢复是训练结构的一部分。')+'</p>'+
-    '<p class="pb-library-warning">PB 只代表过去的比赛成绩。这个示例不代表你今天适合执行同等负荷。</p>'+
-    (!risk&&course.id!=='rest'?'<div class="dialog-actions">'+btn('安排这节课','pb-add:'+course.id+':'+(dayIndex===null?'x':dayIndex),'calendar','primary')+'</div>':'')+'</div>';
-  modal(title,content,'sheet');
+  if (!course) return;
+  if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'sheet');
+  activeCourse={course,date:dayIndex===null?day:offset(day,dayIndex)};
+  const key=[course.event,course.id,course.pb,activeCourse.date].join('|');
+  const scheduled=state().plans.find(plan=>plan.courseKey===key);
+  if (scheduled) {course={...course,planId:scheduled.id};activeCourse.course=course;}
+  const ready=courseReadiness(state(),course,activeCourse.date,day);
+  modal(course.name,'<div class="course-detail"><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+course.id+'">'+courseArt(course.id)+'<span>'+escape(course.category)+'</span></div>'+
+    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+'</p><p>'+escape(course.objective)+'</p>'+
+    '<div class="review-label">待专业审核 · 不是个体训练处方</div><section class="course-block"><h3>热身</h3><p>'+escape(course.warmup)+'</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course)+'</section>'+
+    '<section class="course-block"><h3>冷身与恢复</h3><p>'+escape(course.cooldown)+'</p></section><section class="course-block"><h3>强度与调整</h3><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p></section>'+
+    '<details class="course-evidence"><summary>训练依据与审核状态</summary><p>'+escape(course.parameterOrigin)+'</p>'+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
+    '<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>'+
+    (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions"><button class="btn primary" type="submit">加入日程</button>'+(ready.canSchedule?btn('开始记录','course-start','','secondary'):'')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+'</div>','sheet');
 }
-function openPBSchedule(courseId,dayIndex) {
-  if(trainingPaused(state())) return showTrainingHold();
-  const choice=pbLibrarySelection(state());
-  const recordedNames=[pbLibraryEvent,{'5000 m':'5 km','10000 m':'10 km'}[pbLibraryEvent]].filter(Boolean);
-  const recordTimes=state().records.filter(item=>recordedNames.includes(item.event)&&item.seconds>0).map(item=>item.seconds);
-  if (state().groupPlan?.event===pbLibraryEvent) {
-    const time=Number(state().groupPlan.pb?.includes(':')?state().groupPlan.pb.split(':').reduce((n,v)=>n*60+Number(v),0):state().groupPlan.pb);
-    if(Number.isFinite(time)&&time>0) recordTimes.push(time);
-  }
-  const personalBest=recordTimes.length?Math.min(...recordTimes):null;
-  if(personalBest===null) {
-    modal('先确认当前 PB','<p>可以自由浏览所有课程。安排到自己的日程前，请先记录该专项 PB，避免把高水平模板误当作适合自己的训练。</p>'+
-      btn('确认我的 PB','pb-confirm','','primary'),'sheet');
-    return;
-  }
-  if(choice.seconds+0.5<personalBest) {
-    modal('档位高于当前 PB','<p>你目前记录的 PB 为 '+escape(matchPB(pbLibraryEvent,personalBest)?.label||'未知')+
-      '，这节课程属于更快的成绩档位。你可以继续浏览，但安排训练前需要先更新真实 PB。</p>'+
-      btn('更新我的 PB','pb-confirm','','primary'),'sheet');
-    return;
-  }
-  const course=pbCourses(pbLibraryEvent,choice.seconds).find(item=>item.id===courseId);
-  if(!course) return;
-  const date=dayIndex==='x'?day:offset(weekStart(day),Number(dayIndex));
-  editor.close();
-  openEditor('plans','',{date,name:course.name,type:pbCourseKinds[courseId]||'间歇跑',
-    minutes:course.minutes,note:'课程模板 · '+pbDistanceLabel(pbLibraryEvent)+' PB '+choice.label+'。'+course.main+
-    '。使用前结合近期训练背景与恢复情况调整，身体不适时停止。'});
+function scheduleCourse(date) {
+  const course=activeCourse?.course;
+  if (!course || sample || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date<day || offset(date,0)!==date) return false;
+  const courseKey=[course.event,course.id,course.pb,date].join('|');
+  const existing=data.plans.find(plan=>plan.courseKey===courseKey);
+  const ready=courseReadiness(data,{...course,planId:existing?.id},date,day);
+  if (!ready.canSchedule) {formError(ready.reason);return false;}
+  if (existing) {notify('这节课已在日程中');return existing;}
+  const plan={id:crypto.randomUUID(),date,name:course.name,type:pbCourseKinds[course.id],quality:course.quality,courseKey,
+    course:structuredClone(course),reviewStatus:'pending',executionStatus:'待执行核对',completed:false,
+    note:course.main,minutes:null,distance:null,pace:'',start:'',end:''};
+  if (!commit(next=>next.plans.push(plan))) return false;
+  return plan;
 }
-
+editor.addEventListener('submit',event=>{
+  if (event.target.id!=='course-schedule') return;
+  event.preventDefault();
+  const plan=scheduleCourse(event.target.elements.date.value);
+  if (plan) {editor.close();render();notify('已加入 '+plan.date+' 日程 · 执行前核对');}
+});
+function startCourseRecord() {
+  const course=activeCourse?.course;
+  if (!course) return;
+  const ready=courseReadiness(data,course,day,day);
+  if (!ready.canSchedule) return modal('暂不执行','<p>'+escape(ready.reason)+'</p>','sheet');
+  modal('执行前核对','<p>'+escape(course.name)+' · 待专业审核</p><form id="course-ready"><label class="ready-check"><input type="checkbox" name="ready" required>'+escape(course.youth?'教练已在现场确认适龄技术活动；我目前没有疼痛。':'我已有同类训练经验，目前没有疼痛，已核对今天的恢复和训练安排。')+'</label><p>这项确认仅记录你的当前反馈，不代表专业审核通过。</p><button class="btn primary" type="submit">确认并记录</button></form>','sheet');
+}
+editor.addEventListener('submit',event=>{
+  if (event.target.id!=='course-ready') return;
+  event.preventDefault();
+  if (!event.target.elements.ready.checked || !activeCourse) return;
+  const plan=scheduleCourse(day);
+  if (plan) runOptions(plan.id,true);
+});
 function training(s) {
-  const week=groupWeek(s,day,s.groupPlan);
-  const selected=week.find(plan=>plan.date===trainingDate) || week.find(plan=>plan.date===day);
-  const choices='<div class="quick-events" aria-label="专项">'+quickEvents.map(([event,entry],i)=>
-    '<button type="button" class="btn secondary" aria-pressed="'+(s.groupPlan?.event===event)+'" data-action="group-setup:'+i+'">'+entry.label+'</button>').join('')+'</div>';
-  return '<div class="quick-page">'+head('','训练','',btn('记录跑步','run-options','plus','quiet'))+
-    pbLibraryView(s)+
-    (selected?'<details class="quick-secondary"><summary>我的原有分组课表</summary>'+groupSchedule(s,week,selected)+'</details>':'')+
-    (selected?'<details class="quick-secondary"><summary>更换专项</summary>'+choices+'</details>':'')+
-    '<div class="quick-safety">'+btn(trainingPaused(s)?'伤痛与暂停':'有伤痛？','training-safety','','quiet')+'</div>'+
-    '<details class="quick-secondary"><summary>已有课表与跑步日志</summary>'+cycleOverview(s) +
-    panel('训练计划',rows(desc(s.plans),'plans',planRow,'calendar','还没有旧课表',''),btn('安排训练','edit:plans:','plus','quiet')) +
-    panel('跑步日志',rows(desc(s.runs),'runs',runRow,'run','还没有跑步记录',''),btn('设备与同步','devices','settings','quiet'))+'</details>'+
+  return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
+    '<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+pbLibraryView(s)+
+    '<nav class="training-tools" aria-label="训练记录">'+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
-function groupSchedule(s,week,plan) {
-  const {event,group,pb}=s.groupPlan;
-  const setupIndex=quickEvents.findIndex(([key])=>key===event);
-  const detail=plan.external?'open-plan:'+plan.id:'group-workout:'+plan.date;
-  const canStart=plan.date===day && !plan.completed && !trainingPaused(s) && !['休息','交叉训练'].includes(plan.type);
-  const main=plan.blocks?.find(([title])=>['主训练','训练内容'].includes(title))?.[1] || plan.note;
-  const weekStrip='<section class="group-week"><h2>本周课表</h2><div class="group-week-days" aria-label="本周课表">'+week.map(item=>
-    '<button type="button" data-action="group-date:'+item.date+'" aria-pressed="'+(item.date===plan.date)+'"><small>'+escape(fullDate(item.date))+
-    '</small><strong>'+escape(item.name)+'</strong></button>').join('')+'</div></section>';
-  return weekStrip+'<section class="group-current" id="group-today" tabindex="-1" data-swipe-day="group"><header><span>'+groupEvents[event].label+' · '+trainingGroups[group]+'组'+(pb?' · PB '+escape(pb):'')+
-    '</span><button class="btn quiet" aria-label="修改 PB 和组别" data-action="group-setup:'+setupIndex+'">调整</button></header><p class="group-date">'+(plan.date===day?'今日课表':escape(fullDate(plan.date)))+
-    '</p><h2>'+escape(plan.name)+'</h2>'+(main?'<p>'+escape(main)+'</p>':'')+
-    (plan.minutes?'<p class="group-intensity">'+escape([plan.minutes+' 分钟',plan.pace || plan.intensity].filter(Boolean).join(' · '))+'</p>':'')+
-    '<div class="hero-actions">'+(canStart?btn('开始跑步','start:'+plan.id,'play','primary'):'')+btn('课次详情',detail,'','quiet')+'</div></section>';
-}
+
 function showGroupWorkout([date]) {
   const plan=groupWeek(state(),day,state().groupPlan).find(item=>item.date===date);
   if (!plan) return;
@@ -389,6 +387,7 @@ function academy() {
 const pages = { home:dashboard, run:training, calendar:schedule, food:nutrition, chart:analytics, heart:recoveryPage, book:academy, growth:growth };
 function render() {
   const route = currentRoute();
+  document.documentElement.dataset.route=route;
   document.documentElement.dataset.theme = currentTheme;
   chrome(route);
   document.documentElement.dataset.preview = hostedPreview ? 'https' : '';
@@ -431,6 +430,7 @@ function field(config,item) {
   return '<label class="' + (type === 'textarea' ? 'wide' : '') + '"><span>' + label + '</span>' + control + '</label>';
 }
 function modal(title, body, variant = '') {
+  for (const animation of editor.getAnimations()) animation.cancel();
   const previous = editor.dataset.variant;
   editor.dataset.variant = variant;
   editor.style.removeProperty('transform');
@@ -580,12 +580,16 @@ const actions = {
   'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;persistPBChoice();refreshPBView();},
   'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event)return;pbLibraryEvent=event;pbLibraryChoice='';pbLibraryFocus='all';persistPBChoice();refreshPBView(false);},
   'pb-choice': ([index]) => {const option=pbOptions(pbLibraryEvent)[Number(index)];if(!option)return;pbLibraryChoice=option.label;persistPBChoice();refreshPBView();},
-  'pb-division': ([division]) => {if(!['all','men','women'].includes(division))return;pbLibraryDivision=division;refreshPBView();},
-  'pb-focus': ([id]) => {if(!['all','interval','speed-endurance','tempo','speed','combination','aerobic'].includes(id))return;pbLibraryFocus=id;refreshPBView();},
-  'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds)[Number(index)],Number(index));},
-  'pb-course': ([id]) => {openPBWorkout(pbCourses(pbLibraryEvent,pbLibrarySelection(state()).seconds).find(x=>x.id===id));},
-  'pb-add': ([id,index]) => openPBSchedule(id,index),
-  'pb-confirm': () => {const index=quickEvents.findIndex(([event])=>event===pbLibraryEvent);if(index!==-1)openGroupSetup(index);},
+  'pb-focus': ([id]) => {if(id!=='all'&&!Object.hasOwn(courseCategories,id))return;pbLibraryFocus=id;refreshPBView();},
+  'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions())[Number(index)],Number(index));},
+  'pb-course': ([id]) => {openPBWorkout(pbCourses(pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions()).find(x=>x.id===id));},
+  'pb-all': () => {pbLibraryChoice='';persistPBChoice();refreshPBView();},
+  'pb-custom': () => openGroupSetup(quickEvents.findIndex(([event])=>event===pbLibraryEvent)),
+  'course-start': startCourseRecord,
+  'course-search': () => {courseSearchOpen=!courseSearchOpen;const field=main.querySelector('.course-search');field.hidden=!courseSearchOpen;if(courseSearchOpen)field.querySelector('input').focus();},
+  'course-day': ([index]) => {if(Number(index)<0||Number(index)>6)return;courseDate=offset(day,Number(index));refreshPBView();},
+  'training-calendar': () => {location.hash=href('calendar');},
+  'training-history': () => modal('跑步历史',rows(desc(state().runs),'runs',runRow,'run','还没有跑步记录','')+btn('设备与同步','devices','settings','quiet'),'sheet'),
   'group-setup': ([index]) => openGroupSetup(index),
   'group-date': ([date]) => {
     const position=main.querySelector('.group-week-days')?.scrollLeft || 0;
@@ -695,7 +699,10 @@ function updateRoute() {
 }
 window.addEventListener('hashchange', () => {
   if (editor.open) editor.close();
-  if (!reducedMotion.matches && document.startViewTransition) document.startViewTransition(updateRoute);
+  if (!reducedMotion.matches && document.startViewTransition) {
+    // Rapid navigation intentionally skips an unfinished visual transition.
+    document.startViewTransition(updateRoute).ready.catch(()=>{});
+  }
   else updateRoute();
 });
 window.addEventListener('storage', event => {
@@ -707,6 +714,7 @@ function refreshDay() {
   if (selectedDate === day) selectedDate = now;
   if (foodDate === day) foodDate = now;
   if (trainingDate === day) trainingDate = now;
+  if (courseDate === day) courseDate = now;
   day = now;
   render();
 }
@@ -787,55 +795,38 @@ const quickEvents = Object.entries(groupEvents);
 function openGroupSetup(index) {
   const entry=quickEvents[Number(index)];
   if (!entry) return;
-  if (sample) return modal('试用分组训练','<p>返回个人模式即可选择并保存训练组。</p>'+btn('返回我的记录','demo','','primary'),'sheet');
-  const [event,specialty]=entry;
-  const current=data.groupPlan;
-  const previous=pbLibraryEvent===event && pbLibraryChoice ? pbLibraryChoice : current?.event===event ? current.pb : '';
-  const recordName={'5000 m':'5 km','10000 m':'10 km'}[event] || event;
-  const record=data.records.filter(item=>[event,recordName].includes(item.event) && item.seconds>0).sort((a,b)=>a.seconds-b.seconds)[0];
-  const long=specialty.example.split(':').length===3;
-  const formatted=record ? (long ? (record.seconds<3600?'0:':'')+duration(record.seconds) :
-    Math.floor(record.seconds/60)+':'+String(record.seconds%60).padStart(2,'0')) : '';
-  modal(specialty.label+' 训练','<form id="group-form" data-index="'+index+'"><label class="quick-pb"><span>PB <small>（'+(long?'时:分:秒':'分:秒')+'，可留空）</small></span>'+
-    '<input name="pb" type="text" maxlength="12" autocomplete="off" placeholder="'+specialty.example+'" value="'+escape(previous || formatted)+'"></label>'+
-    '<fieldset class="quick-groups"><legend>选择训练组</legend>'+Object.entries(trainingGroups).map(([group,label])=>
-    '<button class="btn '+(current?.event===event&&current.group===group?'primary':'secondary')+'" name="group" type="submit" value="'+group+'">'+label+'组</button>').join('')+
-    '</fieldset><p class="form-error" role="alert" hidden></p></form>','sheet');
-  const pb=editor.querySelector('#group-form').elements.pb;
-  // Do not pop up the software keyboard when the plan sheet opens on a phone.
-  // Let the user choose to edit PB; desktop pointer/fine input retains keyboard convenience.
-  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) pb.focus({preventScroll:true});
-  pb.addEventListener('keydown',event=>{
-    if (event.key!=='Enter' || event.isComposing) return;
-    event.preventDefault();
-    editor.querySelector('.quick-groups button').focus();
-  });
+  pbDraftEvent=entry[0];
+  const long=['半程马拉松','全程马拉松'].includes(pbDraftEvent);
+  const track=['800 m','1500 m'].includes(pbDraftEvent);
+  const seconds=pbSeconds(pbLibraryEvent===pbDraftEvent?pbLibraryChoice:'') || 0;
+  const select=(name,label,count,value)=>'<label>'+label+'<select name="'+name+'" aria-label="'+label+'">'+Array.from({length:count},(_,n)=>'<option value="'+n+'"'+(n===value?' selected':'')+'>'+String(n).padStart(2,'0')+'</option>').join('')+'</select></label>';
+  modal('自定义 '+pbDistanceLabel(pbDraftEvent)+' PB','<form id="pb-picker"><p class="picker-help">选择数字即可，不需要输入冒号。</p><div class="pb-number-picker">'+
+    (long?select('hours','小时',24,Math.floor(seconds/3600)):'')+select('minutes','分',long?60:180,Math.floor(seconds/60)%(long?60:180))+
+    select('seconds','秒',60,Math.floor(seconds)%60)+(track?select('hundredths','百分秒',100,Math.round(seconds*100)%100):'')+'</div>'+
+    '<output id="pb-draft-value">'+(seconds?formatPB(seconds,{hours:long,fraction:track}):'请选择成绩')+'</output>'+
+    '<details class="pb-manual"><summary>备用：手动输入</summary><label class="quick-pb">PB<input type="text" name="manual" autocomplete="off" placeholder="'+(long?'1:30:00':'4:55.00')+'"></label></details>'+
+    '<p class="form-error" role="alert" hidden></p><div class="picker-actions">'+btn('取消','close','','quiet')+'<button type="submit" class="btn primary">保存成绩</button></div></form>','sheet');
 }
+function pickerSeconds(form) {
+  if (form.querySelector('.pb-manual').open) return pbSeconds(form.elements.manual.value.trim());
+  const n=Number(form.elements.hours?.value||0)*3600+Number(form.elements.minutes.value)*60+Number(form.elements.seconds.value)+Number(form.elements.hundredths?.value||0)/100;
+  return n>0?n:null;
+}
+editor.addEventListener('change',event=>{
+  const form=event.target.closest('#pb-picker');
+  if (form) form.querySelector('output').textContent=formatPB(pickerSeconds(form),{hours:Boolean(form.elements.hours),fraction:true});
+});
 editor.addEventListener('submit',event=>{
   const form=event.target;
-  if (form.id!=='group-form') return;
+  if (form.id!=='pb-picker') return;
   event.preventDefault();
-  const group=event.submitter?.value;
-  const entry=quickEvents[Number(form.dataset.index)];
-  if (!entry || !Object.hasOwn(trainingGroups,group) || sample) return;
-  const [specialty,definition]=entry;
-  const pb=form.elements.pb.value.trim();
-  if (pb && parseGroupPB(specialty,pb)===null) {
-    form.elements.pb.focus();
-    return formError('请按 '+definition.example+' 的格式输入 PB。');
-  }
-  const start=dateKey();
-  if (!commit(next=>{
-    const current=next.groupPlan;
-    next.groupPlan={event:specialty,group,pb,start:current?.event===specialty&&current.group===group ? current.start : start};
-  })) return;
-  trainingDate='';
+  const seconds=pickerSeconds(form);
+  if (!seconds || seconds>=86400) return formError('请选择有效的成绩，秒数为 00–59。');
+  pbLibraryEvent=pbDraftEvent;
+  pbLibraryChoice=formatPB(seconds,{fraction:true});
+  persistPBChoice();
   editor.close();
-  if (currentRoute()!=='run') location.hash=href('run');
-  else {
-    render();
-    main.querySelector('#group-today')?.focus({preventScroll:true});
-  }
+  refreshPBView();
 });
 
 const workoutKey = storagePrefix + '.run.draft';
@@ -853,11 +844,18 @@ function restoreWorkout() {
 function workoutElapsed() {
   return activeWorkout.elapsed + (activeWorkout.anchor ? Date.now()-activeWorkout.anchor : 0);
 }
-function runOptions(id) {
+function runOptions(id,courseConfirmed=false) {
   if (sample) return openEditor('runs');
   if (activeWorkout) return timerView();
   if (id && trainingPaused(data)) return showTrainingHold();
   pendingPlan = data.plans.find(plan=>plan.id===id) || groupWeek(data,day,data.groupPlan).find(plan=>plan.id===id && plan.date===day && plan.type!=='休息' && plan.type!=='交叉训练');
+  if (pendingPlan?.previewOnly) return notify('请从课程详情主动选课，浏览课表不会自动安排执行。');
+  if (pendingPlan?.course) {
+    activeCourse={course:{...pendingPlan.course,planId:pendingPlan.id},date:day};
+    const ready=courseReadiness(data,activeCourse.course,day,day);
+    if (!ready.canSchedule) return modal('暂不执行','<p>'+escape(ready.reason)+'</p>','sheet');
+    if (!courseConfirmed) return startCourseRecord();
+  }
   modal('记录跑步','<div class="menu-links">' +
     btn('手机 GPS · 前台记录','run-gps','play','primary') + btn('开始手动计时','run-timer','clock') +
     btn('手动填写','run-manual','plus') + btn('导入 FIT / GPX / TCX','run-import','flag') +
@@ -865,6 +863,7 @@ function runOptions(id) {
 }
 function startWorkout(mode) {
   if (sample || activeWorkout) return;
+  if (pendingPlan?.course && !courseReadiness(data,{...pendingPlan.course,planId:pendingPlan.id},day,day).canSchedule) return showTrainingHold();
   if (mode === 'gps' && (!navigator.geolocation || !window.isSecureContext)) {
     modal('定位不可用','<p>请使用 HTTPS 或本机安全地址开启定位。也可以手动计时、填写记录或导入文件。</p>'+btn('开始手动计时','run-timer','clock'));
     return;
@@ -1372,11 +1371,13 @@ function refreshPlanResults(keepScroll = false) {
   if (action) results.querySelector('[data-action="'+action+'"]')?.focus({preventScroll:true});
 }
 main.addEventListener('input',event=>{
+  if (event.target.id==='course-search') {courseSearch=event.target.value;pbLibraryMode='single';refreshPBView();return;}
   if (event.target.id !== 'plan-search') return;
   planSearch=event.target.value;
   refreshPlanResults();
 });
 main.addEventListener('change',event=>{
+  if (event.target.id==='course-phase') {coursePhase=event.target.value;refreshPBView();return;}
   if (event.target.id==='tier-filter') tierFilter=event.target.value;
   else if (event.target.id==='phase-filter') phaseFilter=event.target.value;
   else if (event.target.id==='day-filter') dayFilter=event.target.value;
@@ -1425,6 +1426,7 @@ function showSpecialty([index]) {
 function showWorkout([id]) {
   const plan=state().plans.find(item=>item.id===id);
   if (!plan) return;
+  if (plan.course) return openPBWorkout({...plan.course,planId:plan.id},Math.round((Date.parse(plan.date)-Date.parse(day))/86400000));
   const fromEngine=plan.engineVersion===cycleVersion;
   const blocks=fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
     [['课次说明',plan.note || '这节课没有记录分段说明。']];
@@ -1435,7 +1437,7 @@ function showWorkout([id]) {
     (!sample&&!plan.completed&&!trainingPaused(state())?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
 }
 function trainingPaused(s) {
-  return s.trainingHold || recentPain(s,day);
+  return courseReadiness(s,{adapted:true,quality:false},day,day).status==='paused';
 }
 function nutritionDateNav() {
   return '<div class="food-date-nav" data-swipe-day="food">'+btn('上一天','nutrition-date:-1','left','quiet')+'<strong>'+escape(fullDate(foodDate))+'</strong>'+
@@ -1580,7 +1582,10 @@ window.addEventListener('pointerup',event=>{
   const direction=dx<0?1:-1;
   suppressDateClick=performance.now()+250;
   const kind=zone.dataset.swipeDay;
-  if (kind==='group') {
+  if (kind==='course') {
+    const index=Math.round((Date.parse(courseDate)-Date.parse(day))/86400000)+direction;
+    actions['course-day']([index]);
+  } else if (kind==='group') {
     const date=offset(trainingDate || day,direction);
     if (groupWeek(state(),day,state().groupPlan).some(plan=>plan.date===date)) actions['group-date']([date]);
   }
@@ -1629,22 +1634,22 @@ editor.addEventListener('pointerup',settleSheet);
 editor.addEventListener('pointercancel',settleSheet);
 
 const expandedWorkouts = new WeakMap();
-editor.addEventListener('click',event=>{
-  const summary=event.target.closest('.workout-blocks summary');
+document.addEventListener('click',event=>{
+  const summary=event.target.closest('.workout-blocks summary,.course-expansion summary');
   if (!summary || reducedMotion.matches) return;
   const details=summary.parentElement;
   const content=summary.nextElementSibling;
   event.preventDefault();
-  expandedWorkouts.get(details)?.cancel();
-  const opening=!details.open;
-  if (opening) details.open=true;
-  const height=content.getBoundingClientRect().height;
-  const openFrame={height:height+'px',opacity:1};
-  const closedFrame={height:'0px',opacity:0};
-  const animation=content.animate(opening?[closedFrame,openFrame]:[openFrame,closedFrame],{duration:210,easing:'ease-out'});
-  expandedWorkouts.set(details,animation);
+  const previous=expandedWorkouts.get(details);
+  const opening=previous?!previous.opening:!details.open;
+  const height=details.open?content.getBoundingClientRect().height:0;
+  previous?.animation.cancel();
+  details.open=true;
+  const animation=content.animate([{height:height+'px',opacity:height?1:0},{height:(opening?content.scrollHeight:0)+'px',opacity:opening?1:0}],{duration:210,easing:'ease-out',fill:'both'});
+  expandedWorkouts.set(details,{animation,opening});
   animation.onfinish=()=>{
     details.open=opening;
     expandedWorkouts.delete(details);
+    animation.cancel();
   };
 });
