@@ -51,7 +51,7 @@ test('execution gates known pain, recovery and youth intensity without hiding th
   data.cycleProfile={age:'未满18岁'};
   assert.equal(courseReadiness(data,course,today).status,'coach');
   const youth=pbCourses('800 m','2:20',{youth:true});
-  assert.equal(youth.length,7);
+  assert.equal(youth.length,14);
   assert.equal(courseReadiness(data,youth.find(c=>c.id==='speed'),today).canSchedule,true);
   data.recovery=[{date:offset(today,-20),pain:true}];
   assert.equal(courseReadiness(data,youth[3],today).status,'paused');

@@ -6,9 +6,10 @@ test.beforeEach(async ({page})=>page.clock.setFixedTime(now));
 
 test('PB numeric picker preserves selection and cancellation without a keyboard',async({page,isMobile},info)=>{
   await page.goto('/#run');
+  await click(page,'调整专项与PB');
   await click(page,'1500m');
   await click(page,'4:20');
-  await click(page,'自定义成绩');
+  await click(page,'调整专项与PB');await click(page,'自定义成绩');
   const dialog=page.getByRole('dialog');
   await expect(dialog.locator('input:visible')).toHaveCount(0);
   await expect(dialog.getByRole('combobox',{name:'分',exact:true})).toHaveValue('4');
@@ -16,7 +17,7 @@ test('PB numeric picker preserves selection and cancellation without a keyboard'
   await page.screenshot({path:info.outputPath('pb-picker.png')});
   await click(page,'取消');
   await expect(page.locator('.pb-tiers-label')).toContainText('4:20');
-  await click(page,'自定义成绩');
+  await click(page,'调整专项与PB');await click(page,'自定义成绩');
   await expect(dialog.getByRole('combobox',{name:'秒',exact:true})).toHaveValue('20');
   await dialog.getByRole('combobox',{name:'秒',exact:true}).selectOption('55');
   if(isMobile) {
@@ -28,7 +29,7 @@ test('PB numeric picker preserves selection and cancellation without a keyboard'
   await expect(dialog).not.toBeVisible();
   await page.reload();
   await expect(page.locator('.pb-tiers-label')).toContainText('4:55');
-  await expect(page.locator('.course-card')).toHaveCount(7);
+  await expect(page.locator('.course-card')).toHaveCount(14);
 });
 
 test('dashboard, training, nutrition, analytics and growth fit the viewport and capture screenshots',async({page},info)=>{
@@ -65,9 +66,10 @@ test('dashboard, training, nutrition, analytics and growth fit the viewport and 
 test('experienced 1500m runner with no logs discovers complete courses and saves one without a questionnaire',async({page},info)=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/#run');
+  await click(page,'调整专项与PB');
   await click(page,'1500m');
   await click(page,'4:20');
-  await expect(page.locator('.course-card')).toHaveCount(7);
+  await expect(page.locator('.course-card')).toHaveCount(14);
   await expect(page.locator('.course-card').first()).toContainText('3 × 500m');
   await expect(page.locator('main')).not.toContainText('轻松走跑');
   await page.screenshot({path:info.outputPath('course-discovery.png')});
@@ -250,7 +252,8 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
     await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   }
   await page.goto('/#run');
-  await click(page,'1500m');
+  await click(page,'调整专项与PB');
+  await click(page,'1500m');await click(page,'查看课程');
   await click(page,'一周课表');
   const dates=page.locator('.week-feature');
   await dates.scrollIntoViewIfNeeded();
@@ -276,12 +279,13 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
 
 test('reported pain prevents scheduling while the full course remains browsable',async({page})=>{
   await page.goto('/#run');
+  await click(page,'调整专项与PB');
   await click(page,'800m');
   await click(page,'2:20');
   await click(page,'伤痛与恢复');
   await click(page,'暂停训练建议');
   await page.reload();
-  await expect(page.locator('.course-card')).toHaveCount(7);
+  await expect(page.locator('.course-card')).toHaveCount(14);
   await expect(page.locator('.course-risk')).toContainText('已知伤痛');
   await click(page,'200m 节奏重复');
   await expect(page.getByRole('dialog')).toContainText('专业评估');

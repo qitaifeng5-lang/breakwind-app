@@ -9,6 +9,7 @@ export const pbDistances=Object.keys(specifications);
 export const pbDistanceLabel=event=>specifications[event]?.[3] || event;
 export const courseCategories={interval:'间歇',endurance:'速度耐力',tempo:'Tempo／阈值',speed:'速度与技术',combination:'组合课',aerobic:'有氧与恢复',hills:'坡道与越野'};
 export const coursePhases={base:'基础期',develop:'专项期',prepare:'赛前期',recover:'恢复周'};
+export const phasePurposes={base:'先建立有氧连续性与动作习惯，不追求比赛疲劳。',develop:'围绕专项节奏组织主课，以低负荷日隔开不同刺激。',prepare:'保留节奏感，减少质量课数量；不是按比赛日倒推的减量处方。',recover:'取消质量课，以休息和轻量技术恢复为主。'};
 export const courseSources={
   middle:{title:'Haugen 等 · 800m / 1500m 训练综述（2021）',url:'https://pmc.ncbi.nlm.nih.gov/articles/PMC8363530/',kind:'同行评审综述＋精英实践',
     population:'世界级中跑运动员，资料偏重成年男性',rule:'区分速度、速度耐力、有氧与专项节奏；短速度段需要充分恢复。',limit:'用于分类与恢复原则，不照搬精英周量。本库原创组数不是经验证的个体处方。'},
@@ -74,11 +75,23 @@ export function pbCourses(event,pb,{youth=false}={}) {
     definition('hills',xc?'短坡与下坡控制':'短坡技术','develop','在安全地形练习步频，步行下坡恢复',1,
       [segment(10,5,180,'sec')],0,'受控上坡，非全力；湿滑或技术不足时改平地',['hills'])
   ];
+  if (track) definitions.push(
+    definition('interval-aerobic','按时间的有氧间歇','base','以时间而非圈速控制连续有氧刺激；与距离间歇的节奏一致性目标不同',1,[segment(short?2:3,3,120,'min')],0,'受控、可重复；不追求800m或1500m比赛速度',['middle','load']),
+    definition('endurance-split',short?'分段 400m 动作保持':'分段 600m 动作保持','prepare','短暂恢复后重建姿态，识别动作开始失稳的时点；不做力竭乳酸测试',2,[segment(short?200:300,2,foundation?120:90)],foundation?360:300,'已有速度耐力经历才考虑；动作失稳即结束，不强求第二组',['middle','load']),
+    definition('tempo-continuous','连续 Tempo 控制','base','练习不中断的呼吸与体感控制，区别于分段Tempo的恢复后再进入节奏',1,[segment(short?8:12,1,0,'min')],0,'稳定受控；不能用PB计算阈值；不熟悉连续节奏时选择分段课',['middle','load']),
+    definition('speed-drills','协调与跑姿练习','base','以低疲劳练习协调与姿态，不追求加速距离或速度成绩',1,[{distance:0,unit:'skill',repeats:1,recoverySeconds:null,description:'动态协调 → 原地步频 → 轻松跑姿练习；由动作质量决定结束，练习间充分恢复'}],0,'轻量技术，保持放松；复杂动作需现场指导',['middle']),
+    definition('combination-change',short?'150 + 200 + 150 节奏转换':'200 + 400 + 200 节奏转换','prepare','中间较长段保持节奏，末段恢复放松动作；练习转换而非模拟全力比赛',1,[segment(short?150:200,1,180),segment(short?200:400,1,180),segment(short?150:200,1,0)],0,'各段受控，不规定PB百分比；不能额外叠加速度耐力课',['middle','load']),
+    definition('aerobic-steady','连续有氧基础','base','轻松进入后维持连续有氧，最后主动降速；区别于质量课后的恢复性短跑',1,
+      [{...segment(5,1,0,'min'),label:'轻松进入'},{...segment(short?15:20,1,0,'min'),label:'稳定有氧，全程可完整交谈'},{...segment(5,1,0,'min'),label:'逐步放慢；三段之间不暂停'}],0,
+      '全程轻松，不变成渐进强度课；示例时长不是最低要求或个人上限，按既有耐受缩短中段',['load']),
+    definition('hills-control','坡面步态与下坡控制','base','先练安全地形判断、平衡与下坡控制，区别于短坡重复的推进动作',1,[{distance:0,unit:'skill',repeats:1,recoverySeconds:null,description:'检查坡面 → 缓坡步行 → 小步走下坡；每段停下检查平衡，不做下坡冲刺'}],0,'低负荷地形技术；不熟悉地形时改平地，避免湿滑坡面',['hills','load'])
+  );
   return definitions.map(d=>{
-    const adapted=youth && ['speed','aerobic','hills'].includes(d.id);
-    const segments=adapted && d.id!=='aerobic'?[{distance:0,unit:'skill',repeats:1,recoverySeconds:null,description:d.id==='hills'?'教练带领辨认安全坡面，练习走下坡与姿态':'教练带领步频、协调和放松加速游戏；次数由现场反馈决定'}]:d.segments;
-    const course={...d,segments,event,category:courseCategories[d.id],band,applicablePB:band.range,pb:pbSeconds(pb)?formatPB(pbSeconds(pb),{fraction:true}):'未选择',
-      phaseLabel:coursePhases[d.phase],youth,adapted,quality:!['aerobic','speed'].includes(d.id),
+    const categoryId=d.id.split('-')[0];
+    const adapted=youth && ['speed','aerobic','hills'].includes(categoryId);
+    const segments=adapted && categoryId!=='aerobic'?[{distance:0,unit:'skill',repeats:1,recoverySeconds:null,description:categoryId==='hills'?'教练带领辨认安全坡面，练习走下坡与姿态':'教练带领步频、协调和放松加速游戏；次数由现场反馈决定'}]:d.segments;
+    const course={...d,segments,event,categoryId,category:courseCategories[categoryId],band,applicablePB:band.range,pb:pbSeconds(pb)?formatPB(pbSeconds(pb),{fraction:true}):'未选择',
+      phaseLabel:coursePhases[d.phase],youth,adapted,quality:!['aerobic','speed'].includes(categoryId) && d.id!=='hills-control',
       warmup:'轻松活动后做动态关节活动与跑姿练习；达到准备状态再进入主训练。',
       cooldown:'逐步放慢并轻松放松；有疼痛或异常时停止，不补做未完成段。',
       adjustment:foundation?'先评估单段动作与恢复；可减少重复次数或跳过主训练。':'保留既有训练剂量；状态下降时减少重复或延长恢复，不因PB更快自动加量。',
@@ -97,12 +110,17 @@ export function courseSummary(course) {
 export function pbWeek(event,pb,{phase='develop',youth=false}={}) {
   const courses=pbCourses(event,pb,{youth});
   if (!courses.length) return [];
-  const band=pbBand(event,pb),track=['800 m','1500 m'].includes(event),xc=event==='越野跑';
+  const track=['800 m','1500 m'].includes(event),xc=event==='越野跑';
   const quality=phase==='base'?'tempo':phase==='prepare'?'endurance':xc?'hills':'interval';
-  const second=band.id==='performance'&&phase==='develop'?(track?'combination':'tempo'):'speed';
-  const structure=phase==='recover'?['aerobic',null,'speed',null,'aerobic',null,null]:['speed',quality,null,'aerobic',second,null,'aerobic'];
+  const patterns={
+    base:['speed-drills','tempo',null,'aerobic-steady','hills-control',null,'aerobic'],
+    develop:event==='800 m'?['speed','interval',null,'aerobic','combination',null,'aerobic']:['speed-drills','interval-aerobic',null,'aerobic','tempo',null,'aerobic'],
+    prepare:['speed',event==='800 m'?'endurance':'combination-change',null,'aerobic','speed-drills',null,null],
+    recover:['aerobic',null,'speed-drills',null,'aerobic',null,null]
+  };
+  const structure=track?(patterns[phase]||patterns.develop):phase==='recover'?['aerobic',null,'speed',null,'aerobic',null,null]:['speed',quality,null,'aerobic','speed',null,'aerobic'];
   const relations=['先以技术进入本周','本周主要刺激，替代其他质量课','恢复日，为前一课留出恢复','低强度衔接，检查主课后反应','与主课间隔两个低负荷日；恢复不足则取消','恢复，不补做漏课','轻松收尾，为下一周期留余力'];
   return structure.map((id,dayIndex)=>({...(courses.find(c=>c.id===id)||{id:'rest',name:'休息与自主恢复',category:'恢复',quality:false,review:{status:'pending',label:'待专业审核'}}),
     dayIndex,dayLabel:['周一','周二','周三','周四','周五','周六','周日'][dayIndex],relation:phase==='recover'?'恢复周：不安排质量课，保留轻量技术与休息。':relations[dayIndex],event,
-    weekPhase:phase,previewOnly:true}));
+    weekPhase:phase,weekPurpose:phasePurposes[phase]||phasePurposes.develop,coverage:track?'中跑阶段结构示例':'仅通用基础示例，尚非完整专项周期',previewOnly:true}));
 }

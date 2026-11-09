@@ -481,3 +481,15 @@ dialog[data-variant=sheet] .dialog-head { padding-top:0 }
   .course-discover .pb-tiers-label strong{font-size:.9rem}.training-tools{gap:2px}.training-tools .btn{font-size:.75rem}.course-search{margin-bottom:10px}.course-detail .detail-cover{height:110px}
 }
 @media(prefers-reduced-motion:reduce){.course-art{transition:none!important}.course-cover:active .course-art{transform:none}}
+
+/* Discovery leads; profile, category and phase controls live in on-demand sheets. */
+.course-profile{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);padding:4px 0 10px;text-align:left}
+.course-profile strong{font-size:.92rem}.course-profile strong span{font-weight:400;color:var(--sub)}.course-profile>span{display:flex;align-items:center;font-size:.75rem;color:var(--sub)}
+.course-section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px}.course-section-head h2{font-size:1rem;margin:0}.course-section-head .btn{font-size:.75rem;padding:8px}
+.course-settings h3{font-size:.85rem;margin:16px 0 10px}.course-settings .pb-events,.course-settings .pb-tiers{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;overscroll-behavior-inline:contain}
+.course-settings .pb-events button,.course-settings .pb-tiers button{flex:none;min-height:48px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;background:#222329;color:var(--text);font-size:1rem}
+.course-settings [aria-pressed=true]{background:#e8e8ec!important;color:#15161a!important}.course-settings>p{margin-top:16px}.course-type-list{display:grid;gap:6px}.course-type-list .btn{justify-content:flex-start;min-height:48px}
+.course-discover .pb-library-mode{margin:12px 0 8px}.course-card-body .course-purpose{font-size:.76rem;color:#a6a6b3;line-height:1.6}.course-card .course-cover{height:126px}
+.week-purpose,.coverage-note{font-size:.78rem;color:var(--sub);line-height:1.6;margin:0 0 12px}.course-profile:active{opacity:.7}.course-settings button:active{transform:scale(.98)}
+@media(max-width:690px){.course-card .course-cover{height:106px}.course-rail{grid-auto-columns:88%}.course-card-body{padding:13px}.course-profile strong{font-size:.87rem}}
+@media(prefers-reduced-motion:reduce){.course-settings button:active{transform:none}}

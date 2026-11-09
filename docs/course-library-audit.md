@@ -1,5 +1,27 @@
 # Training course discovery audit — 2026-11-08
 
+## PR #13 product review follow-up
+
+Read [the latest product review](https://github.com/qitaifeng5-lang/breakwind-app/pull/13#issuecomment-6730275623) before editing the same branch. This follow-up changes only course depth and the live training discovery layout.
+
+800m and 1500m now each offer two choices per category. The alternatives are original educational examples, still pending independent review. Adjacent PB values may share the same structure; PB never increases repetitions or weekly quality-session count.
+
+| Category | Different learning goals |
+| --- | --- |
+| Intervals | Distance-based repeated rhythm versus time-based aerobic control; 800m and 1500m use different distance/time examples. |
+| Speed endurance | Repeated single distances versus a split-distance session with within-set and between-set recovery. Stop when mechanics deteriorate. |
+| Tempo | Re-enter a controlled rhythm after recoveries versus sustain a continuous effort; no PB-derived threshold pace. |
+| Speed / technique | Relaxed acceleration versus low-fatigue coordination practice. |
+| Combination | Two-distance repeated sets versus a three-distance rhythm transition. |
+| Aerobic / recovery | Easy recovery versus continuous easy entry, steady aerobic work and deliberate slowing. |
+| Hills | Controlled short uphill repetitions versus low-load terrain, walking and downhill-control technique. |
+
+Phase patterns are explicit: base emphasizes aerobic continuity/technique; specific preparation has two separated main stimuli (800m rhythm/combination, 1500m timed aerobic intervals/Tempo); pre-competition retains one key stimulus and more recovery; recovery weeks omit quality sessions. These are browsable examples, not automatic prescriptions, fixed week volumes or a race-date taper. The middle-distance review's variation/individualization discussion informs the organization; it does not validate these original doses. Longer-distance events display their incomplete/general-example coverage explicitly.
+
+The initial page now contains one event/PB summary and the single/week switch, with course content visible on the first screen. Event/PB, category and phase choices open only on demand. Event changes are drafts until a PB choice or explicit apply; cancellation preserves the previous summary and stored schedule. Cards have one detail-opening action and an expandable structure. Sources and pending-review labels remain visible in details and on cards.
+
+Acceptance includes both 800m and 1500m category → alternative → detail → phase flow, first-screen course bounds, all four distinct weekly structures, known-pain protection, PB cancellation/save precision and existing business flows. The recording script now demonstrates actual horizontal swipes, expansion, return, drag-to-dismiss, date swipe, **PB cancel followed by save**, and reload persistence. Browser dimensions remain separate from physical iPhone/Safari acceptance.
+
 ## Scope and provenance
 
 The repair branch starts from `a42f4ca` on the existing `feat/pb-tier-workout-library` branch, which contains `3602034` from the previous mobile preview. It preserves that work rather than overwriting the parallel branch. Native GPS, HealthKit, food storage and existing activity records are unchanged.

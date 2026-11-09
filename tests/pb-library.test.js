@@ -23,7 +23,7 @@ test('all supported events have ordered PB ladders and distinct session categori
     assert.ok(options.length>=8,event);
     assert.ok(options.every((p,i)=>!i||p.seconds<options[i-1].seconds),event);
     const courses=pbCourses(event,options[3].seconds);
-    assert.deepEqual(courses.map(x=>x.id),['interval','endurance','tempo','speed','combination','aerobic','hills']);
+    assert.deepEqual([...new Set(courses.map(x=>x.categoryId))],['interval','endurance','tempo','speed','combination','aerobic','hills']);
     assert.ok(courses.every(x=>Array.isArray(x.blocks) && x.blocks.length===3));
     assert.ok(courses.every(x=>x.review.status==='pending' && x.review.reviewer===null && x.sources.every(s=>s.rule&&s.limit&&s.url)));
   }
@@ -46,7 +46,7 @@ test('weekly templates contain recovery and progressively different learning str
   assert.ok(beginner.some(x=>x.id==='rest'));
   assert.ok(advanced.some(x=>x.id==='interval'));
   assert.ok(advanced.some(x=>x.id==='combination'));
-  assert.notDeepEqual(beginner.map(x=>x.id),advanced.map(x=>x.id));
+  assert.deepEqual(beginner.map(x=>x.id),advanced.map(x=>x.id),'Faster PB does not add quality sessions');
   for (const event of pbDistances) for (const phase of ['base','develop','prepare','recover']) {
     const week=pbWeek(event,pbOptions(event).at(-1).seconds,{phase});
     const hard=week.filter(c=>c.quality);
@@ -54,6 +54,29 @@ test('weekly templates contain recovery and progressively different learning str
     if (hard.length===2) assert.ok(hard[1].dayIndex-hard[0].dayIndex>=3);
     if (phase==='recover') assert.equal(hard.length,0);
   }
+});
+
+test('middle-distance categories offer different purposes and structures without PB volume escalation',()=>{
+  for (const event of ['800 m','1500 m']) {
+    const slow=pbCourses(event,pbOptions(event)[0].seconds),fast=pbCourses(event,pbOptions(event).at(-1).seconds);
+    for (const category of new Set(slow.map(c=>c.categoryId))) {
+      const choices=slow.filter(c=>c.categoryId===category);
+      assert.equal(choices.length,2);
+      assert.notEqual(choices[0].objective,choices[1].objective);
+      assert.notEqual(choices[0].main,choices[1].main);
+    }
+    for (const course of slow) {
+      const other=fast.find(c=>c.id===course.id);
+      assert.equal(course.sets,other.sets);
+      assert.deepEqual(course.segments.map(s=>[s.distance,s.repeats]),other.segments.map(s=>[s.distance,s.repeats]));
+    }
+    const phases=['base','develop','prepare','recover'].map(phase=>pbWeek(event,'2:00',{phase}));
+    assert.equal(new Set(phases.map(w=>w.map(c=>c.id).join(','))).size,4);
+    assert.ok(phases.every(w=>w.every(c=>c.weekPurpose && c.review.status==='pending')));
+    assert.ok(phases[2].filter(c=>c.quality).length<phases[1].filter(c=>c.quality).length);
+  }
+  assert.notDeepEqual(pbWeek('800 m','2:00').map(c=>c.id),pbWeek('1500 m','4:00').map(c=>c.id));
+  assert.match(pbWeek('全程马拉松','3:00:00')[0].coverage,/尚非完整专项/);
 });
 test('nearest PB matching handles intermediate and invalid values',()=>{
   assert.equal(matchPB('800 m','2:28')?.label,'2:30');
