@@ -8,7 +8,9 @@ await mkdir(output,{recursive:true});
 const browser=await chromium.launch({channel:process.env.BREAKWIND_TEST_BROWSER||undefined});
 try{
   const context=await browser.newContext({...devices['iPhone 13'],locale:'zh-CN',reducedMotion:'no-preference',recordVideo:{dir:fileURLToPath(output),size:{width:390,height:664}}});
-  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await context.newPage(),errors=[],loadedModules=[];page.on('pageerror',e=>errors.push(e.message));
+  // The accelerated test clock stubs Performance entries. Observe real responses instead.
+  page.on('response',response=>{const url=new URL(response.url());if(/\/(app|workout|workout-ui|pb-library|engine|model|running|fuel|knowledge)\.js$/.test(url.pathname))loadedModules.push({name:url.pathname.split('/').at(-1),version:url.searchParams.get('v'),status:response.status()});});
   await page.clock.install();
   const capture=name=>page.screenshot({path:fileURLToPath(new URL(name+'.png',output)),animations:'disabled'});
   const click=async name=>{await page.getByRole('button',{name,exact:true}).click();await page.waitForTimeout(650);};
@@ -47,11 +49,11 @@ try{
   if(revision!=='local'){
     await page.evaluate(async()=>{await(await navigator.serviceWorker.ready).update();});
     await expect.poll(()=>page.evaluate(async()=>(await caches.keys()).filter(k=>k.startsWith('breakwind-preview-')))).toEqual(['breakwind-preview-'+revision]);
-    const versions=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>/\/(app|workout|workout-ui|pb-library|engine|model|running|fuel|knowledge)\.js/.test(r.name)).map(r=>new URL(r.name).searchParams.get('v')));
-    expect(versions.length).toBeGreaterThanOrEqual(9);expect(versions.every(v=>v===revision)).toBe(true);
+    expect(new Set(loadedModules.map(r=>r.name)).size).toBe(9);
+    expect(loadedModules.every(r=>r.version===revision&&r.status===200)).toBe(true);
   }
   expect(errors).toEqual([]);
   const video=page.video();await context.close();await video.saveAs(fileURLToPath(new URL('execution-interaction.webm',output)));
-  const result={revision,url:base,device:'Chromium iPhone 13 viewport; NOT physical iPhone',clock:'accelerated test clock, not a real workout',review:'pending independent coach review; fixture values are not recommendations',mainDistanceM:700,completedSteps:saved[0].courseSession.logs.length,errors};
+  const result={revision,url:base,device:'Chromium iPhone 13 viewport; NOT physical iPhone',clock:'accelerated test clock, not a real workout',review:'pending independent coach review; fixture values are not recommendations',mainDistanceM:700,completedSteps:saved[0].courseSession.logs.length,loadedModules,errors};
   await writeFile(new URL('verification.json',output),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }finally{await browser.close();}
