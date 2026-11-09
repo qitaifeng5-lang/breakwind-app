@@ -1,5 +1,7 @@
 // Execution specifications are snapshots, never inferred from a browsing PB.
-export const targetBases={'800':'当前800m比赛均速','1500':'当前1500m比赛均速',threshold:'已校准阈值',coach:'教练输入'};
+export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',coach:'自定义配速'};
+// Only supported calibration bases are offered; display names do not infer new targets.
+export const targetBases=Object.fromEntries(['800','1500','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
 export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&['interval','combination'].includes(c?.id) && (c.id==='combination'||c.event==='800 m');
 const positive=n=>Number.isFinite(n)&&n>0;

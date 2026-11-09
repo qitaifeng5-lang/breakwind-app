@@ -3,7 +3,7 @@ const click=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 async function configure(page,combo=false) {
   await page.goto('/#run');
   await click(page,combo?'200 + 150 组合':'200m 节奏重复');
-  await click(page,'校准本课');
+  await click(page,'开始记录');
   const f=page.locator('#workout-calibrate');
   await f.locator('[name=basis0]').selectOption('800');
   await expect(f.locator('[name=ref0800]')).toHaveValue(''); // Browsing PB is never an achieved reference.
@@ -18,7 +18,12 @@ async function configure(page,combo=false) {
   await f.locator('[name=warmup]').fill('10');await f.locator('[name=cooldown]').fill('5');
   await f.locator('[name=source]').fill('自动化验收样例，非训练建议');await f.locator('[name=confirm]').check();
   await click(page,'保存执行规格');
-  await expect(page.locator('.executable-spec')).toContainText('32.5 秒');
+  await expect(page.locator('.executable-spec')).toContainText('32.5秒');
+  await expect(page.locator('.compact-workout .course-block h3')).toHaveText(['热身','主训练','组间恢复','冷身']);
+  await expect(page.locator('.execution-line').first()).toContainText('200m｜800m 配速｜32.5秒/趟');
+  await expect(page.locator('.course-original')).not.toHaveAttribute('open','');
+  await expect(page.getByRole('button',{name:'调整执行规格',exact:true})).not.toBeVisible();
+  await expect(page.getByText('查看说明',{exact:true})).toBeVisible();
 }
 test('200m execution: recovery timer, interrupted reload, immutable targets and idempotent save',async({page})=>{
   await page.clock.install();await configure(page);
@@ -47,8 +52,10 @@ test('200m execution: recovery timer, interrupted reload, immutable targets and 
 });
 test('combination targets use independent references; pain stops and preserves partial record',async({page})=>{
   await configure(page,true);
-  await expect(page.locator('.executable-spec')).toContainText('27 秒');
-  await expect(page.locator('.executable-spec')).toContainText('700m');
+  await expect(page.locator('.executable-spec')).toContainText('27秒');
+  await page.getByText('查看说明',{exact:true}).click();
+  await expect(page.locator('.execution-notes')).toContainText('700m');
+  await page.getByText('查看说明',{exact:true}).click();
   await click(page,'开始记录');await click(page,'确认并热身');
   await page.getByText('提醒与提前结束',{exact:true}).click();await click(page,'疼痛／不适，立即停止');
   await click(page,'保存分段记录');await click(page,'200 + 150 组合');

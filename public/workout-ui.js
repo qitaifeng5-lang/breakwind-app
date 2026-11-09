@@ -1,4 +1,4 @@
-import {targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord} from './workout.js';
+import {paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord} from './workout.js';
 
 const seconds=n=>Number(n.toFixed(2))+' 秒';
 const clock=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');
@@ -22,13 +22,21 @@ export function createWorkoutPlayer(api) {
   function detail(c) {
     course=hydrate(c);api.setCourse(course);
     const spec=course.executionSpec;
-    const missing='<p>每段节奏与恢复方式待确认；浏览 PB 不视作当前已达成绩。</p>';
-    const body=spec?'<p>'+esc(spec.objective||'按已确认课表执行')+'</p><p class="execution-line">'+spec.setCount+' 大组 · 每组 '+spec.repetitions.map(r=>r.repsPerSet+' 趟 × '+r.distanceM+'m · '+targetText(r.target)).join(' → ')+'</p>'+spec.repetitions.map((r,i)=>'<p>段 '+(i+1)+'：'+targetBases[r.target.targetBasis]+' · '+targetText(r.target)+' /趟<br><small>趟间：'+(r.repsPerSet>1||i<spec.repetitions.length-1?recoveryLabel(r.repRecovery):'段后转组间恢复或冷身')+'</small></p>').join('')+
-      '<p>组间：'+(spec.setCount>1?recoveryLabel(spec.setRecovery):'单大组，无组间恢复')+'</p>'+totalsHTML(spec):missing;
-    return '<section class="executable-spec"><h3>可执行规格</h3>'+body+(spec?'<p><small>参数来源：'+esc(spec.parameterSource)+' · 待独立审核</small></p>':'')+btn(spec?'调整执行规格':'校准本课','workout-config','','secondary')+
-      '<details><summary>热身 → 主训练 → 冷身</summary><p>热身'+(spec?' '+clock(spec.warmup.reduce((n,s)=>n+s.durationSeconds,0)):'')+'：轻松活动、动态活动与跑姿、渐进准备，完成检查后进入主训练。</p><p>主训练：按场地标记手动圈；每趟目标与恢复倒计时独立记录。</p><p>冷身'+(spec?' '+clock(spec.cooldown.reduce((n,s)=>n+s.durationSeconds,0)):'')+'：逐步放慢；不适可直接停止，不要求跑完冷身。不会保证预防伤病或消除酸痛。</p></details>'+
-      '<small>剂量待独立审核；确认只记录现有课表来源，不等于教练认证。</small></section>';
+    const block=(title,body)=>'<section class="course-block"><h3>'+title+'</h3>'+body+'</section>';
+    const phase=items=>items.map(s=>s.durationSeconds?clock(s.durationSeconds):s.distanceM+'m').join(' + ');
+    const main=spec? (spec.setCount>1?'<p class="workout-set-count">'+spec.setCount+' 大组</p>':'')+spec.repetitions.map((r,i)=>'<p class="execution-line">'+r.repsPerSet+'×'+r.distanceM+'m｜'+paceLabels[r.target.targetBasis]+'｜'+targetText(r.target).replaceAll(' 秒','秒')+'/趟</p>'+ (r.repsPerSet>1||i<spec.repetitions.length-1?'<small class="rep-rest">趟间 '+recoveryLabel(r.repRecovery)+'</small>':'')).join(''):
+      (course.sets>1?'<p>'+course.sets+' 大组</p>':'')+course.segments.map(s=>'<p class="execution-line">'+s.repeats+'×'+s.distance+'m｜配速待校准</p>'+(s.recoverySeconds?'<small class="rep-rest">趟间 '+s.recoverySeconds+'秒 · 动作待确认</small>':'')).join('');
+    return '<div class="executable-spec compact-workout">'+
+      block('热身','<p>'+(spec?phase(spec.warmup)+' · ':'')+'轻松跑、动态活动、跑姿练习</p>')+
+      block('主训练',main)+block('组间恢复','<p>'+(spec?(spec.setCount>1?recoveryLabel(spec.setRecovery):'无'):(course.sets>1?course.setRecovery+'秒 · 动作待确认':'无'))+'</p>')+
+      block('冷身','<p>'+(spec?phase(spec.cooldown)+' · ':'')+'轻松放慢</p>')+
+      '</div>';
   }
+  function notes(){
+    const spec=course?.executionSpec;
+    return '<div class="execution-notes">'+btn(spec?'调整执行规格':'校准本课','workout-config','','secondary')+(spec?totalsHTML(spec)+'<p>参数来源：'+esc(spec.parameterSource)+'</p>':'<p>按已有课表确认目标秒数和恢复方式。</p>')+'</div>';
+  }
+
   function totalsHTML(spec) {
     const t=workoutTotals(spec);
     return '<dl class="workout-totals"><dt>主训练</dt><dd>'+t.mainDistanceM+'m · '+t.repCount+' 趟</dd><dt>恢复</dt><dd>'+t.repRecoveries+' 次趟间 + '+t.setRecoveries+' 次组间 · '+(t.recoverySeconds===null?'按距离完成，时间未知':clock(t.recoverySeconds))+'</dd><dt>预计全程</dt><dd>'+(t.estimatedSecondsRange?[...new Set(t.estimatedSecondsRange.map(clock))].join('–'):'恢复含距离，暂不能完整估时')+'</dd><dt>热身／冷身／慢跑恢复距离</dt><dd>按时间的部分未测量，不计入质量跑量</dd></dl>';
@@ -133,7 +141,7 @@ export function createWorkoutPlayer(api) {
     if(session.status!=='active')return summary();
     const step=session.steps[session.index];
     const title=step.kind==='work'?'第 '+step.set+' 大组 · 第 '+step.lap+'/'+step.lapsPerSet+' 趟':step.kind==='warmup'?'热身':step.kind==='cooldown'?'冷身':step.betweenSets?'组间恢复':'趟间恢复';
-    modal(title,'<div class="course-live"><p>'+esc(step.kind==='work'?step.distanceM+'m · '+targetText(step.target)+' /趟':step.kind==='recovery'?recoveryLabel(step):step.label)+'</p>'+ (step.target?'<small>'+targetBases[step.target.targetBasis]+'</small>':'')+
+    modal(title,'<div class="course-live"><p>'+esc(step.kind==='work'?step.distanceM+'m · '+targetText(step.target)+' /趟':step.kind==='recovery'?recoveryLabel(step):step.label)+'</p>'+ (step.target?'<small>'+paceLabels[step.target.targetBasis]+'</small>':'')+
       '<div class="timer"><strong id="course-clock">'+clock(stepElapsed(session,Date.now()))+'</strong><span id="course-remaining" role="status"></span></div>'+
       (session.anchor===null?'<p>已暂停；离开前台或重开后不会自动补计时间。</p>':'')+
       (step.checks?step.checks.map((label,i)=>'<label class="ready-check"><input type="checkbox" data-warmup="'+i+'"'+(session.checks?.includes(i)?' checked':'')+'>'+label+'</label>').join(''):'')+
@@ -170,7 +178,7 @@ export function createWorkoutPlayer(api) {
   editor.addEventListener('change',event=>{if(event.target.id==='course-vibrate')feedback=event.target.checked;if(event.target.matches('[data-warmup]')&&session){session.checks=[...editor.querySelectorAll('[data-warmup]:checked')].map(n=>Number(n.dataset.warmup));persist();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&session?.status==='active'){pauseSession(session,Date.now());persist();}else if(!document.hidden&&session&&editor.querySelector('.course-live'))view();});
   window.addEventListener('pagehide',()=>{if(session?.status==='active'){pauseSession(session,Date.now());persist();}});
-  return {detail,hydrate,start,view,history:summary,hasSession:()=>Boolean(session),actions:{
+  return {detail,notes,hydrate,start,view,history:summary,hasSession:()=>Boolean(session),actions:{
     'workout-config':configure,'workout-back':()=>api.openCourse(course),'workout-begin':begin,'workout-resume':view,'workout-next':next,'workout-save':save,
     'workout-pause':()=>{if(!session)return;if(session.anchor===null){if(!api.ready(session.course).canSchedule)return api.notify(api.ready(session.course).reason);session.anchor=Date.now();}else pauseSession(session,Date.now());persist();view();},
     'workout-stop':()=>{if(!session)return;stopSession(session,Date.now(),'user');persist();summary();},

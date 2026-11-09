@@ -22,7 +22,7 @@ try{
   await capture('training');
   await click('调整专项与PB');await click('自定义成绩');await capture('pb-picker');await click('取消');
   async function configure(name,combo=false){
-    await click(name);await click('校准本课');const f=page.locator('#workout-calibrate');
+    await click(name);await click('开始记录');const f=page.locator('#workout-calibrate');
     await f.locator('[name=basis0]').selectOption('800');await f.locator('[name=ref0800]').fill('130');
     await f.locator('[name=rep0Mode]').selectOption('walk');
     if(combo){await f.locator('[name=basis1]').selectOption('1500');await f.locator('[name=ref11500]').fill('270');await f.locator('[name=setMode]').selectOption('stand');}

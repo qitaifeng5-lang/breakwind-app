@@ -229,7 +229,8 @@ function courseArt(id) {
   return '<svg class="course-art art-'+id+'" viewBox="0 0 300 130" fill="none" aria-hidden="true"><path d="'+paths+'" stroke="currentColor" stroke-width="3"/><circle cx="245" cy="27" r="5" fill="currentColor"/></svg>';
 }
 const recoveryText=seconds=>seconds===null?'充分恢复，由现场指导确认':seconds>=60?num(seconds/60)+' 分钟':seconds+' 秒';
-function structureHTML(course) {
+function structureHTML(course,compact=false) {
+  if(compact)return (course.sets>1?'<p>'+course.sets+' 大组</p>':'')+course.segments.map((part,index)=>'<p class="execution-line">'+escape(part.unit==='skill'?part.description:part.repeats+'×'+part.distance+({m:'m',min:'分钟',sec:'秒'}[part.unit]||'')+'｜'+(course.categoryId==='tempo'?'Tempo':course.categoryId==='aerobic'?'轻松跑':'配速待校准'))+'</p>'+((part.repeats>1||index<course.segments.length-1)?'<small class="rep-rest">趟间 '+recoveryText(part.recoverySeconds)+'</small>':'')).join('');
   return '<ol class="course-segments">'+course.segments.map((part,index)=>'<li><span>'+String(index+1).padStart(2,'0')+'</span><div><strong>'+
     escape(part.unit==='skill'?part.description:(part.repeats>1?part.repeats+' × ':'')+part.distance+({m:'m',min:' 分钟',sec:' 秒'}[part.unit]||''))+'</strong>'+
     (part.label?'<small>'+escape(part.label)+'</small>':'')+
@@ -238,8 +239,8 @@ function structureHTML(course) {
 }
 function courseCard(course) {
   return '<article class="course-card"><div class="course-cover cover-'+course.categoryId+'">'+courseArt(course.categoryId)+
-    '<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape(course.band.label)+' · '+escape(course.applicablePB)+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p><p class="course-purpose">'+escape(course.objective)+'</p>'+
-    '<details class="course-expansion"><summary>展开结构</summary><div>'+structureHTML(course)+'<p>'+escape(course.adjustment)+'</p></div></details></div></article>';
+    '<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape(course.band.label)+' · '+escape(course.applicablePB)+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p>'+
+    '<details class="course-expansion"><summary>展开结构</summary><div>'+structureHTML(course)+'<p>'+escape(course.objective)+'</p><p>'+escape(course.adjustment)+'</p></div></details></div></article>';
 }
 function pbLibraryView(s) {
   if (!pbDistances.includes(pbLibraryEvent)) {
@@ -282,11 +283,10 @@ function openPBWorkout(course,dayIndex=null) {
   if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
   modal(course.name,'<div class="course-detail"><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
-    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+'</p><p>'+escape(course.objective)+'</p>'+
-    (supportsWorkout(course)?workoutPlayer.detail(course)+'<details class="course-original"><summary>课程原稿与调整依据</summary>':'')+'<div class="review-label">待专业审核 · 不是个体训练处方</div><section class="course-block"><h3>热身</h3><p>'+escape(course.warmup)+'</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course)+'</section>'+
-    '<section class="course-block"><h3>冷身与恢复</h3><p>'+escape(course.cooldown)+'</p></section><section class="course-block"><h3>强度与调整</h3><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p></section>'+
-    '<details class="course-evidence"><summary>训练依据与审核状态</summary><p>'+escape(course.parameterOrigin)+'</p>'+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
-    (supportsWorkout(course)?'</details>':'')+'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>'+
+    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · 待审核</p>'+
+    (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>组间恢复</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
+    '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p>'+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
+    (!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':'')+
     (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions"><button class="btn primary" type="submit">加入日程</button>'+(ready.canSchedule?btn('开始记录','course-start','','secondary'):'')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+'</div>','sheet');
 }
 function scheduleCourse(date) {
