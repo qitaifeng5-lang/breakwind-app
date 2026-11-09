@@ -1,3 +1,5 @@
+import {createWorkoutPlayer} from './workout-ui.js';
+import {supportsWorkout} from './workout.js';
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
 import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek, courseCategories, coursePhases } from './pb-library.js';
 import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
@@ -275,15 +277,16 @@ function openPBWorkout(course,dayIndex=null) {
   if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'sheet');
   activeCourse={course,date:dayIndex===null?day:offset(day,dayIndex)};
   const key=[course.event,course.id,course.pb,activeCourse.date].join('|');
-  const scheduled=state().plans.find(plan=>plan.courseKey===key);
-  if (scheduled) {course={...course,planId:scheduled.id};activeCourse.course=course;}
+  const scheduled=state().plans.find(plan=>plan.id===course.planId||plan.courseKey===key);
+  if (scheduled) {activeCourse.date=scheduled.date;course={...scheduled.course,planId:scheduled.id};activeCourse.course=course;}
+  if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
   modal(course.name,'<div class="course-detail"><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
     '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+'</p><p>'+escape(course.objective)+'</p>'+
-    '<div class="review-label">待专业审核 · 不是个体训练处方</div><section class="course-block"><h3>热身</h3><p>'+escape(course.warmup)+'</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course)+'</section>'+
+    (supportsWorkout(course)?workoutPlayer.detail(course)+'<details class="course-original"><summary>课程原稿与调整依据</summary>':'')+'<div class="review-label">待专业审核 · 不是个体训练处方</div><section class="course-block"><h3>热身</h3><p>'+escape(course.warmup)+'</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course)+'</section>'+
     '<section class="course-block"><h3>冷身与恢复</h3><p>'+escape(course.cooldown)+'</p></section><section class="course-block"><h3>强度与调整</h3><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p></section>'+
     '<details class="course-evidence"><summary>训练依据与审核状态</summary><p>'+escape(course.parameterOrigin)+'</p>'+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
-    '<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>'+
+    (supportsWorkout(course)?'</details>':'')+'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>'+
     (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions"><button class="btn primary" type="submit">加入日程</button>'+(ready.canSchedule?btn('开始记录','course-start','','secondary'):'')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+'</div>','sheet');
 }
 function scheduleCourse(date) {
@@ -309,6 +312,7 @@ editor.addEventListener('submit',event=>{
 function startCourseRecord() {
   const course=activeCourse?.course;
   if (!course) return;
+  if (supportsWorkout(course)) return workoutPlayer.start(course);
   const ready=courseReadiness(data,course,day,day);
   if (!ready.canSchedule) return modal('暂不执行','<p>'+escape(ready.reason)+'</p>','sheet');
   modal('执行前核对','<p>'+escape(course.name)+' · 待专业审核</p><form id="course-ready"><label class="ready-check"><input type="checkbox" name="ready" required>'+escape(course.youth?'教练已在现场确认适龄技术活动；我目前没有疼痛。':'我已有同类训练经验，目前没有疼痛，已核对今天的恢复和训练安排。')+'</label><p>这项确认仅记录你的当前反馈，不代表专业审核通过。</p><button class="btn primary" type="submit">确认并记录</button></form>','sheet');
@@ -322,7 +326,7 @@ editor.addEventListener('submit',event=>{
 });
 function training(s) {
   return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
-    '<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+pbLibraryView(s)+
+    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+pbLibraryView(s)+
     '<nav class="training-tools" aria-label="训练记录">'+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
@@ -596,7 +600,12 @@ function moveDate(direction) {
     selectedDate = dateKey(first);
   } else selectedDate = offset(selectedDate, direction * (calendarMode === 'week' ? 7 : 1));
 }
+const workoutPlayer=createWorkoutPlayer({editor,modal,btn,escape,prefix:storagePrefix,state,day:()=>day,notify,
+  setCourse:course=>{if(activeCourse)activeCourse.course=course;},openCourse:openPBWorkout,
+  savePlanSpec:(id,spec)=>commit(next=>{const plan=next.plans.find(p=>p.id===id);if(!plan||plan.completed)throw new Error('日程不存在或已完成');plan.course.executionSpec=structuredClone(spec);}),
+  ready:course=>courseReadiness(state(),course,day,day),otherRunning:()=>Boolean(activeWorkout)||sample,refresh:render,commit});
 const actions = {
+  ...workoutPlayer.actions,
   'course-settings': () => openCourseSettings(),
   'course-apply': applyCourseSelection,
   'course-filter': openCourseFilters,
@@ -871,6 +880,7 @@ function workoutElapsed() {
   return activeWorkout.elapsed + (activeWorkout.anchor ? Date.now()-activeWorkout.anchor : 0);
 }
 function runOptions(id,courseConfirmed=false) {
+  if(workoutPlayer.hasSession())return workoutPlayer.view();
   if (sample) return openEditor('runs');
   if (activeWorkout) return timerView();
   if (id && trainingPaused(data)) return showTrainingHold();
@@ -1068,6 +1078,7 @@ function routeMap(points) {
 function showRun([id]) {
   const run=state().runs.find(item=>item.id===id);
   if (!run) return;
+  if(run.courseSession)return workoutPlayer.history(run.courseSession);
   const points=Array.isArray(run.points)?run.points:[];
   const report=analyzeTrack(points);
   const chartPoints=report.series.filter((_,index)=>index%Math.max(1,Math.ceil(report.series.length/350))===0);

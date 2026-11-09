@@ -84,8 +84,8 @@ try {
   if (revision!=='local') {
     await page.evaluate(async()=>{await(await navigator.serviceWorker.ready).update();});
     await expect.poll(()=>page.evaluate(async()=>(await caches.keys()).filter(key=>key.startsWith('breakwind-preview-')))).toEqual(['breakwind-preview-'+revision]);
-    const modules=await page.evaluate(()=>performance.getEntriesByType('resource').filter(item=>/\/(app|engine|model|fuel|running|knowledge|pb-library)\.js/.test(item.name)).map(item=>new URL(item.name).searchParams.get('v')));
-    expect(modules.length).toBeGreaterThanOrEqual(7);
+    const modules=await page.evaluate(()=>performance.getEntriesByType('resource').filter(item=>/\/(app|engine|model|fuel|running|knowledge|pb-library|workout|workout-ui)\.js/.test(item.name)).map(item=>new URL(item.name).searchParams.get('v')));
+    expect(modules.length).toBeGreaterThanOrEqual(9);
     expect(modules.every(value=>value===revision)).toBe(true);
   }
   expect(errors).toEqual([]);
