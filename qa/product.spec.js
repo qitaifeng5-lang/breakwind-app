@@ -76,7 +76,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await click(page,'500m 稳定间歇');
   const dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('组内恢复 · 3 分钟');
-  await expect(dialog).toContainText('待专业审核');
+  await expect(dialog).toContainText('待教练审核');
   await expect(dialog.locator('input:not([type=date])')).toHaveCount(0);
   await page.screenshot({path:info.outputPath('course-detail.png')});
   await click(page,'加入日程');
@@ -93,13 +93,12 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await click(page,'课次详情');
   await expect(dialog).toContainText('3 × 500m');
   await click(page,'开始记录');
-  await dialog.getByRole('checkbox').check();
-  await click(page,'确认并记录');
-  await click(page,'手动填写');
-  await page.getByRole('spinbutton',{name:'实际距离（km）'}).fill('2');
-  await page.getByRole('spinbutton',{name:'实际耗时（分钟）'}).fill('20');
-  await click(page,'保存记录');
-  await expect(dialog).toContainText('2');
+  await page.locator('#template-reference [name=seconds]').fill('260');
+  await dialog.getByRole('checkbox').check();await click(page,'使用课程编排');
+  await expect(dialog.locator('.execution-line')).toContainText('3×500m｜1500m 配速');
+  await click(page,'开始记录');await click(page,'确认并热身');
+  await page.getByText('提醒与提前结束',{exact:true}).click();await click(page,'提前结束');await click(page,'保存分段记录');
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).runs.at(-1).distance)).toBe(0);
   expect(errors).toEqual([]);
 });
 
@@ -287,7 +286,7 @@ test('reported pain prevents scheduling while the full course remains browsable'
   await page.reload();
   await expect(page.locator('.course-card')).toHaveCount(14);
   await expect(page.locator('.course-risk')).toContainText('已知伤痛');
-  await click(page,'200m 节奏重复');
+  await click(page,'200m 专项耐受');
   await expect(page.getByRole('dialog')).toContainText('专业评估');
   await expect(page.getByRole('button',{name:'加入日程',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'开始记录',exact:true})).toHaveCount(0);

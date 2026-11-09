@@ -1,4 +1,4 @@
-import {paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord} from './workout.js';
+import {templateSpecification,paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord} from './workout.js';
 
 const seconds=n=>Number(n.toFixed(2))+' 秒';
 const clock=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');
@@ -15,7 +15,7 @@ export function createWorkoutPlayer(api) {
   };
   const calibrationKey=c=>api.prefix+'.course-spec.'+c.event+'.'+c.id;
   function hydrate(c) {
-    if(c.executionSpec||c.planId)return c;
+    if(c.executionSpec||c.planId||c.catalogRevision)return c;
     try {const spec=JSON.parse(localStorage.getItem(calibrationKey(c)));if(spec){compileWorkout(spec);return {...c,executionSpec:spec};}}catch{/* leave calibration pending */}
     return c;
   }
@@ -34,7 +34,7 @@ export function createWorkoutPlayer(api) {
   }
   function notes(){
     const spec=course?.executionSpec;
-    return '<div class="execution-notes">'+btn(spec?'调整执行规格':'校准本课','workout-config','','secondary')+(spec?totalsHTML(spec)+'<p>参数来源：'+esc(spec.parameterSource)+'</p>':'<p>按已有课表确认目标秒数和恢复方式。</p>')+'</div>';
+    return '<div class="execution-notes">'+btn('录入已有教练课表','workout-config','','secondary')+(spec?totalsHTML(spec)+'<p>参数来源：'+esc(spec.parameterSource)+'</p>':'<p>模板提供完整编排；已有独立教练课表才使用录入入口。</p>')+'</div>';
   }
 
   function totalsHTML(spec) {
@@ -52,7 +52,7 @@ export function createWorkoutPlayer(api) {
   function configure() {
     if(!course)return;
     const previous=course.executionSpec;
-    modal('校准本课','<form id="workout-calibrate"><p>只补本课的节奏与执行参数。已有剂量是待审核示例，请按现有教练课表核对。</p>'+number('sets','大组数',previous?.setCount||course.sets,1,20)+
+    modal('录入已有教练课表','<form id="workout-calibrate"><p>独立转录入口：请按已有教练课表填写，不代表App推荐或核验教练身份。</p>'+number('sets','大组数',previous?.setCount||course.sets,1,20)+
       course.segments.map((s,i)=>{
         const r=previous?.repetitions[i],basis=r?.target.targetBasis;
         return '<fieldset class="execution-segment"><legend>'+s.distance+'m · 段 '+(i+1)+'</legend>'+number('reps'+i,'每大组趟数',r?.repsPerSet||s.repeats,1,30)+choice('basis'+i,'目标依据',targetBases,basis)+
@@ -99,7 +99,7 @@ export function createWorkoutPlayer(api) {
         if(!target)throw new Error('每段需要对应的当前成绩或已校准秒数，不能用浏览 PB 代替');
         return {distanceM:s.distance,repsPerSet:Number(form.elements['reps'+i].value),target,repRecovery:readRecovery(form,'rep'+i)};
       });
-      const spec={version:1,setCount:Number(form.elements.sets.value),repetitions,setRecovery:readRecovery(form,'set'),
+      const spec={version:1,origin:'coach-transcription',setCount:Number(form.elements.sets.value),repetitions,setRecovery:readRecovery(form,'set'),
         warmup:[{label:'轻松活动 → 动态活动／跑姿 → 渐进准备',durationSeconds:Number(form.elements.warmup.value)*60,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
         cooldown:[{label:'轻松放慢，按状态结束；不适可直接停止',durationSeconds:Number(form.elements.cooldown.value)*60}],
         objective:[...new Set(repetitions.map(r=>({'800':'800m比赛节奏熟悉','1500':'1500m比赛节奏稳定',threshold:'已校准阈值强度控制',coach:'按转录教练目标执行'}[r.target.targetBasis])))].join('；'),
@@ -117,10 +117,25 @@ export function createWorkoutPlayer(api) {
     if(session){view();return;}
     if(api.otherRunning())return api.notify('请先结束现有跑步记录');
     if(!api.ready(course).canSchedule)return api.notify(api.ready(course).reason);
-    if(!course.executionSpec){configure();return;}
+    if(!course.executionSpec){if(course.executionEligible)templateReference();else configure();return;}
     if(course.executionSpec.repetitions.some(r=>{const date=r.target.referencePerformance?.date;return date&&Date.parse(api.day())-Date.parse(date)>90*86400000;})){api.notify('请核对当前成绩；旧参考超过产品校准范围，不代表能力降级');configure();return;}
     modal('开始分段记录','<p>'+esc(course.name)+' · 场地手动圈，不用 GPS 判断200m终点。</p><p>课程待独立审核。需已有同类训练经历，并已核对当前状态和本课参数。</p>'+totalsHTML(course.executionSpec)+btn('确认并热身','workout-begin','','primary'),'sheet');
   }
+  function templateReference() {
+    const ref=recentPerformance(api.state().records,course.targetBasis,api.day());
+    modal('核对当前能力','<form id="template-reference"><p>'+esc(course.eligibility)+'</p>'+number('seconds','当前已达 '+course.targetBasis+'m 成绩（总秒）',ref?.seconds,1,3600)+'<label>成绩日期<input name="date" type="date" value="'+(ref?.date||api.day())+'" max="'+api.day()+'" required></label><label class="ready-check"><input name="confirm" type="checkbox" required>我已成年，有上述同类负荷经验，当前无伤痛；此成绩为近期已达成绩。</label><p class="form-error" hidden></p><div class="picker-actions">'+btn('取消','workout-back','','quiet')+'<button class="btn primary">使用课程编排</button></div></form>','sheet');
+  }
+  editor.addEventListener('submit',event=>{
+    const f=event.target;if(f.id!=='template-reference')return;event.preventDefault();
+    try {
+      const date=f.elements.date.value;
+      if(!f.elements.confirm.checked||!date||date>api.day()||Date.parse(api.day())-Date.parse(date)>90*86400000)throw new Error('请确认近期已达成绩与同类训练经验；90天是产品校准范围，不代表能力降级');
+      const ref={event:course.targetBasis+' m',seconds:Number(f.elements.seconds.value),date,kind:'achieved',source:'用户确认当前同项成绩'};
+      const spec=templateSpecification(course,ref);
+      if(course.planId&&!api.savePlanSpec(course.planId,spec))throw new Error('日程规格未保存');
+      course={...course,executionSpec:spec};api.setCourse(course);api.openCourse(course);
+    }catch(error){const box=f.querySelector('.form-error');box.hidden=false;box.textContent=error.message;}
+  });
   function begin() {
     if(session||api.otherRunning()||!api.ready(course).canSchedule)return;
     session=newSession(course.executionSpec,course,Date.now(),crypto.randomUUID());

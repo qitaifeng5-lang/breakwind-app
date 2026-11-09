@@ -3,7 +3,7 @@ export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km �
 // Only supported calibration bases are offered; display names do not infer new targets.
 export const targetBases=Object.fromEntries(['800','1500','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
-export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&['interval','combination'].includes(c?.id) && (c.id==='combination'||c.event==='800 m');
+export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&['interval','interval-development','combination'].includes(c?.id);
 const positive=n=>Number.isFinite(n)&&n>0;
 export const raceSplit=(seconds,raceDistance,distance)=>[seconds,raceDistance,distance].every(positive)?seconds*distance/raceDistance:null;
 export function recentPerformance(records,event,today) {
@@ -85,4 +85,16 @@ export function sessionRecord(s,date) {
     distance:finished.reduce((n,l)=>n+l.step.distanceM,0)/1000,minutes:s.logs.reduce((n,l)=>n+l.actualSeconds,0)/60,
     distanceBasis:'仅已确认完成的场地手动圈距离；不含未知的热身、恢复和冷身距离',
     pain:s.stopReason==='pain',courseSession:structuredClone(s),note:'分段手动计时 · '+(s.status==='complete'?'完整结束':'提前结束')};
+}
+
+// Same-event performance scales timing, never dose. These are not reviewed prescriptions.
+export function templateSpecification(course,reference) {
+  if(!course.executionEligible || !course.targetBasis || course.catalogStatus==='archive')throw new Error('本课尚未具备完整执行依据');
+  const repetitions=course.segments.map(s=>({distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,course.targetBasis,reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}}));
+  if(repetitions.some(r=>!r.target))throw new Error('需要当前同项已达成绩，不能使用目标PB');
+  const spec={version:1,origin:'editorial-candidate',catalogRevision:course.catalogRevision,setCount:course.sets,repetitions,setRecovery:null,
+    warmup:[{label:'轻松跑、动态活动与渐进准备；10分钟是计时起点，准备不足可继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
+    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:course.objective,
+    parameterSource:course.evidenceMap.map(e=>e.source+'；产品选择：'+e.adaptation).join('。'),review:structuredClone(course.review)};
+  compileWorkout(spec);return spec;
 }

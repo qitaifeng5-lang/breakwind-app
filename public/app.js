@@ -208,7 +208,7 @@ function applyCourseSelection() {
   persistPBChoice();editor.close();refreshPBView(false);
 }
 function openCourseFilters() {
-  modal('训练类型','<div class="course-type-list">'+[['all','全部'],...Object.entries(courseCategories)].map(([id,label])=>btn(label,'pb-focus:'+id,'',pbLibraryFocus===id?'secondary':'quiet')).join('')+'</div>','sheet');
+  modal('训练类型','<div class="course-type-list">'+[['all','全部'],...Object.entries(courseCategories),['archive','教学存档']].map(([id,label])=>btn(label,'pb-focus:'+id,'',pbLibraryFocus===id?'secondary':'quiet')).join('')+'</div>','sheet');
 }
 function openCoursePhase() {
   modal('训练阶段','<div class="course-type-list">'+Object.entries(coursePhases).map(([id,label])=>btn(label,'course-phase:'+id,'',coursePhase===id?'secondary':'quiet')).join('')+'</div>','sheet');
@@ -252,7 +252,7 @@ function pbLibraryView(s) {
   const selectedIndex=Math.max(0,Math.min(6,Math.round((Date.parse(courseDate)-Date.parse(day))/86400000)));
   const week=pbWeek(event,selection.seconds,options);
   const selected=week[selectedIndex];
-  const filtered=courses.filter(item=>(pbLibraryFocus==='all'||pbLibraryFocus===item.categoryId)&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
+  const filtered=courses.filter(item=>(pbLibraryFocus==='archive'?item.catalogStatus==='archive':item.catalogStatus!=='archive'&&(pbLibraryFocus==='all'||pbLibraryFocus===item.categoryId))&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
   const single='<div class="course-section-head"><h2>'+escape(courseCategories[pbLibraryFocus]||'发现课程')+'</h2>'+btn('按类型浏览','course-filter','','quiet')+'</div><div class="course-rail" tabindex="0" aria-label="训练课程，可横向滚动">'+
     (filtered.length?filtered.map(courseCard).join(''):'<p class="empty-courses">没有找到对应课程，试试其他关键词。</p>')+'</div>';
   const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><p class="week-purpose">'+escape(selected.weekPurpose)+'</p>'+
@@ -263,7 +263,7 @@ function pbLibraryView(s) {
   return '<section id="pb-library" class="course-discover"><button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+'</span></strong><span>调整 '+icon('right')+'</span></button>'+
     '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">一周课表</button></div>'+
     (trainingPaused(s)?'<div class="course-risk" role="status">已知伤痛：课程可以浏览，暂不安排执行。'+btn('查看原因','training-safety','','quiet')+'</div>':'')+
-    (pbLibraryMode==='single'?single:weekContent)+'<div class="course-status"><span>原创教学课程 · 待专业审核'+(options.youth?' · 青少年指导模式':'')+'</span></div>'+
+    (pbLibraryMode==='single'?single:weekContent)+'<div class="course-status"><span>课程候选 · 非自动训练推荐'+(options.youth?' · 青少年指导模式':'')+'</span></div>'+
     (!['800 m','1500 m'].includes(event)?'<p class="coverage-note">当前仅提供通用基础示例，尚非完整'+escape(pbDistanceLabel(event))+'专项体系。</p>':'')+'</section>';
 }
 function refreshPBView(keepPosition=true) {
@@ -275,6 +275,7 @@ function refreshPBView(keepPosition=true) {
 }
 function openPBWorkout(course,dayIndex=null) {
   if (!course) return;
+  if (course.isPlanningSlot) return modal('阶段编排待确认','<p>'+escape(course.weekPurpose)+'</p><p>'+escape(course.relation)+'</p><p>此处不自动填入待审课程。请在单节训练中浏览来源与适用背景，或录入已有教练课表。</p>'+btn('返回课程','close','','quiet'),'sheet');
   if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'sheet');
   activeCourse={course,date:dayIndex===null?day:offset(day,dayIndex)};
   const key=[course.event,course.id,course.pb,activeCourse.date].join('|');
@@ -283,9 +284,9 @@ function openPBWorkout(course,dayIndex=null) {
   if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
   modal(course.name,'<div class="course-detail"><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
-    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · 待审核</p>'+
+    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · '+escape(course.roleLabel||'课程示例')+' · '+escape(course.review.label)+'</p>'+
     (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>组间恢复</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
-    '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p>'+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
+    '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p><p>'+escape(course.eligibility||'')+'</p>'+(course.evidenceMap||[]).map(e=>'<article><strong>'+escape(e.parameter)+'</strong><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
     (!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':'')+
     (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions"><button class="btn primary" type="submit">加入日程</button>'+(ready.canSchedule?btn('开始记录','course-start','','secondary'):'')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+'</div>','sheet');
 }
@@ -614,7 +615,7 @@ const actions = {
   'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;persistPBChoice();refreshPBView();},
   'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event||!courseSelectionDraft)return;courseSelectionDraft={event,pb:event===pbLibraryEvent?pbLibraryChoice:''};openCourseSettings(false);},
   'pb-choice': ([index]) => {const option=pbOptions(courseSelectionDraft?.event)[Number(index)];if(!option)return;courseSelectionDraft.pb=option.label;applyCourseSelection();},
-  'pb-focus': ([id]) => {if(id!=='all'&&!Object.hasOwn(courseCategories,id))return;pbLibraryFocus=id;editor.close();refreshPBView();},
+  'pb-focus': ([id]) => {if(!['all','archive'].includes(id)&&!Object.hasOwn(courseCategories,id))return;pbLibraryFocus=id;editor.close();refreshPBView();},
   'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions())[Number(index)],Number(index));},
   'pb-course': ([id]) => {openPBWorkout(pbCourses(pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions()).find(x=>x.id===id));},
   'pb-all': () => {if(courseSelectionDraft){courseSelectionDraft.pb='';applyCourseSelection();}},

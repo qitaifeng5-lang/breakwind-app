@@ -2,8 +2,9 @@ import {test,expect} from '@playwright/test';
 const click=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 async function configure(page,combo=false) {
   await page.goto('/#run');
+  await click(page,'按类型浏览');await click(page,'教学存档');
   await click(page,combo?'200 + 150 组合':'200m 节奏重复');
-  await click(page,'开始记录');
+  await page.getByText('查看说明',{exact:true}).click();await click(page,'录入已有教练课表');
   const f=page.locator('#workout-calibrate');
   await f.locator('[name=basis0]').selectOption('800');
   await expect(f.locator('[name=ref0800]')).toHaveValue(''); // Browsing PB is never an achieved reference.
@@ -22,7 +23,7 @@ async function configure(page,combo=false) {
   await expect(page.locator('.compact-workout .course-block h3')).toHaveText(['热身','主训练','组间恢复','冷身']);
   await expect(page.locator('.execution-line').first()).toContainText('200m｜800m 配速｜32.5秒/趟');
   await expect(page.locator('.course-original')).not.toHaveAttribute('open','');
-  await expect(page.getByRole('button',{name:'调整执行规格',exact:true})).not.toBeVisible();
+  await expect(page.getByRole('button',{name:'录入已有教练课表',exact:true})).not.toBeVisible();
   await expect(page.getByText('查看说明',{exact:true})).toBeVisible();
 }
 test('200m execution: recovery timer, interrupted reload, immutable targets and idempotent save',async({page})=>{
