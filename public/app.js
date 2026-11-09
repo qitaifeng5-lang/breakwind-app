@@ -35,9 +35,14 @@ const editor = document.querySelector('#editor');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // Safari keeps the layout viewport behind the keyboard. Fit sheets to the
 // visual viewport instead; never resize the page or discard a form draft.
-function fitEditorViewport() {
+function fitEditorViewport(event) {
   const viewport=window.visualViewport;
   if (!viewport || viewport.scale!==1) return;
+  // A keyboard/viewport change must not leave the entrance transform below
+  // the newly visible bottom edge, even for the remaining animation frames.
+  if (event?.type==='resize') for (const animation of editor.getAnimations()) {
+    if (animation.animationName==='bw-modal-rise') animation.finish();
+  }
   editor.style.setProperty('--visible-height',viewport.height+'px');
   editor.style.setProperty('--keyboard-inset',Math.max(0,window.innerHeight-viewport.height-viewport.offsetTop)+'px');
 }

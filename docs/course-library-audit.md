@@ -31,6 +31,7 @@ Each course stores event, PB band, phase, purpose, warmup, segments, repetitions
 - Search, touch date swipe, drag-to-close, interruptible card animation and reduced motion are covered by browser tests.
 - The initial full-flow run caught an unhandled View Transition skip during rapid navigation. The animation readiness rejection is now handled without masking functional update failures.
 - A readiness test exposed accidental exclusion of historical rows with missing IDs; matching only an explicit saved plan ID fixed that gap.
+- Linux CI caught a small-screen sheet extending below the resized visual viewport during its entrance animation (88/90 browser checks initially passed). Viewport resize now finishes that entrance transform immediately; the strict boundary check is retained.
 - Unit tests, lint, syntax, integrity and iOS configuration checks pass. Existing product flows pass at six viewport sizes; additional course flows cover PB recovery differences, duplicate schedule prevention, persistent custom precision, youth gating and reduced motion.
 
 ## Acceptance boundary
