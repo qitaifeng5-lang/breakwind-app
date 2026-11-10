@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {fresh,readData,offset} from '../public/model.js';
-import {buildProgram,saveProgram,previewProgramWeek,arrangeProgramWeek,proposeProgramChange,confirmProgramChange,advanceProgram,moveProgramPlan,programReview} from '../public/program.js';
+import {buildProgram,saveProgram,previewProgramWeek,arrangeProgramWeek,proposeProgramChange,confirmProgramChange,advanceProgram,moveProgramPlan,programReview,exportProgram} from '../public/program.js';
 import {applyTestTransaction,entitlement,membershipStatus,vipProduct} from '../public/membership.js';
 import {courseContentComplete} from '../public/pb-library.js';
 import {courseReadiness} from '../public/engine.js';
@@ -95,3 +95,5 @@ test('test transactions are ordered and idempotent; no local state authorizes re
  assert.equal(applyTestTransaction(null,event(1,'cancel')).status,'cancelled');assert.equal(applyTestTransaction(null,event(1,'failure')).status,'failed');
  assert.equal(membershipStatus(applyTestTransaction(null,event(1,'success')),now+2*86400000).status,'expired');
 });
+
+test('expired personal export includes associated actual sessions, excluding unrelated records',()=>{const {s,p}=fixture();arrangeProgramWeek(s,p.programId,0,{today});s.runs.push({id:'own',date:today,courseSession:{course:{planId:s.plans[0].id}}},{id:'other',date:today});s.membershipTest.status='expired';const out=exportProgram(s,p.programId);assert.deepEqual(out.runs.map(r=>r.id),['own']);out.plans[0].name='edited export';assert.notEqual(s.plans[0].name,'edited export');});

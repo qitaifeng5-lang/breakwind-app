@@ -132,3 +132,8 @@ export function moveProgramPlan(data,id,changes,{today=dateKey()}={}) {
   next.scheduleReview=review;next.scheduleAudit=[...(original.scheduleAudit||[]),{at:new Date().toISOString(),before:{date:original.date,start:original.start},after:{date:next.date,start:next.start},review}];
   Object.assign(original,next);return {plan:original,review};
 }
+export function exportProgram(data,id) {
+  const program=data.programs?.find(p=>p.programId===id);if(!program)throw Error('周期不存在');
+  const plans=data.plans.filter(p=>p.programId===id),ids=new Set(plans.map(p=>p.id));
+  return structuredClone({program,plans,runs:data.runs.filter(r=>ids.has(r.planId)||ids.has(r.courseSession?.course?.planId))});
+}
