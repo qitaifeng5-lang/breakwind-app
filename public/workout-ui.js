@@ -101,9 +101,15 @@ export function createWorkoutPlayer(api) {
         if(!target)throw new Error('每段需要对应的当前成绩或已校准秒数，不能用浏览 PB 代替');
         return {distanceM:s.distance,repsPerSet:Number(form.elements['reps'+i].value),target,repRecovery:readRecovery(form,'rep'+i)};
       });
+      const preparation=(name,label)=>{
+        const previous=course.executionSpec?.[name];
+        const phases=previous?.length?structuredClone(previous):[{label}];
+        if(form.elements[name].value!=='')phases[0].durationSeconds=Number(form.elements[name].value)*60;
+        return phases;
+      };
       const spec={version:1,origin:'coach-transcription',setCount:Number(form.elements.sets.value),repetitions,setRecovery:readRecovery(form,'set'),
-        warmup:[{label:'轻松活动 → 动态活动／跑姿 → 渐进准备',durationSeconds:Number(form.elements.warmup.value)*60,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
-        cooldown:[{label:'轻松放慢，按状态结束；不适可直接停止',durationSeconds:Number(form.elements.cooldown.value)*60}],
+        warmup:preparation('warmup','轻松慢跑、动态活动、跑姿准备'),
+        cooldown:preparation('cooldown','轻松慢跑、放松整理；不适可直接停止'),
         objective:[...new Set(repetitions.map(r=>({'800':'800m比赛节奏熟悉','1500':'1500m比赛节奏稳定',mile:'英里节奏稳定',threshold:'已校准阈值强度控制',coach:'按转录教练目标执行'}[r.target.targetBasis])))].join('；'),
         parameterSource:form.elements.source.value.trim(),review:{status:'pending',label:'用户转录 · 待独立专业审核'},confirmedAt:new Date().toISOString()};
       compileWorkout(spec);workoutTotals(spec);

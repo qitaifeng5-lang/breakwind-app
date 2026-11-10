@@ -90,3 +90,11 @@ test('combination executes both sets and only one set recovery, preserving the s
   expect(result.runs[0].courseSession.spec).toEqual(before.course.executionSpec);
 });
 
+
+test('editing pace references keeps existing preparation distances and descriptions',async({page})=>{
+ await configure(page);await click(page,'加入日程');
+ await page.evaluate(()=>{const key='breakwind.local.v1',s=JSON.parse(localStorage.getItem(key));s.plans[0].course.executionSpec.warmup=[{distanceM:2000,label:'慢跑、动态活动、跑姿准备'}];s.plans[0].course.executionSpec.cooldown=[{distanceM:1000,label:'轻松慢跑、放松整理'}];localStorage.setItem(key,JSON.stringify(s));});
+ await page.goto('/#home');await page.reload();await click(page,'课次详情');await expect(page.locator('.course-block').first()).toContainText('2000m');await page.getByText('查看说明',{exact:true}).click();await click(page,'录入已有教练课表');
+ await page.locator('#workout-calibrate [name=confirm]').check();await click(page,'保存执行规格');
+ const s=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(s.plans[0].course.executionSpec.warmup).toEqual([{distanceM:2000,label:'慢跑、动态活动、跑姿准备'}]);expect(s.plans[0].course.executionSpec.cooldown).toEqual([{distanceM:1000,label:'轻松慢跑、放松整理'}]);
+});
