@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pbCourses,pbWeek,weekContentStatus,courseContentComplete,courseCoverage,contentRevision} from '../public/pb-library.js';
+import {pbCourses,pbWeek,weekContentStatus,courseContentComplete,courseCoverage,competitiveRevision} from '../public/pb-library.js';
 import {templateSpecification,compileWorkout,workoutTotals,newSession,advanceSession,stopSession,sessionRecord} from '../public/workout.js';
 import {courseReadiness} from '../public/engine.js';
 import {fresh} from '../public/model.js';
@@ -31,20 +31,20 @@ test('PB changes neither cohort nor dose; different groups are explicit; mixed c
   const c=structuredClone(a[3]);mutate(c);assert.equal(courseContentComplete(c),false);
  }
  assert.equal(courseCoverage().length,24);
- assert.equal(weekContentStatus(pbWeek('800 m',105,{group:'competitive',phase:'base'})).complete,false);
+ assert.equal(weekContentStatus(pbWeek('800 m',105,{group:'competitive',phase:'base'})).complete,true);
 });
 test('speed endurance and dual-pace combination have independent source structures and full accounting',()=>{
  const find=(event,id)=>pbCourses(event,130,{group:'competitive'}).find(c=>c.id===id);
  const e=find('800 m','endurance'),spec=templateSpecification(e,refs),t=workoutTotals(spec);
  assert.equal(t.mainDistanceM,1800);assert.equal(t.repCount,6);assert.equal(t.repRecoveries,4);assert.equal(t.setRecoveries,1);assert.equal(t.recoverySeconds,1080);
- assert.deepEqual(t.estimatedSecondsRange,[2572.5,2572.5]);
+ assert.deepEqual(t.estimatedSecondsRange,[2872.5,2872.5]);
  const reserve=templateSpecification(find('1500 m','endurance'),refs);assert.equal(reserve.repetitions[0].target.targetBasis,'800');assert.equal(workoutTotals(reserve).recoverySeconds,720);
  for(const event of ['800 m','1500 m']){
   const c=find(event,'combination-development'),s=templateSpecification(c,refs),totals=workoutTotals(s);
-  assert.equal(courseContentComplete(c),true);assert.equal(c.catalogRevision,contentRevision);
+  assert.equal(courseContentComplete(c),true);assert.equal(c.catalogRevision,competitiveRevision);
   assert.deepEqual(s.repetitions.map(r=>r.target.targetSecondsRange),[[72,72],[32.5,32.5]]);
   assert.equal(totals.mainDistanceM,1800);assert.equal(totals.recoverySeconds,780);assert.equal(totals.repRecoveries,3);assert.equal(totals.setRecoveries,2);
-  assert.deepEqual(totals.estimatedSecondsRange,[2293.5,2293.5]);
+  assert.deepEqual(totals.estimatedSecondsRange,[2593.5,2593.5]);
   assert.throws(()=>templateSpecification(c,refs['800']));
   assert.equal(c.automaticRecommendation,false);
  }

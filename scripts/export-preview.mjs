@@ -16,6 +16,8 @@ const unexpected=(await readdir(target)).filter(name=>!allowed.has(name));
 if (unexpected.length) throw new Error('Preview directory contains files outside the asset allowlist');
 for (const name of assets) {
   let content=await readFile(new URL(name,source));
+  // Produce identical text assets from Windows and Linux checkouts.
+  if (/\.(html|js|css|svg|webmanifest)$/.test(name)) content=Buffer.from(content.toString().replaceAll('\r\n','\n'));
   if (name==='index.html') content=content.toString().replace('<head>',
     '<head>\n  <meta name="breakwind-preview" content="'+revision+'">\n  <meta name="robots" content="noindex,nofollow">\n'+
     '  <meta http-equiv="Content-Security-Policy" content="default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' blob:; connect-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">');

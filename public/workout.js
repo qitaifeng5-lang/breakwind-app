@@ -96,8 +96,8 @@ export function templateSpecification(course,reference) {
   const repetitions=course.segments.map((s,i)=>{const basis=course.targetBases?.[i]||course.targetBasis;return {distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,basis,reference?.[basis]||reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}};});
   if(repetitions.some(r=>!r.target))throw new Error('需要当前同项已达成绩，不能使用目标PB');
   const spec={version:1,origin:'editorial-candidate',catalogRevision:course.catalogRevision,setCount:course.sets,repetitions,setRecovery:course.sets>1?{mode:course.recoveryMode,endRule:'time',durationSeconds:course.setRecovery}:null,
-    warmup:[{label:'轻松跑、动态活动与渐进准备；10分钟是计时起点，准备不足可继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
-    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:course.objective,
+    warmup:[{label:'轻松跑、动态活动与渐进准备；'+(course.warmupSeconds||600)/60+'分钟是计时起点，准备不足可继续',durationSeconds:course.warmupSeconds||600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
+    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:course.cooldownSeconds||600}],objective:course.objective,
     parameterSource:course.evidenceMap.map(e=>e.source+'；产品选择：'+e.adaptation).join('。'),review:structuredClone(course.review)};
   compileWorkout(spec);return spec;
 }
