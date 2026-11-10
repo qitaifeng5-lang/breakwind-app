@@ -25,3 +25,12 @@ test('one-off club cancellation and relocation replace recurrence without assumi
   assert.equal(recurringFor(s,'2026-11-09').length,0);assert.equal(recurringFor(s,'2026-11-10').length,1);assert.equal(recurringFor(s,'2026-11-10')[0].quality,undefined);
   s.coachSchedule.exceptions['club|2026-11-09'].cancelled=true;assert.equal(recurringFor(s,'2026-11-10').length,0);assert.equal(recurringFor(s,'2026-11-16').length,1);
 });
+test('rescheduling checks completed actual sessions but excludes historical reference plans',()=>{
+  const s=fresh();s.runs.push({id:'actual',date:'2026-11-10',name:'已完成间歇',quality:true});
+  const p={id:'next',date:'2026-11-11',start:'17:00',estimatedMinutes:60,quality:true};
+  assert.ok(scheduleWarnings(s,p).some(w=>w.includes('已完成间歇')));
+  s.runs=[];s.plans.push({id:'archive',date:'2026-11-11',name:'往年参考',quality:true,executionStatus:'reference-only',start:'17:00',end:'18:00'});
+  s.runs.push({id:'easy',date:'2026-11-10',name:'已完成恢复跑',type:'恢复跑',effort:2});
+  s.events.push({id:'school',date:'2026-11-10',name:'上学',start:'09:00',end:'16:00'});
+  assert.deepEqual(scheduleWarnings(s,p),[]);
+});

@@ -17,6 +17,12 @@ export function parseCoachText(raw) {
   return {original,blocks,unassigned,unresolved,parserVersion:1};
 }
 const minute=value=>/^\d{2}:\d{2}$/.test(value||'')?Number(value.slice(0,2))*60+Number(value.slice(3)):null;
+function potentialQuality(item) {
+  if(typeof item.quality==='boolean')return item.quality;
+  if(Number(item.effort)>=6)return true;
+  if(['轻松跑','恢复跑','休息'].includes(item.type))return false;
+  return true; // Unknown intensity is a reason to review, not an invented easy session.
+}
 export function occupied(plan) {
   const start=minute(plan.start);
   const duration=Number(plan.estimatedMinutes);
@@ -38,11 +44,11 @@ export function recurringFor(data,date) {
 }
 export function scheduleWarnings(data,plan) {
   const item=occupied(plan), warnings=[];
-  const others=[...data.plans,...data.events,...recurringFor(data,plan.date)].filter(p=>p.id!==plan.id&&!p.cancelled&&p.id!==plan.recurringKey);
+  const others=[...data.plans,...data.runs,...data.events.map(p=>({...p,collection:'events'})),...recurringFor(data,plan.date)].filter(p=>p.id!==plan.id&&!p.cancelled&&p.executionStatus!=='reference-only'&&p.id!==plan.recurringKey);
   if(!item.end)warnings.push('结束时间待补，不能确认没有时间冲突');
   for(const other of others){
     if(other.date===plan.date&&item.start&&other.start&&(!other.end||!item.end||item.start<other.end&&other.start<item.end))warnings.push('占用冲突：'+other.name);
-    if(plan.quality!==false&&other.quality!==false&&other.collection!=='events'&&Math.abs(Date.parse(other.date)-Date.parse(plan.date))<3*86400000)warnings.push('相邻课次负荷需核对：'+other.name);
+    if(potentialQuality(plan)&&potentialQuality(other)&&other.collection!=='events'&&Math.abs(Date.parse(other.date)-Date.parse(plan.date))<3*86400000)warnings.push('相邻课次负荷需核对：'+other.name);
   }
   return [...new Set(warnings)];
 }
