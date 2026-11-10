@@ -79,6 +79,7 @@ test('pause blocks restarting existing program sessions and confirmed automatic 
  s.recovery.push({id:'feedback',date:today,fatigue:5});const proposal=proposeProgramChange(s,p.programId,{today});assert.equal(proposal.kind,'recover');assert.equal(proposal.evidence.actualRuns,0);
  confirmProgramChange(s,proposal,{mode:'experience',now});assert.ok(p.weeks[1].courses.every(c=>!c.quality));
  plan.cancelled=true;assert.equal(courseReadiness(s,{...plan.course,planId:plan.id},today,today).status,'cancelled');
+ const clean=fixture();clean.p.cursor=2;const next=proposeProgramChange(clean.s,clean.p.programId,{kind:'hold',today});assert.equal(next.kind,'recover');assert.ok(next.courses.every(c=>!c.quality),'holding familiar work cannot remove a planned recovery week');
 });
 test('test transactions are ordered and idempotent; no local state authorizes real payment or bypasses free access',()=>{
  assert.equal(vipProduct.targetPriceMinor,1290);let s=null;

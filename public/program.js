@@ -94,10 +94,12 @@ export function proposeProgramChange(data,id,{kind='auto',today=dateKey()}={}) {
   const index=p.cursor+1;if(!p.weeks[index])throw Error('周期已到最后一周，请先复盘');
   const evidence=programReview(data,p,p.cursor,today),readiness=courseReadiness(data,{adapted:true,quality:false},today,today);
   if(kind==='auto')kind=['paused','recovery'].includes(readiness.status)?'recover':'hold';
+  // A "keep familiar work" suggestion must never erase an authored recovery week.
+  const protectedRecovery=p.weeks[index].phase==='recover';if(protectedRecovery)kind='recover';
   const reasons={recover:'近期恢复不足：下一周替换为恢复周，不补堆遗漏质量课',hold:'保持已熟悉结构，不因成绩或打卡提高剂量'};
   if(!reasons[kind])throw Error('未知调整');
   const source=kind==='recover'?pbWeek(p.event,p.pb,{group:p.cohort,phase:'recover'}):p.weeks[p.cursor].courses;
-  const reason=reasons[kind]+'；关联完成'+evidence.completed+'课、过期未完成'+evidence.missed.length+'课。'+(['paused','recovery'].includes(readiness.status)?readiness.reason:'没有恢复异常记录不等于已经确认适合升级。');
+  const reason=(protectedRecovery?'保留原计划恢复周，不用巩固建议替换成质量周':reasons[kind])+'；关联完成'+evidence.completed+'课、过期未完成'+evidence.missed.length+'课。'+(['paused','recovery'].includes(readiness.status)?readiness.reason:'没有恢复异常记录不等于已经确认适合升级。');
   return {programId:id,baseRevision:p.revisionHistory.length,index,kind,today,reason,evidence,pause:readiness.status==='paused',referencePerformance:structuredClone(data.records),courses:structuredClone(source),before:structuredClone(p.weeks[index])};
 }
 export function confirmProgramChange(data,proposal,{mode='production',now=Date.now()}={}) {
