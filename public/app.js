@@ -338,8 +338,8 @@ const coachUI=createCoachUI({state,commit:change=>sample?(notify('请返回个�
 const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
   return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
-    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+programUI.view()+(coachUI.showLibrary()?pbLibraryView(s):'')+
-    '<nav class="training-tools" aria-label="训练记录">'+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
+    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+(s.programs?.length?programUI.view():'')+(coachUI.showLibrary()?pbLibraryView(s):'')+
+    '<nav class="training-tools" aria-label="训练记录">'+(!s.programs?.length?programUI.view():'')+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
 
