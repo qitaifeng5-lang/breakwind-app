@@ -6,13 +6,21 @@ export function parseCoachText(raw) {
   const unassigned=[];
   let active='';
   for(const line of original.split(/\r?\n/)) {
-    const match=line.match(/^\s*(热身|主训练|恢复|趟间恢复|组间恢复|冷身)\s*[:：]\s*(.*)$/);
-    if(match){active=/恢复/.test(match[1])?'恢复':match[1];blocks[active]+=(blocks[active]?'\n':'')+(/恢复/.test(match[1])?match[1]+'：':'')+match[2];}
-    else if(line.trim()){if(active)blocks[active]+='\n'+line;else unassigned.push(line);}
+    const match=line.match(/^\s*(热身|主训练|恢复|趟间恢复|组间恢复|冷身|warm[ -]?up|main(?: set| workout| training)?|recovery|rest|between reps|between sets|cool[ -]?down)\s*[:：]\s*(.*)$/i);
+    if(match){
+      const label=match[1];
+      active=/恢复|recovery|rest|between/i.test(label)?'恢复':/warm/i.test(label)?'热身':/cool/i.test(label)?'冷身':/main/i.test(label)?'主训练':label;
+      blocks[active]+=(blocks[active]?'\n':'')+(active==='恢复'?label+'：':'')+match[2];
+    } else if(line.trim()){
+      // An unfamiliar heading is not a license to put strides into cooldown
+      // or merge another day's session into the previous block.
+      if(/^\s*[^:：]{1,60}[:：]/.test(line))active='';
+      if(active)blocks[active]+='\n'+line;else unassigned.push(line);
+    }
   }
   const unresolved=blockNames.filter(name=>!blocks[name]).map(name=>name+'待补');
-  if(!/(配速|Tempo|阈值|秒\/|RPE)/i.test(blocks.主训练))unresolved.push('目标节奏待核对');
-  if(/待补|待定|不详|未知/.test(Object.values(blocks).join(' ')))unresolved.push('原文含未确定参数');
+  if(!/(配速|Tempo|阈值|秒\/|RPE|pace|threshold)/i.test(blocks.主训练))unresolved.push('目标节奏待核对');
+  if(/待补|待定|不详|未知|not supplied|not specified|unknown|\bTBD\b/i.test(Object.values(blocks).join(' ')))unresolved.push('原文含未确定参数');
   if(unassigned.length)unresolved.push('未归类原文待核对');
   return {original,blocks,unassigned,unresolved,parserVersion:1};
 }

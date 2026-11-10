@@ -34,3 +34,11 @@ test('rescheduling checks completed actual sessions but excludes historical refe
   s.events.push({id:'school',date:'2026-11-10',name:'上学',start:'09:00',end:'16:00'});
   assert.deepEqual(scheduleWarnings(s,p),[]);
 });
+test('English headings preserve a synthetic transcription; finish is not assumed to be cooldown',()=>{
+  const raw='Synthetic example only\nWarm-up: easy preparation\nMain set: 3 x 90m at 1500m pace\nBetween reps: 75 seconds walk\nBetween sets: not supplied\nFinish: optional technique notes';
+  const parsed=parseCoachText(raw);
+  assert.equal(parsed.original,raw);assert.equal(parsed.blocks.主训练,'3 x 90m at 1500m pace');
+  assert.match(parsed.blocks.恢复,/Between reps：75 seconds walk/);assert.match(parsed.blocks.恢复,/Between sets：not supplied/);
+  assert.equal(parsed.blocks.冷身,'');assert.ok(parsed.unresolved.includes('冷身待补'));assert.ok(parsed.unassigned.includes('Finish: optional technique notes'));
+  assert.ok(parsed.unresolved.includes('原文含未确定参数'));
+});
