@@ -62,7 +62,7 @@ try {
   await click('500m 稳定间歇');
   await click('加入日程');
   await expect(dialog).not.toBeVisible();
-  await click('一周课表');
+  await click('周安排草案');
   await click('调整阶段');await click('赛前期');
   await expect(page.locator('.week-outline li')).toHaveCount(7);
   await page.locator('.week-feature').scrollIntoViewIfNeeded();

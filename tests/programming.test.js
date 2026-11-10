@@ -30,7 +30,8 @@ test('old combinations and stored fixture specs cannot bypass withdrawal; explic
 test('unreviewed courses never auto-fill phase slots; browsing does not depend on device logs',()=>{
   for(const event of ['800 m','1500 m'])for(const phase of ['base','develop','prepare','recover']){
     const week=pbWeek(event,'2:00',{phase});assert.equal(week.length,7);
-    assert.ok(week.every(c=>c.id==='rest'||c.isPlanningSlot));
+    assert.ok(week.filter(c=>c.id!=='rest'&&!c.isPlanningSlot).every(c=>c.contentState?.programming==='complete'));
+    assert.ok(week.some(c=>c.isPlanningSlot));
     for(const c of week.filter(c=>c.isPlanningSlot))assert.equal(courseReadiness(fresh(),c,day).canSchedule,false);
   }
   assert.equal(courseReadiness(fresh(),find('800 m','interval-development'),day).canSchedule,true);

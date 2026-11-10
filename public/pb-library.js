@@ -1,3 +1,4 @@
+import {compileWorkout} from './workout.js';
 // Browsing groups are navigation aids, never a diagnosis of training readiness.
 const specifications={
   '800 m':[180,105,5,'800m',125,150], '1500 m':[360,210,10,'1500m',270,330],
@@ -123,15 +124,15 @@ export function pbWeek(event,pb,{phase='develop',youth=false}={}) {
   const quality=phase==='base'?'tempo':phase==='prepare'?'endurance':xc?'hills':'interval';
   const patterns={
     base:['speed-drills','tempo',null,'aerobic-steady','hills-control',null,'aerobic'],
-    develop:event==='800 m'?['speed','interval',null,'aerobic','combination',null,'aerobic']:['speed-drills','interval-aerobic',null,'aerobic','tempo',null,'aerobic'],
+    develop:event==='800 m'?['speed','interval-development',null,'aerobic','combination',null,'aerobic']:['speed-drills','interval',null,'aerobic','tempo',null,'aerobic'],
     prepare:['speed',event==='800 m'?'endurance':'combination-change',null,'aerobic','speed-drills',null,null],
     recover:['aerobic',null,'speed-drills',null,'aerobic',null,null]
   };
   const structure=track?(patterns[phase]||patterns.develop):phase==='recover'?['aerobic',null,'speed',null,'aerobic',null,null]:['speed',quality,null,'aerobic','speed',null,'aerobic'];
   const relations=['先以技术进入本周','本周主要刺激，替代其他质量课','恢复日，为前一课留出恢复','低强度衔接，检查主课后反应','与主课间隔两个低负荷日；恢复不足则取消','恢复，不补做漏课','轻松收尾，为下一周期留余力'];
-  return structure.map((id,dayIndex)=>({...(courses.find(c=>c.id===id && c.automaticRecommendation!==false)||{id:id?'slot-'+id:'rest',isPlanningSlot:Boolean(id),sessionRole:phase==='prepare'&&dayIndex===4?'primer':courses.find(c=>c.id===id)?.sessionRole,name:id?((phase==='prepare'&&dayIndex===4?'赛前短量课':courses.find(c=>c.id===id)?.roleLabel||'训练')+' · 待确认'):'休息与自主恢复',category:id?'待编排':'恢复',quality:false,review:{status:'pending',label:'待专业审核'}}),
+  return structure.map((id,dayIndex)=>({...(courses.find(c=>c.id===id && (c.automaticRecommendation!==false || (!youth && ((phase==='base'&&id==='tempo') || (phase==='develop'&&['interval','interval-development'].includes(id))))))||{id:id?'slot-'+id:'rest',isPlanningSlot:Boolean(id),sessionRole:phase==='prepare'&&dayIndex===4?'primer':courses.find(c=>c.id===id)?.sessionRole,name:id?((phase==='prepare'&&dayIndex===4?'赛前短量课':courses.find(c=>c.id===id)?.roleLabel||'训练')+' · 待确认'):'休息与自主恢复',category:id?'待编排':'恢复',quality:false,review:{status:'pending',label:'待专业审核'}}),
     dayIndex,dayLabel:['周一','周二','周三','周四','周五','周六','周日'][dayIndex],relation:phase==='recover'?'恢复周：不安排质量课，保留轻量技术与休息。':relations[dayIndex],event,
-    weekPhase:phase,weekPurpose:phasePurposes[phase]||phasePurposes.develop,coverage:track?'中跑阶段结构示例':'仅通用基础示例，尚非完整专项周期',previewOnly:true}));
+    weekDraft:true,weekPhase:phase,weekPurpose:phasePurposes[phase]||phasePurposes.develop,coverage:track?'中跑阶段结构示例':'仅通用基础示例，尚非完整专项周期',previewOnly:true}));
 }
 
 // Source audit revision: snapshots retain their original dose; none is an approved prescription.
@@ -186,6 +187,48 @@ function auditCourse(c) {
   if(c.id==='aerobic-steady')c.sessionRole='development';
   c.primaryObjective=c.objective;
   if(c.categoryId==='aerobic')c.evidenceMap=[{parameter:'恢复与连续有氧',source:'IOC负荷共识支持结合恢复反应；不提供统一20分钟处方',adaptation:'20分钟仅供既有恢复习惯核对，不是无日志者的负荷上限',limit:'连续有氧发展与恢复用途不同，不能由低强度名称判定适用'}];
+  c.contentState={sources: ['interval-development','interval'].includes(c.id)&&c.executionEligible?'checked':'partial',programming:c.executionEligible&&!c.adapted?'complete':'incomplete',independentReview:'pending',currentExecution:'requires-readiness'};
+  if(c.id==='tempo')completeTempo(c);
   c.roleLabel=sessionRoles[c.sessionRole];
-  c.review={status:'pending',label:c.catalogStatus==='archive'?'教学存档 · 不推荐':'参数已审查 · 待教练审核',reviewer:null,date:null};
+  c.review={status:'pending',label:c.prescription?'编排完成 · 待独立审核':c.catalogStatus==='archive'?'教学存档 · 不推荐':'参数已审查 · 待教练审核',reviewer:null,date:null};
+}
+
+function completeTempo(c) {
+  c.name='分段 Tempo · 3×5分钟';c.phase='base';c.phaseLabel=coursePhases.base;
+  c.objective='在受控偏强的强度下积累持续有氧工作，短慢跑恢复后重建稳定节奏；不是800m/1500m比赛速度训练。';
+  c.primaryObjective=c.objective;c.sets=1;c.segments=[segment(5,3,60,'min')];c.setRecovery=0;
+  c.eligibility='成人基础／进阶中跑组，已有持续有氧训练且曾耐受累计15分钟的受控Tempo；竞技组仅作基础期低总量衔接，不替代常规阈值主课。首次接触Tempo、近期训练中断或恢复不足者不直接执行；PB不能证明这些条件。';
+  c.trainingGroups=['基础','进阶'];c.competitiveUse='仅基础期低总量衔接，非竞技组常规阈值主课';c.trainingPhases=['base'];
+  c.intensityBasis='Tempo：受控偏强、呼吸稳定，不追求冲刺。以既有Tempo体感为参照；无法维持动作或必须明显加力时降速并提前结束。不从短距离PB推算阈值。';
+  c.adjustment='每段保持相同受控强度，不做末段加速。恢复不足不强行开始下一段；结束记录而非压缩恢复。不可在原有质量课之外额外叠加。';
+  c.evidenceMap=[{parameter:'5分钟工作／1分钟慢跑',source:'Haugen 2021表2：阈值分段3–10分钟，约每5分钟工作配1分钟轻松慢跑',adaptation:'采用5分钟段和60秒慢跑，不采用精英25–40分钟总量',limit:'综述为精英背景，支持组织方式而非本课对所有人的安全或有效性'},
+    {parameter:'Tempo强度与训练目的',source:'V.O2训练定义与阈值训练说明：受控偏强、分段间短恢复；区别于更高强度间歇',adaptation:'使用已有训练体感，不套用精英半马配速或由800m/1500m PB推算生理阈值',limit:'体感不是阈值测量；V.O2的2025建议总量至少30分钟，本课15分钟是不同适用背景的产品衔接编排，不声称符合其完整剂量建议'},
+    {parameter:'3趟／15分钟总量，基础期及已有经验的成人组',source:'资料没有验证本产品的3趟、准入条件或周方案',adaptation:'原创限量编排：已有15分钟同类经验，不做自动进阶；基础期一节主课位置，前后留低负荷日',limit:'不是第一次Tempo入门课或比赛减量课；尚无独立教练审核，未完成整周负荷核验'},
+    {parameter:'热身10分钟与冷身10分钟',source:'综述给出低强度准备与冷身类别',adaptation:'10分钟作为计时起点；准备未完成则继续，不适可直接停止',limit:'产品时长，不是保证预防伤病的阈值'}];
+  c.sources.push({id:'vdot-threshold',title:'V.O2 · Training definitions / Threshold',url:'https://vdoto2.com/learn-more/training-definitions',kind:'教练训练体系公开说明',population:'具备相应耐受与强度认识的跑者',rule:'受控偏强的Tempo与短恢复分段组织',limit:'不验证本App的3趟剂量；不复制其完整计划或配速数据库'});
+  c.sources.push({id:'vdot-tempo-2025',title:'V.O2 · Threshold training（2025）',url:'https://news.vdoto2.com/2025/06/get-the-most-out-of-your-threshold-training/',kind:'教练体系公开训练说明',population:'已熟悉阈值强度的跑者',rule:'稳定受控强度，短恢复后不加速；该文建议更高总量',limit:'该文分段建议至少30分钟；本课15分钟是低总量衔接编排，不冒充原文完整剂量'});
+  c.parameterOrigin='来源已核对；原创编排完成；独立审核未完成。当前执行还需满足适用背景和恢复条件。';
+  c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};
+  c.executionEligible=true;c.catalogRevision='2026-11-09-tempo';
+  c.prescription={version:2,origin:'editorial-candidate',catalogRevision:c.catalogRevision,setCount:1,
+    repetitions:[{durationSeconds:300,repsPerSet:3,target:{targetBasis:'threshold',effort:'受控偏强 · 呼吸与动作稳定',provenance:'既有Tempo体感；未测量生理阈值'},repRecovery:{mode:'jog',endRule:'time',durationSeconds:60}}],setRecovery:null,
+    warmup:[{label:'轻松跑、动态活动与渐进准备；准备不足继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
+    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:c.objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:{status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null}};
+}
+export function weekContentStatus(week) {
+  const training=week.filter(c=>c.id!=='rest');
+  const filled=training.filter(courseContentComplete);
+  return {complete:training.length>0&&filled.length===training.length,filled:filled.length,missing:training.length-filled.length,
+    label:'周安排草案',independentReview:'pending',canExecuteWeek:false};
+}
+
+export function courseContentComplete(c) {
+  if(c.isPlanningSlot||c.contentState?.sources!=='checked'||c.contentState?.programming!=='complete'||!c.objective||!c.phase||!c.eligibility||!c.evidenceMap?.length||!c.segments?.length)return false;
+  if(c.prescription){
+    try{const steps=compileWorkout(c.prescription),work=steps.filter(s=>s.kind==='work');
+      return work.length===c.sets*c.segments.reduce((n,s)=>n+s.repeats,0)&&
+        work.reduce((n,s)=>n+(s.durationSeconds||0),0)===c.sets*c.segments.reduce((n,s)=>n+s.distance*(s.unit==='min'?60:s.unit==='sec'?1:0)*s.repeats,0);
+    }catch{return false;}
+  }
+  return ['800','1500'].includes(c.targetBasis)&&['jog','walk','stand'].includes(c.recoveryMode)&&c.sets===1&&c.segments.every(s=>s.unit==='m'&&s.distance>0&&Number.isInteger(s.repeats)&&s.repeats>0&&(s.repeats===1||s.recoverySeconds>0));
 }

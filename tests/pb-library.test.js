@@ -73,7 +73,7 @@ test('middle-distance categories offer different purposes and structures without
     const phases=['base','develop','prepare','recover'].map(phase=>pbWeek(event,'2:00',{phase}));
     assert.equal(new Set(phases.map(w=>w.map(c=>c.id).join(','))).size,4);
     assert.ok(phases.every(w=>w.every(c=>c.weekPurpose && c.review.status==='pending')));
-    assert.ok(phases.every(w=>w.every(c=>!c.quality)),'Unreviewed quality candidates are never auto-filled into weeks');
+    assert.ok(phases.every(w=>w.filter(c=>c.quality).length<=1),'Draft contains at most one authored main session, not a full plan');
   }
   assert.notDeepEqual(pbWeek('800 m','2:00').map(c=>c.id),pbWeek('1500 m','4:00').map(c=>c.id));
   assert.match(pbWeek('全程马拉松','3:00:00')[0].coverage,/尚非完整专项/);

@@ -90,7 +90,7 @@ test('course content leads the first screen and middle-distance phases select di
     await click(page,'按时间的有氧间歇');
     await expect(page.getByRole('dialog')).toContainText('以时间而非圈速');
     await expect(page.getByRole('dialog')).toContainText('待教练审核');
-    await click(page,'返回课程');await click(page,'一周课表');
+    await click(page,'返回课程');await click(page,'周安排草案');
     const outlines=[];
     for(const phase of ['基础期','专项期','赛前期','恢复周']) {
       await click(page,'调整阶段');await click(page,phase);
@@ -98,7 +98,7 @@ test('course content leads the first screen and middle-distance phases select di
       await expect(page.locator('.course-section-head h2')).toHaveText(phase);
     }
     expect(new Set(outlines).size).toBe(4);
-    await expect(page.locator('.week-purpose')).toContainText('取消质量课');
+    await expect(page.locator('.week-purpose:not([role=status])')).toContainText('取消质量课');
     await click(page,'单节训练');
   }
 });

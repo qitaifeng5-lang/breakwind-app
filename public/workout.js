@@ -3,7 +3,7 @@ export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km �
 // Only supported calibration bases are offered; display names do not infer new targets.
 export const targetBases=Object.fromEntries(['800','1500','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
-export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&['interval','interval-development','combination'].includes(c?.id);
+export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&(Boolean(c?.prescription)||['interval','interval-development','combination'].includes(c?.id));
 const positive=n=>Number.isFinite(n)&&n>0;
 export const raceSplit=(seconds,raceDistance,distance)=>[seconds,raceDistance,distance].every(positive)?seconds*distance/raceDistance:null;
 export function recentPerformance(records,event,today) {
@@ -33,7 +33,7 @@ export function compileWorkout(spec) {
   for(const phase of ['warmup','cooldown'])if(!spec[phase]?.length||!spec[phase].every(s=>positive(s.durationSeconds)||positive(s.distanceM)))throw new Error('请补充热身与冷身安排');
   if (!Number.isInteger(spec.setCount)||spec.setCount<1||spec.setCount>20) throw new Error('大组数无效');
   const units=spec.repetitions.flatMap((r,index)=>{
-    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!positive(r.distanceM)||!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]) throw new Error('主训练尚未校准');
+    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(r.target?.targetBasis==='threshold'&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
     return Array.from({length:r.repsPerSet},(_,rep)=>({...r,segment:index,rep:rep+1,kind:'work'}));
   });
   if (!units.length) throw new Error('缺少主训练');
@@ -53,13 +53,13 @@ export function workoutTotals(spec) {
   const timed=steps.filter(s=>s.kind!=='work');
   const knownTime=timed.every(s=>s.durationSeconds>0 && !s.distanceM);
   const base=timed.reduce((n,s)=>n+(s.durationSeconds||0),0);
-  return {mainDistanceM:main.reduce((n,s)=>n+s.distanceM,0),repCount:main.length,
+  return {mainDistanceM:main.every(s=>positive(s.distanceM))?main.reduce((n,s)=>n+s.distanceM,0):null,mainDurationSeconds:main.every(s=>positive(s.durationSeconds))?main.reduce((n,s)=>n+s.durationSeconds,0):null,repCount:main.length,
     repRecoveries:rest.filter(s=>!s.betweenSets).length,setRecoveries:rest.filter(s=>s.betweenSets).length,
     recoverySeconds:rest.every(s=>s.durationSeconds>0&&!s.distanceM)?rest.reduce((n,s)=>n+s.durationSeconds,0):null,
     jogRecoveryDistanceM:rest.filter(s=>s.mode==='jog').every(s=>s.distanceM>0)?rest.filter(s=>s.mode==='jog').reduce((n,s)=>n+s.distanceM,0):null,
     warmupDistanceM:spec.warmup.every(s=>s.distanceM>0)?spec.warmup.reduce((n,s)=>n+s.distanceM,0):null,
     cooldownDistanceM:spec.cooldown.every(s=>s.distanceM>0)?spec.cooldown.reduce((n,s)=>n+s.distanceM,0):null,
-    estimatedSecondsRange:knownTime?[0,1].map(i=>base+main.reduce((n,s)=>n+s.target.targetSecondsRange[i],0)):null};
+    estimatedSecondsRange:knownTime?[0,1].map(i=>base+main.reduce((n,s)=>n+(s.durationSeconds||s.target.targetSecondsRange[i]),0)):null};
 }
 export function newSession(spec,course,now,id) {
   return {id,spec:structuredClone(spec),course:structuredClone(course),steps:compileWorkout(spec),index:0,logs:[],elapsed:0,anchor:now,startedAt:now,status:'active'};
@@ -81,14 +81,15 @@ export function stopSession(s,now,reason) {
 }
 export function sessionRecord(s,date) {
   const finished=s.logs.filter(l=>l.step.kind==='work'&&l.reason==='completed');
-  return {id:s.id,date,name:s.course.name,type:'间歇跑',source:'manual',quality:finished.length>0,
-    distance:finished.reduce((n,l)=>n+l.step.distanceM,0)/1000,minutes:s.logs.reduce((n,l)=>n+l.actualSeconds,0)/60,
-    distanceBasis:'仅已确认完成的场地手动圈距离；不含未知的热身、恢复和冷身距离',
+  return {id:s.id,date,name:s.course.name,type:s.course.categoryId==='tempo'?'阈值跑':'间歇跑',source:'manual',quality:finished.length>0,
+    distance:finished.reduce((n,l)=>n+(l.step.distanceM||0),0)/1000,minutes:s.logs.reduce((n,l)=>n+l.actualSeconds,0)/60,
+    distanceMeasured:finished.length>0&&finished.every(l=>positive(l.step.distanceM)),completedWorkSeconds:finished.reduce((n,l)=>n+l.actualSeconds,0),distanceBasis:s.spec.repetitions.some(r=>r.durationSeconds)?'按时间完成，距离未测量；0不是实测零距离':'仅已确认完成的场地手动圈距离；不含未知的热身、恢复和冷身距离',
     pain:s.stopReason==='pain',courseSession:structuredClone(s),note:'分段手动计时 · '+(s.status==='complete'?'完整结束':'提前结束')};
 }
 
 // Same-event performance scales timing, never dose. These are not reviewed prescriptions.
 export function templateSpecification(course,reference) {
+  if(course.prescription){const spec=structuredClone(course.prescription);compileWorkout(spec);return spec;}
   if(!course.executionEligible || !course.targetBasis || course.catalogStatus==='archive')throw new Error('本课尚未具备完整执行依据');
   const repetitions=course.segments.map(s=>({distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,course.targetBasis,reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}}));
   if(repetitions.some(r=>!r.target))throw new Error('需要当前同项已达成绩，不能使用目标PB');

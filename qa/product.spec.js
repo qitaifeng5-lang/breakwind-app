@@ -83,7 +83,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await expect(dialog).not.toBeVisible();
   await page.reload();
   await expect(page.locator('.pb-tiers-label')).toContainText('4:20');
-  await click(page,'一周课表');
+  await click(page,'周安排草案');
   await expect(page.locator('.week-outline li')).toHaveCount(7);
   await expect(page.locator('.week-outline')).toContainText('恢复日');
   await page.screenshot({path:info.outputPath('course-week.png')});
@@ -253,7 +253,7 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
   await page.goto('/#run');
   await click(page,'调整专项与PB');
   await click(page,'1500m');await click(page,'查看课程');
-  await click(page,'一周课表');
+  await click(page,'周安排草案');
   const dates=page.locator('.week-feature');
   await dates.scrollIntoViewIfNeeded();
   const strip=await dates.boundingBox();

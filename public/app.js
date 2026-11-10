@@ -1,7 +1,7 @@
 import {createWorkoutPlayer} from './workout-ui.js';
 import {supportsWorkout} from './workout.js';
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
-import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek, courseCategories, coursePhases } from './pb-library.js';
+import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek,weekContentStatus, courseCategories, coursePhases } from './pb-library.js';
 import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
 import { athleteTiers, cycleVersion, courseReadiness, groupEvents, groupWeek, phases, recentPain, reviewCycle, specialties, templateDetails } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
@@ -185,7 +185,7 @@ function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
   }).join('') + '</ul>' : empty(glyph,emptyLabel,emptyCopy);
 }
 const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
-const runRow = item => [item.name, item.date + ' · ' + item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km' + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
+const runRow = item => [item.name, item.date + ' · ' + (item.distanceMeasured===false?'距离未测量 · '+item.minutes+' min':item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km') + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 
 const pbCourseKinds={interval:'间歇跑',endurance:'间歇跑',tempo:'阈值跑',speed:'加速跑',combination:'间歇跑',aerobic:'轻松跑',hills:'坡道跑'};
 let courseSearch='';
@@ -251,17 +251,17 @@ function pbLibraryView(s) {
   const courses=pbCourses(event,selection.seconds,options);
   const selectedIndex=Math.max(0,Math.min(6,Math.round((Date.parse(courseDate)-Date.parse(day))/86400000)));
   const week=pbWeek(event,selection.seconds,options);
-  const selected=week[selectedIndex];
+  const selected=week[selectedIndex],weekStatus=weekContentStatus(week);
   const filtered=courses.filter(item=>(pbLibraryFocus==='archive'?item.catalogStatus==='archive':item.catalogStatus!=='archive'&&(pbLibraryFocus==='all'||pbLibraryFocus===item.categoryId))&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
   const single='<div class="course-section-head"><h2>'+escape(courseCategories[pbLibraryFocus]||'发现课程')+'</h2>'+btn('按类型浏览','course-filter','','quiet')+'</div><div class="course-rail" tabindex="0" aria-label="训练课程，可横向滚动">'+
     (filtered.length?filtered.map(courseCard).join(''):'<p class="empty-courses">没有找到对应课程，试试其他关键词。</p>')+'</div>';
-  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><p class="week-purpose">'+escape(selected.weekPurpose)+'</p>'+
+  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><p class="week-purpose">'+escape(selected.weekPurpose)+'</p><p class="week-purpose" role="status">'+(weekStatus.complete?'内容编排齐全，尚待整周审核，不可一键执行。':'内容未齐全：已编排 '+weekStatus.filled+' 个训练位，另有 '+weekStatus.missing+' 个待编排；不是可直接执行的完整周课表。')+'</p>'+
     '<div class="course-dates" aria-label="课程日期">'+week.map((item,index)=>'<button data-action="course-day:'+index+'" aria-pressed="'+(index===selectedIndex)+'"><small>'+escape(fullDate(offset(day,index)))+'</small><strong>'+escape(item.category)+'</strong></button>').join('')+'</div>'+
     '<section class="week-feature" data-swipe-day="course"><p>'+escape(fullDate(offset(day,selectedIndex)))+' · '+escape(selected.category)+'</p><h2>'+escape(selected.name)+'</h2><p>'+escape(selected.main||'休息也是本周安排的一部分。')+'</p><p class="week-relation">'+escape(selected.relation)+'</p>'+
     (selected.id!=='rest'?btn('查看完整课程','pb-week:'+selectedIndex,'arrow','primary'):'')+'</section>'+
     '<ol class="week-outline">'+week.map((item,index)=>'<li><button data-action="pb-week:'+index+'"><span>'+escape(fullDate(offset(day,index)))+'</span><strong>'+escape(item.name)+'</strong><small>'+escape(item.relation)+'</small></button></li>').join('')+'</ol>';
   return '<section id="pb-library" class="course-discover"><button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+'</span></strong><span>调整 '+icon('right')+'</span></button>'+
-    '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">一周课表</button></div>'+
+    '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">周安排草案</button></div>'+
     (trainingPaused(s)?'<div class="course-risk" role="status">已知伤痛：课程可以浏览，暂不安排执行。'+btn('查看原因','training-safety','','quiet')+'</div>':'')+
     (pbLibraryMode==='single'?single:weekContent)+'<div class="course-status"><span>课程候选 · 非自动训练推荐'+(options.youth?' · 青少年指导模式':'')+'</span></div>'+
     (!['800 m','1500 m'].includes(event)?'<p class="coverage-note">当前仅提供通用基础示例，尚非完整'+escape(pbDistanceLabel(event))+'专项体系。</p>':'')+'</section>';
