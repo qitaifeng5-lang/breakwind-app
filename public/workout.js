@@ -1,9 +1,11 @@
 // Execution specifications are snapshots, never inferred from a browsing PB.
-export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',coach:'自定义配速'};
+export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',easy:'轻松跑',technique:'放松加速',coach:'自定义配速'};
 // Only supported calibration bases are offered; display names do not infer new targets.
 export const targetBases=Object.fromEntries(['800','1500','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
-export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&(Boolean(c?.prescription)||['interval','interval-development','combination'].includes(c?.id));
+// Version the immutable course structure, not the current browsing PB or live clock.
+export function courseIdentity(c){return [c.event,c.id,c.selectedGroup||'legacy',c.weekPhase||c.phase,c.catalogRevision||'legacy'].join('|');}
+export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&(Boolean(c?.prescription)||Boolean(c?.executionEligible&&c?.targetBasis)||['interval','interval-development','combination'].includes(c?.id));
 const positive=n=>Number.isFinite(n)&&n>0;
 export const raceSplit=(seconds,raceDistance,distance)=>[seconds,raceDistance,distance].every(positive)?seconds*distance/raceDistance:null;
 export function recentPerformance(records,event,today) {
@@ -33,7 +35,7 @@ export function compileWorkout(spec) {
   for(const phase of ['warmup','cooldown'])if(!spec[phase]?.length||!spec[phase].every(s=>positive(s.durationSeconds)||positive(s.distanceM)))throw new Error('请补充热身与冷身安排');
   if (!Number.isInteger(spec.setCount)||spec.setCount<1||spec.setCount>20) throw new Error('大组数无效');
   const units=spec.repetitions.flatMap((r,index)=>{
-    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(r.target?.targetBasis==='threshold'&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
+    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(['threshold','easy','technique'].includes(r.target?.targetBasis)&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
     return Array.from({length:r.repsPerSet},(_,rep)=>({...r,segment:index,rep:rep+1,kind:'work'}));
   });
   if (!units.length) throw new Error('缺少主训练');
@@ -81,7 +83,7 @@ export function stopSession(s,now,reason) {
 }
 export function sessionRecord(s,date) {
   const finished=s.logs.filter(l=>l.step.kind==='work'&&l.reason==='completed');
-  return {id:s.id,date,name:s.course.name,type:s.course.categoryId==='tempo'?'阈值跑':'间歇跑',source:'manual',quality:finished.length>0,
+  return {id:s.id,date,name:s.course.name,type:({tempo:'阈值跑',aerobic:'轻松跑',speed:'技术训练'})[s.course.categoryId]||'间歇跑',source:'manual',quality:Boolean(s.course.quality)&&finished.length>0,
     distance:finished.reduce((n,l)=>n+(l.step.distanceM||0),0)/1000,minutes:s.logs.reduce((n,l)=>n+l.actualSeconds,0)/60,
     distanceMeasured:finished.length>0&&finished.every(l=>positive(l.step.distanceM)),completedWorkSeconds:finished.reduce((n,l)=>n+l.actualSeconds,0),distanceBasis:s.spec.repetitions.some(r=>r.durationSeconds)?'按时间完成，距离未测量；0不是实测零距离':'仅已确认完成的场地手动圈距离；不含未知的热身、恢复和冷身距离',
     pain:s.stopReason==='pain',courseSession:structuredClone(s),note:'分段手动计时 · '+(s.status==='complete'?'完整结束':'提前结束')};
@@ -91,9 +93,9 @@ export function sessionRecord(s,date) {
 export function templateSpecification(course,reference) {
   if(course.prescription){const spec=structuredClone(course.prescription);compileWorkout(spec);return spec;}
   if(!course.executionEligible || !course.targetBasis || course.catalogStatus==='archive')throw new Error('本课尚未具备完整执行依据');
-  const repetitions=course.segments.map(s=>({distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,course.targetBasis,reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}}));
+  const repetitions=course.segments.map((s,i)=>{const basis=course.targetBases?.[i]||course.targetBasis;return {distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,basis,reference?.[basis]||reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}};});
   if(repetitions.some(r=>!r.target))throw new Error('需要当前同项已达成绩，不能使用目标PB');
-  const spec={version:1,origin:'editorial-candidate',catalogRevision:course.catalogRevision,setCount:course.sets,repetitions,setRecovery:null,
+  const spec={version:1,origin:'editorial-candidate',catalogRevision:course.catalogRevision,setCount:course.sets,repetitions,setRecovery:course.sets>1?{mode:course.recoveryMode,endRule:'time',durationSeconds:course.setRecovery}:null,
     warmup:[{label:'轻松跑、动态活动与渐进准备；10分钟是计时起点，准备不足可继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
     cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:course.objective,
     parameterSource:course.evidenceMap.map(e=>e.source+'；产品选择：'+e.adaptation).join('。'),review:structuredClone(course.review)};

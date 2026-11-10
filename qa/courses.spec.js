@@ -47,7 +47,7 @@ test('youth can discover every category and coached technical variants but not s
   const data=fresh();data.cycleProfile={age:'未满18岁'};
   await page.addInitScript(value=>localStorage.setItem('breakwind.local.v1',JSON.stringify(value)),data);
   await page.goto('/#run');await click(page,'调整专项与PB');await click(page,'2:20');
-  await expect(page.locator('.course-card')).toHaveCount(14);
+  await expect(page.locator('.course-card')).toHaveCount(15);
   await click(page,'200m 专项耐受');
   const dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('教练结合成熟度评估');
@@ -65,7 +65,7 @@ test('course search and interruptible expansion work with motion and reduce moti
   await input.fill('坡');
   await expect(page.locator('.course-card')).toHaveCount(2);
   await input.clear();
-  await expect(page.locator('.course-card')).toHaveCount(14);
+  await expect(page.locator('.course-card')).toHaveCount(15);
   const expand=page.locator('.course-expansion').first();
   await expand.locator('summary').click();
   await expect(expand).toHaveAttribute('open','');
@@ -98,7 +98,7 @@ test('course content leads the first screen and middle-distance phases select di
       await expect(page.locator('.course-section-head h2')).toHaveText(phase);
     }
     expect(new Set(outlines).size).toBe(4);
-    await expect(page.locator('.week-purpose:not([role=status])')).toContainText('取消质量课');
+    await expect(page.locator('.week-purpose:not([role=status])')).toContainText(/取消质量(?:主)?课/);
     await click(page,'单节训练');
   }
 });

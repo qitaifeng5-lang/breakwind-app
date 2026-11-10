@@ -1,4 +1,4 @@
-import {compileWorkout} from './workout.js';
+import {compileWorkout,workoutTotals} from './workout.js';
 // Browsing groups are navigation aids, never a diagnosis of training readiness.
 const specifications={
   '800 m':[180,105,5,'800m',125,150], '1500 m':[360,210,10,'1500m',270,330],
@@ -54,7 +54,7 @@ export function pbBand(event,pb) {
 }
 const segment=(distance,repeats,recovery,unit='m')=>({distance,unit,repeats,recoverySeconds:recovery});
 const definition=(id,name,phase,objective,sets,segments,setRecovery,effort,sourceIds)=>({id,name,phase,objective,sets,segments,setRecovery,effort,sourceIds});
-export function pbCourses(event,pb,{youth=false}={}) {
+export function pbCourses(event,pb,{youth=false,group='base'}={}) {
   if (!pbDistances.includes(event)) return [];
   const band=pbBand(event,pb),track=['800 m','1500 m'].includes(event),short=event==='800 m',xc=event==='越野跑';
   const foundation=['foundation','open'].includes(band.id);
@@ -89,6 +89,7 @@ export function pbCourses(event,pb,{youth=false}={}) {
   );
   if(short) definitions.unshift(definition('interval-development','200m 专项耐受','develop','在重复800m节奏中维持动作；疲劳性发展主课，非技术激活或赛前短量',1,[segment(200,10,120)],0,'800m 配速；仅使用当前已达同项参考',['middle']));
   if(track) definitions.push(definition('combination-source','递减距离组合 · 资料候选','develop','核对递减段长下的速度控制；具体强度仍需专项教练审核',1,[350,300,250,200,150,100].map((m,i)=>({...segment(m,1,null),label:i<5?(short?'趟间100m步行＋100m慢跑':'趟间'+[300,250,200,150,100][i]+'m慢跑'):'直接进入冷身'})),0,short?'原资料未给目标节奏；不得从PB补造':'原资料为fast，未定义比赛节奏或精确秒数',['middle']));
+  if(track) definitions.push(definition('combination-development','400 + 200 双节奏组合','develop','先保持1500m节奏，再在恢复后切换800m节奏；不是全力冲刺或比赛模拟',3,[segment(400,1,60),segment(200,1,0)],300,'需要两个专项各自的近期已达成绩',['middle','load']));
   return definitions.map(d=>{
     const categoryId=d.id.split('-')[0];
     const adapted=youth && ['speed','aerobic','hills'].includes(categoryId);
@@ -101,7 +102,8 @@ export function pbCourses(event,pb,{youth=false}={}) {
       intensityBasis:d.effort,parameterOrigin:'原创教学编排，剂量待专业审核；仅1500m的3 × 500m与2–3分钟恢复对应公开示例。',
       review:{status:'pending',label:'待专业审核',reviewer:null,date:null},
       sources:[...new Set([...d.sourceIds,'load',...(youth?['youth']:[])])].map(id=>({id,...courseSources[id]}))};
-    if (track) auditCourse(course);
+    course.selectedGroup=group;
+    if (track) {auditCourse(course);completeSupport(course);}
     const units=course.segments.flatMap(part=>Array.from({length:part.repeats},()=>part));
     const recovery=units.slice(0,-1).map(part=>part.recoverySeconds);
     course.loadSummary={mainDistanceM:units.every(p=>p.unit==='m')?units.reduce((n,p)=>n+p.distance,0)*course.sets:null,
@@ -117,9 +119,10 @@ export function courseSummary(course) {
   const parts=course.segments.map(s=>s.unit==='skill'?s.description:(s.repeats>1?s.repeats+' × ':'')+s.distance+({m:'m',min:'分钟',sec:'秒'}[s.unit]||''));
   return (course.sets>1?course.sets+' 组（':'')+parts.join(' + ')+(course.sets>1?'）':'');
 }
-export function pbWeek(event,pb,{phase='develop',youth=false}={}) {
-  const courses=pbCourses(event,pb,{youth});
+export function pbWeek(event,pb,{phase='develop',youth=false,group='base'}={}) {
+  const courses=pbCourses(event,pb,{youth,group});
   if (!courses.length) return [];
+  if(['800 m','1500 m'].includes(event)&&!youth&&['base','advanced'].includes(group)&&(['base','recover'].includes(phase)||group==='advanced'&&phase==='develop'))return authoredWeek(courses,event,group,phase);
   const track=['800 m','1500 m'].includes(event),xc=event==='越野跑';
   const quality=phase==='base'?'tempo':phase==='prepare'?'endurance':xc?'hills':'interval';
   const patterns={
@@ -130,13 +133,13 @@ export function pbWeek(event,pb,{phase='develop',youth=false}={}) {
   };
   const structure=track?(patterns[phase]||patterns.develop):phase==='recover'?['aerobic',null,'speed',null,'aerobic',null,null]:['speed',quality,null,'aerobic','speed',null,'aerobic'];
   const relations=['先以技术进入本周','本周主要刺激，替代其他质量课','恢复日，为前一课留出恢复','低强度衔接，检查主课后反应','与主课间隔两个低负荷日；恢复不足则取消','恢复，不补做漏课','轻松收尾，为下一周期留余力'];
-  return structure.map((id,dayIndex)=>({...(courses.find(c=>c.id===id && (c.automaticRecommendation!==false || (!youth && ((phase==='base'&&id==='tempo') || (phase==='develop'&&['interval','interval-development'].includes(id))))))||{id:id?'slot-'+id:'rest',isPlanningSlot:Boolean(id),sessionRole:phase==='prepare'&&dayIndex===4?'primer':courses.find(c=>c.id===id)?.sessionRole,name:id?((phase==='prepare'&&dayIndex===4?'赛前短量课':courses.find(c=>c.id===id)?.roleLabel||'训练')+' · 待确认'):'休息与自主恢复',category:id?'待编排':'恢复',quality:false,review:{status:'pending',label:'待专业审核'}}),
+  return structure.map((id,dayIndex)=>({...(courses.find(c=>c.id===id && (!c.trainingGroups||c.trainingGroups.includes(contentGroups[group])) && (c.automaticRecommendation!==false || (!youth && ((phase==='base'&&id==='tempo') || (phase==='develop'&&['interval','interval-development'].includes(id))))))||{id:id?'slot-'+id:'rest',isPlanningSlot:Boolean(id),sessionRole:phase==='prepare'&&dayIndex===4?'primer':courses.find(c=>c.id===id)?.sessionRole,name:id?((phase==='prepare'&&dayIndex===4?'赛前短量课':courses.find(c=>c.id===id)?.roleLabel||'训练')+' · 待确认'):'休息与自主恢复',category:id?'待编排':'恢复',quality:false,review:{status:'pending',label:'待专业审核'}}),
     dayIndex,dayLabel:['周一','周二','周三','周四','周五','周六','周日'][dayIndex],relation:phase==='recover'?'恢复周：不安排质量课，保留轻量技术与休息。':relations[dayIndex],event,
     weekDraft:true,weekPhase:phase,weekPurpose:phasePurposes[phase]||phasePurposes.develop,coverage:track?'中跑阶段结构示例':'仅通用基础示例，尚非完整专项周期',previewOnly:true}));
 }
 
 // Source audit revision: snapshots retain their original dose; none is an approved prescription.
-export const sessionRoles={development:'常规发展主课',technique:'技术辅助课',primer:'赛前短量课',recovery:'恢复课'};
+export const sessionRoles={development:'常规发展主课',transition:'低总量衔接课',technique:'技术辅助课',primer:'赛前短量课',recovery:'恢复课'};
 function auditCourse(c) {
   c.catalogRevision='2026-11-09-programming';
   c.automaticRecommendation=false;
@@ -194,6 +197,7 @@ function auditCourse(c) {
 }
 
 function completeTempo(c) {
+  c.sessionRole='transition';
   c.name='分段 Tempo · 3×5分钟';c.phase='base';c.phaseLabel=coursePhases.base;
   c.objective='在受控偏强的强度下积累持续有氧工作，短慢跑恢复后重建稳定节奏；不是800m/1500m比赛速度训练。';
   c.primaryObjective=c.objective;c.sets=1;c.segments=[segment(5,3,60,'min')];c.setRecovery=0;
@@ -215,10 +219,96 @@ function completeTempo(c) {
     warmup:[{label:'轻松跑、动态活动与渐进准备；准备不足继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
     cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:c.objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:{status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null}};
 }
+
+export const contentRevision='2026-11-09-middle-week-v2';
+export const contentGroups={base:'基础',advanced:'进阶',competitive:'竞技'};
+const easySource={id:'ea-easy',title:'England Athletics · Runner FAQ',url:'https://www.englandathletics.org/runtogether/support/runner-frequently-asked-questions/',kind:'官方跑步指导',population:'一般跑者，非本App分组试验',rule:'稳定已有训练频率，轻松日放松，保留恢复；不突然增加频率',limit:'不直接规定本产品的20/30/35分钟或五课周'};
+function completeSupport(c) {
+  if(c.youth)return;
+  const group=c.selectedGroup,advanced=group==='advanced';
+  const effort={easy:'全程可完整交谈；不追配速，不做末段加速',technique:'逐渐加速后自然放松；非最大速度，动作变形即停止',threshold:'受控偏强，维持稳定呼吸与动作；不是800m或1500m节奏'};
+  const definitions={
+    speed:{name:'放松加速 · 4×15秒',role:'technique',basis:'technique',seconds:15,reps:4,rest:90,warm:600,cool:300,objective:'低疲劳练习加速、姿态与放松；不作为最大速度、速度耐力或赛前主课',background:'已熟悉放松加速和动态准备；不是首次学习跑姿的替代教练',source:'Momentum技术部分支持准备阶段的drills/strides；短时、充分恢复用于区别疲劳性主课',choice:'4×15秒、90秒步行、热身10分钟及冷身5分钟为低总量技术编排；90秒是计时下限，未恢复不开始下一趟'},
+    aerobic:{name:'恢复轻松跑 · 20分钟',role:'recovery',basis:'easy',seconds:600,reps:1,rest:0,warm:300,cool:300,objective:'以轻松活动结束恢复日，不追求新增训练刺激；持续疼痛时不执行',background:'已习惯20分钟轻松活动，正常恢复中；这不是伤后复出方案',source:'England Athletics支持轻松恢复和休息；Haugen表2区分恢复跑与长跑',choice:'5分钟进入＋10分钟轻松＋5分钟放慢；20分钟是本课安排，不是缺少日志者的能力上限'},
+    'aerobic-steady':{name:'连续有氧 · '+(advanced?'35':'30')+'分钟',role:'development',basis:'easy',seconds:advanced?1500:1200,reps:1,rest:0,warm:300,cool:300,objective:'维持连续有氧习惯，强度全程轻松；区别于恢复短跑和阈值刺激',background:'已稳定完成本课总时长的连续轻松跑；周内不额外叠加原有同类课',source:'England Athletics支持稳定训练、全程轻松与渐进负荷原则',choice:'进入和放慢各5分钟，主段20/25分钟由明确选择的训练组提供；不是由更快PB加时'},
+    'tempo-continuous':{name:'连续 Tempo · 20分钟',role:'development',basis:'threshold',seconds:1200,reps:1,rest:0,warm:600,cool:600,objective:'不中断地维持受控有氧输出，区别于3×5分钟低总量衔接',background:'成人进阶组，已耐受20分钟连续Tempo且熟悉该体感；不是从3×5自动升级',source:'Haugen表2列出连续阈值；England Athletics公开指导给出20–30分钟受控Tempo',choice:'选20分钟连续段，无趟间/组间恢复；热身冷身各10分钟为产品准备起点'}
+  };
+  const d=definitions[c.id];
+  if(d){
+    c.name=d.name;c.objective=d.objective;c.primaryObjective=d.objective;c.sessionRole=d.role;c.roleLabel=sessionRoles[d.role];
+    c.sets=1;c.segments=[segment(d.seconds%60?d.seconds:d.seconds/60,d.reps,d.rest,d.seconds%60?'sec':'min')];c.setRecovery=0;c.phase='base';c.phaseLabel=coursePhases.base;
+    c.trainingPhases=['speed','aerobic'].includes(c.id)?['base','develop','recover']:c.id==='aerobic-steady'?['base','develop']:['base'];
+    c.quality=d.basis==='threshold';c.trainingGroups=c.id==='tempo-continuous'?['进阶']:['基础','进阶'];
+    c.eligibility=d.background+'。成人已有持续训练；更快PB不证明耐受，缺少App日志不否定经验。';
+    c.intensityBasis=effort[d.basis];c.adjustment='维持模板剂量；恢复不足则停止或取消，不压缩恢复、不自动加趟。';
+    c.evidenceMap=[{parameter:'目的、工作段与恢复',source:d.source,adaptation:d.choice,limit:'整体为产品编排，没有直接验证本组处方的干预研究；独立审核未完成'},
+      {parameter:'人群及周关系',source:'IOC负荷共识支持结合既有负荷与恢复',adaptation:d.background,limit:'所列既有耐受门槛是产品适用条件，不是已验证安全阈值'}];
+    c.sources.push(easySource);
+    if(c.id==='speed')c.sources.push({id:'momentum-technique',title:'Momentum Sports · Middle Distance Speed',url:'https://www.momentumsports.co.uk/TtMDSpeed.asp',kind:'公开教练实践',population:'已有中跑背景者；未给本App分组剂量',rule:'准备中的跑姿练习与放松加速，区别于疲劳性速度主课',limit:'4×15秒及90秒恢复是产品编排；原文不验证此剂量，不采用过时乳酸解释'});
+    c.catalogRevision=contentRevision;c.executionEligible=true;c.automaticRecommendation=false;
+    c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};
+    c.review={status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null};
+    c.prescription={version:3,origin:'editorial-candidate',catalogRevision:contentRevision,setCount:1,repetitions:[{durationSeconds:d.seconds,repsPerSet:d.reps,target:{targetBasis:d.basis,effort:effort[d.basis],provenance:'明确体感目标，不从短距离PB换算'},repRecovery:d.rest?{mode:'walk',endRule:'time',durationSeconds:d.rest}:null}],setRecovery:null,
+      warmup:[{label:d.basis==='easy'?'轻松进入':'轻松跑、动态准备；不足则继续',durationSeconds:d.warm,checks:['当前无不适，已完成本课所需准备']}],cooldown:[{label:'逐步放慢，不适时可立即停止',durationSeconds:d.cool}],objective:c.objective,parameterSource:d.source+'；产品编排：'+d.choice,review:structuredClone(c.review)};
+    c.parameterOrigin='来源核对与编排完成；热身/冷身及组别剂量是公开标注的产品选择，不代表教练认证。';
+  }
+  if(c.id==='endurance'&&c.event==='800 m'){
+    c.name='300m 专项速度耐力';c.phase='develop';c.phaseLabel=coursePhases.develop;c.sets=2;c.segments=[segment(300,3,120)];c.setRecovery=600;c.targetBasis='800';c.recoveryMode='walk';
+    c.objective='在800m节奏下维持较长重复段，组间充分恢复后重建质量；区别于短段10×200密集重复';c.primaryObjective=c.objective;
+    c.eligibility='成人竞技800m组，已有分组300m与1800m同类专项量耐受；不面向基础组、训练中断者或无同类经历者。';c.trainingGroups=['竞技'];
+    c.evidenceMap=[{parameter:'2大组×3趟×300m；800m节奏；趟间2分钟、组间10分钟',source:'Prendergast《A Fundamental Approach》训练汇总表第93页（PDF第93页）：2组3趟300m、800m节奏，趟间2分钟，组间8–12分钟',adaptation:'组间取10分钟，恢复动作选择步行；不采用原文逐次缩短趟间恢复',limit:'历史教练实践，未验证本App成人准入；不沿用书中固定能量系统百分比及过时生理解释'},
+      {parameter:'阶段、准备与总量',source:'原表支持完整主段结构，不提供本App热身与当日适用判断',adaptation:'专项后段候选，主训练1800m，4次120秒趟间＋1次600秒组间；热身冷身各10分钟为产品起点',limit:'不额外叠加200m主课或组合课；独立审核未完成'}];
+    c.sources.push({id:'prendergast',title:'Kevin Prendergast · A Fundamental Approach',url:'https://oztrack.com/fundamd.pdf',kind:'公开专业教练历史著作',population:'已训练中跑人群，非统一适龄处方',rule:'训练汇总表支持分组300m的距离、目标和恢复区间',limit:'仅核对训练结构，不将理论模型当作现代实证或App审核'});
+    c.executionEligible=true;c.catalogRevision=contentRevision;c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};
+    c.review={status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null};
+  }
+  if(c.id==='combination-development'){
+    c.trainingGroups=['进阶','竞技'];c.eligibility='成人进阶/竞技中跑组，已完成相近1800m双节奏组合，分别有近期800m与1500m已达成绩；不适用于首次专项组合训练。';
+    c.evidenceMap=[{parameter:'3×(400m＋200m)，趟间60秒，组间300秒',source:'Jonathan Dalby，OATCCC 2022讲义第17页，Specific Middle Distance Pace Workout Examples：3–5组400m mile effort/200m 800 effort，趟间1分钟、组间4–5分钟',adaptation:'取3组和5分钟；mile effort明确改为当前1500m均速参考，恢复动作补充步行；是产品改编而非等价换算',limit:'该讲义为学校训练背景，本App成人适用条件与1500m替代未独立验证；不直接套给青少年'},
+      {parameter:'目的与阶段',source:'讲义支持两种节奏的组内组合，不验证本App周负荷',adaptation:'专项后段用于节奏切换；1800m主段、3次60秒趟间和2次300秒组间，替代同周其他专项主课',limit:'缺少任一同项成绩则仅浏览，不从800m猜1500m；不得将旧2×(200+150)改名为本课'}];
+    c.sources.push({id:'dalby',title:'Jonathan Dalby · OATCCC 2022 coaching presentation',url:'https://www.oatccc.com/Clinics/Track-And-Field/Archive/2022/jonathon-dalby-distance-training.pdf',kind:'教练协会公开讲座实践',population:'学校训练背景；成人转用是产品改编',rule:'支持400+200双节奏的组数范围及两层恢复',limit:'mile与1500m不等同；本产品改编和成年准入尚待审核'});
+    c.targetBases=['1500','800'];c.targetBasis='1500';c.recoveryMode='walk';c.catalogRevision=contentRevision;
+    c.executionEligible=true;c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};c.review={status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null};
+  }
+  if(c.id==='endurance'&&c.event==='1500 m'){
+    c.name='400m 速度储备';c.phase='develop';c.phaseLabel=coursePhases.develop;c.sets=1;c.segments=[segment(400,3,360)];c.setRecovery=0;c.targetBasis='800';c.recoveryMode='walk';
+    c.objective='以800m节奏发展1500m跑者的较快段维持能力；充分恢复以保留动作质量，不做短恢复阈值或赛前减量';c.primaryObjective=c.objective;
+    c.eligibility='成人进阶/竞技1500m组，已有1200m同类800m节奏长段经验和当前800m已达成绩；不能用1500m PB推算目标。';c.trainingGroups=['进阶','竞技'];
+    c.evidenceMap=[{parameter:'3×400m、800m节奏、趟间360秒',source:'Dalby OATCCC 2022第17页：3–4×400m，800m effort，恢复5–8分钟',adaptation:'采用3趟、6分钟；将effort具体化为当前已达800m均速，恢复选择步行',limit:'学校实践转为成人限定候选；800m均速参考不等于生理强度验证，独立审核未完成'},
+      {parameter:'阶段与总量',source:'原例支持主段范围，不决定本App组别和当日恢复',adaptation:'专项后段替代其他高强度主课；1200m、2次360秒恢复，热身冷身各10分钟起点',limit:'不额外叠加500m间歇或双节奏组合；准备不足继续，不因PB较快压缩恢复'}];
+    c.sources.push({id:'dalby-reserve',title:'Jonathan Dalby · OATCCC 2022，PDF第17页',url:'https://www.oatccc.com/Clinics/Track-And-Field/Archive/2022/jonathon-dalby-distance-training.pdf',kind:'公开专业教练实践',population:'原讲座为学校训练；成人改编限定有相近经验',rule:'支持400m速度储备的段长、目标及恢复范围',limit:'不是成人或青少年统一处方；当日执行仍需核对'});
+    c.executionEligible=true;c.catalogRevision=contentRevision;c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};c.review={status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null};
+  }
+  if(['interval','interval-development'].includes(c.id))c.trainingGroups=['进阶','竞技'];
+  if(c.id==='tempo')c.roleLabel=sessionRoles.transition;
+}
+
+function authoredWeek(courses,event,group,phase){
+  const recovery=phase==='recover',advanced=group==='advanced',specific=phase==='develop';
+  const ids=recovery?['aerobic',null,'speed',null,'aerobic',null,null]:['speed','aerobic-steady',null,specific?(event==='800 m'?'interval-development':'interval'):advanced?'tempo-continuous':'tempo',null,'aerobic','aerobic-steady'];
+  const cohort=event+'|adult-'+group+'|'+phase;
+  const eligibility=recovery?'已在连续训练、主动安排减量的成人；不是伤后复出周。':'已稳定每周5次训练，能完成本周各次时长，已有'+(specific?(event==='800 m'?'2km的800m节奏重复':'1500m累计1500m节奏重复'):(advanced?'20分钟连续':'累计15分钟分段')+'Tempo')+'经验；不得在原课表之上叠加。';
+  const purpose=recovery?'主动恢复周：取消质量主课；不把短量恢复当常规发展周。':specific?'成人进阶组专项巩固周：以同项间歇替换Tempo，保留技术和低强度支持；速度耐力/组合是后续替代候选，不能额外叠加。':advanced?'成人进阶组基础期：连续Tempo主刺激与低强度支持，非竞技精英周量。':'成人基础组基础衔接周：一节15分钟Tempo、技术与轻松跑；不是竞技组常规发展周。';
+  const relations=recovery?['低负荷恢复','完整休息，不补课','放松技术；疲劳仍在则取消','休息','轻松恢复','休息','评估恢复，不自动回加质量']:
+    ['低疲劳技术进入本周','保持轻松，不为主课预先制造疲劳','主课前完整恢复','本周唯一质量刺激，替代其他质量课','主课后完整恢复，不补漏课','轻松恢复，检查反应','轻松有氧收尾，不末段加速'];
+  return ids.map((id,i)=>({...structuredClone(id?courses.find(c=>c.id===id):{id:'rest',name:'休息与自主恢复',category:'恢复',quality:false,review:{status:'pending',label:'周编排待审核'}}),cohortId:cohort,selectedGroup:group,weekEligibility:eligibility,weekPhase:phase,weekPurpose:purpose,weekDraft:true,dayIndex:i,dayLabel:['周一','周二','周三','周四','周五','周六','周日'][i],relation:relations[i],event,previewOnly:true,
+    transitionRules:'不以PB变化、完成打卡或日历自动加量。基础衔接→持续基础需先耐受现有主课和周结构；专项期替换主课而非叠加；赛前方案尚未编排。恢复不足留在恢复/休息，伤痛另行评估。'}));
+}
+
+export function courseCoverage(){
+  return ['800 m','1500 m'].flatMap(event=>Object.keys(contentGroups).flatMap(group=>Object.keys(coursePhases).map(phase=>{
+    const courses=pbCourses(event,null,{group}),week=pbWeek(event,null,{group,phase});
+    return {event,group,phase,week:weekContentStatus(week),categories:Object.keys(courseCategories).map(category=>({category,complete:courses.filter(c=>c.categoryId===category&&(c.trainingPhases||[c.phase]).includes(phase)&&(!c.trainingGroups||c.trainingGroups.includes(contentGroups[group]))&&courseContentComplete(c)).map(c=>c.id)}))};
+  })));
+}
 export function weekContentStatus(week) {
   const training=week.filter(c=>c.id!=='rest');
   const filled=training.filter(courseContentComplete);
-  return {complete:training.length>0&&filled.length===training.length,filled:filled.length,missing:training.length-filled.length,
+  const coherent=new Set(week.map(c=>c.cohortId).filter(Boolean)).size<=1&&training.every(c=>!c.cohortId||c.trainingGroups?.includes(contentGroups[c.selectedGroup]));
+  const timed=filled.length===training.length&&training.every(c=>c.prescription);
+  const totals=timed?training.map(c=>workoutTotals(c.prescription)):[];
+  return {complete:week.length===7&&training.length>0&&filled.length===training.length&&coherent,coherent,filled:filled.length,missing:training.length-filled.length,
+    plannedSeconds:timed?totals.reduce((n,t)=>n+t.estimatedSecondsRange[0],0):null,qualitySessions:training.filter(c=>c.quality).length,
     label:'周安排草案',independentReview:'pending',canExecuteWeek:false};
 }
 
@@ -226,9 +316,8 @@ export function courseContentComplete(c) {
   if(c.isPlanningSlot||c.contentState?.sources!=='checked'||c.contentState?.programming!=='complete'||!c.objective||!c.phase||!c.eligibility||!c.evidenceMap?.length||!c.segments?.length)return false;
   if(c.prescription){
     try{const steps=compileWorkout(c.prescription),work=steps.filter(s=>s.kind==='work');
-      return work.length===c.sets*c.segments.reduce((n,s)=>n+s.repeats,0)&&
-        work.reduce((n,s)=>n+(s.durationSeconds||0),0)===c.sets*c.segments.reduce((n,s)=>n+s.distance*(s.unit==='min'?60:s.unit==='sec'?1:0)*s.repeats,0);
+      return c.prescription.setCount===c.sets&&c.prescription.repetitions.length===c.segments.length&&c.segments.every((s,i)=>{const r=c.prescription.repetitions[i];return r.repsPerSet===s.repeats&&(s.unit==='m'?r.distanceM===s.distance:r.durationSeconds===s.distance*(s.unit==='min'?60:1))&&(!(s.repeats>1||i<c.segments.length-1)||r.repRecovery?.durationSeconds===s.recoverySeconds);})&&work.length===c.sets*c.segments.reduce((n,s)=>n+s.repeats,0);
     }catch{return false;}
   }
-  return ['800','1500'].includes(c.targetBasis)&&['jog','walk','stand'].includes(c.recoveryMode)&&c.sets===1&&c.segments.every(s=>s.unit==='m'&&s.distance>0&&Number.isInteger(s.repeats)&&s.repeats>0&&(s.repeats===1||s.recoverySeconds>0));
+  return ['800','1500'].includes(c.targetBasis)&&(!c.targetBases||c.targetBases.length===c.segments.length&&c.targetBases.every(b=>['800','1500'].includes(b)))&&['jog','walk','stand'].includes(c.recoveryMode)&&Number.isInteger(c.sets)&&c.sets>0&&(c.sets===1||c.setRecovery>0)&&c.segments.every((s,i)=>s.unit==='m'&&s.distance>0&&Number.isInteger(s.repeats)&&s.repeats>0&&(!(s.repeats>1||i<c.segments.length-1)||s.recoverySeconds>0));
 }

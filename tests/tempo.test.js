@@ -19,10 +19,10 @@ test('Tempo has three timed work bouts, two jog recoveries and full 37-minute st
 test('week completeness detects missing prescriptions and malformed recovery, not merely seven cards or complete labels',()=>{
  for(const event of ['800 m','1500 m']){
   const base=pbWeek(event,'2:00',{phase:'base'}),status=weekContentStatus(base);
-  assert.equal(status.filled,1);assert.equal(status.complete,false);assert.ok(status.missing>0);assert.equal(status.canExecuteWeek,false);
+  assert.equal(status.filled,5);assert.equal(status.complete,true);assert.equal(status.missing,0);assert.equal(status.canExecuteWeek,false);
   const broken=structuredClone(base),tempo=broken.find(c=>c.id==='tempo');delete tempo.prescription.repetitions[0].repRecovery;
-  assert.equal(weekContentStatus(broken).filled,0);
-  const absent=structuredClone(base);absent.find(c=>c.id==='tempo').segments=[];assert.equal(weekContentStatus(absent).filled,0);
+  assert.equal(weekContentStatus(broken).filled,4);
+  const absent=structuredClone(base);absent.find(c=>c.id==='tempo').segments=[];assert.equal(weekContentStatus(absent).filled,4);
   const youth=pbWeek(event,'2:00',{phase:'base',youth:true});assert.equal(weekContentStatus(youth).filled,0);assert.equal(weekContentStatus(youth).complete,false);
  }
 });

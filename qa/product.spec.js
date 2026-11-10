@@ -29,7 +29,7 @@ test('PB numeric picker preserves selection and cancellation without a keyboard'
   await expect(dialog).not.toBeVisible();
   await page.reload();
   await expect(page.locator('.pb-tiers-label')).toContainText('4:55');
-  await expect(page.locator('.course-card')).toHaveCount(14);
+  await expect(page.locator('.course-card')).toHaveCount(15);
 });
 
 test('dashboard, training, nutrition, analytics and growth fit the viewport and capture screenshots',async({page},info)=>{
@@ -69,7 +69,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await click(page,'调整专项与PB');
   await click(page,'1500m');
   await click(page,'4:20');
-  await expect(page.locator('.course-card')).toHaveCount(14);
+  await expect(page.locator('.course-card')).toHaveCount(15);
   await expect(page.locator('.course-card').first()).toContainText('3 × 500m');
   await expect(page.locator('main')).not.toContainText('轻松走跑');
   await page.screenshot({path:info.outputPath('course-discovery.png')});
@@ -284,7 +284,7 @@ test('reported pain prevents scheduling while the full course remains browsable'
   await click(page,'伤痛与恢复');
   await click(page,'暂停训练建议');
   await page.reload();
-  await expect(page.locator('.course-card')).toHaveCount(14);
+  await expect(page.locator('.course-card')).toHaveCount(15);
   await expect(page.locator('.course-risk')).toContainText('已知伤痛');
   await click(page,'200m 专项耐受');
   await expect(page.getByRole('dialog')).toContainText('专业评估');

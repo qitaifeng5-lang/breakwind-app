@@ -1,7 +1,7 @@
 import {createWorkoutPlayer} from './workout-ui.js';
-import {supportsWorkout} from './workout.js';
+import {supportsWorkout,courseIdentity} from './workout.js';
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
-import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek,weekContentStatus, courseCategories, coursePhases } from './pb-library.js';
+import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek,weekContentStatus, courseCategories, coursePhases,contentGroups } from './pb-library.js';
 import { catalog, searchFood, portionValues, mealTotals, validBarcode } from './fuel.js';
 import { athleteTiers, cycleVersion, courseReadiness, groupEvents, groupWeek, phases, recentPain, reviewCycle, specialties, templateDetails } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
@@ -84,17 +84,19 @@ let pbLibraryEvent = '';
 let pbLibraryChoice = '';
 let pbLibraryMode = 'single';
 let pbLibraryFocus = 'all';
+let courseGroup='base';
 try {
   const stored = JSON.parse(localStorage.getItem(storagePrefix+'.pb-catalog')||'null');
   if (pbDistances.includes(stored?.event)) {
     pbLibraryEvent=stored.event;
     pbLibraryChoice=pbSeconds(stored.pb)?stored.pb:'';
   }
+  if(Object.hasOwn(contentGroups,stored?.group))courseGroup=stored.group;
   if (['week','single'].includes(stored?.mode)) pbLibraryMode=stored.mode;
 } catch { /* PB catalogue may operate without local persistence. */ }
 function persistPBChoice() {
   try {localStorage.setItem(storagePrefix+'.pb-catalog',JSON.stringify({
-    event:pbLibraryEvent,pb:pbLibraryChoice,mode:pbLibraryMode
+    event:pbLibraryEvent,pb:pbLibraryChoice,mode:pbLibraryMode,group:courseGroup
   }));} catch { /* Browsing remains available without storage. */ }
 }
 
@@ -196,16 +198,16 @@ let activeCourse;
 let pbDraftEvent='';
 let courseSelectionDraft;
 function openCourseSettings(reset=true) {
-  if (reset || !courseSelectionDraft) courseSelectionDraft={event:pbLibraryEvent,pb:pbLibraryChoice};
+  if (reset || !courseSelectionDraft) courseSelectionDraft={event:pbLibraryEvent,pb:pbLibraryChoice,group:courseGroup};
   const draft=courseSelectionDraft;
   const events=pbDistances.map((item,index)=>'<button data-action="pb-event:'+index+'" aria-pressed="'+(draft.event===item)+'">'+escape(pbDistanceLabel(item))+'</button>').join('');
   const choices='<button data-action="pb-all">不限成绩</button>'+pbOptions(draft.event).map(item=>'<button data-action="pb-choice:'+item.index+'" aria-pressed="'+(item.seconds===pbSeconds(draft.pb))+'">'+item.label+'</button>').join('');
-  modal('专项与 PB','<div class="course-settings"><h3>专项</h3><div class="pb-events">'+events+'</div><h3>PB 档位</h3><div class="pb-tiers">'+choices+'</div>'+btn('自定义成绩','pb-custom','','secondary')+'<p>PB 只用于浏览匹配，不自动增加训练负荷。</p><div class="picker-actions">'+btn('取消','close','','quiet')+btn('查看课程','course-apply','','primary')+'</div></div>','sheet');
+  modal('专项与 PB','<div class="course-settings"><h3>专项</h3><div class="pb-events">'+events+'</div><h3>PB 档位</h3><div class="pb-tiers">'+choices+'</div>'+btn('自定义成绩','pb-custom','','secondary')+'<h3>课程适用组</h3><div class="course-type-list">'+Object.entries(contentGroups).map(([id,label])=>btn(label+'组','course-group:'+id,'',draft.group===id?'secondary':'quiet')).join('')+'</div><p>PB 只用于浏览匹配，不自动增加训练负荷。</p><div class="picker-actions">'+btn('取消','close','','quiet')+btn('查看课程','course-apply','','primary')+'</div></div>','sheet');
 }
 function applyCourseSelection() {
   if (!courseSelectionDraft) return;
   pbLibraryEvent=courseSelectionDraft.event;pbLibraryChoice=courseSelectionDraft.pb;pbLibraryFocus='all';
-  persistPBChoice();editor.close();refreshPBView(false);
+  courseGroup=courseSelectionDraft.group||courseGroup;persistPBChoice();editor.close();refreshPBView(false);
 }
 function openCourseFilters() {
   modal('训练类型','<div class="course-type-list">'+[['all','全部'],...Object.entries(courseCategories),['archive','教学存档']].map(([id,label])=>btn(label,'pb-focus:'+id,'',pbLibraryFocus===id?'secondary':'quiet')).join('')+'</div>','sheet');
@@ -213,7 +215,7 @@ function openCourseFilters() {
 function openCoursePhase() {
   modal('训练阶段','<div class="course-type-list">'+Object.entries(coursePhases).map(([id,label])=>btn(label,'course-phase:'+id,'',coursePhase===id?'secondary':'quiet')).join('')+'</div>','sheet');
 }
-function courseOptions() {return {phase:coursePhase,youth:state().cycleProfile?.age==='未满18岁'};}
+function courseOptions() {return {phase:coursePhase,group:courseGroup,youth:state().cycleProfile?.age==='未满18岁'};}
 function pbLibrarySelection(s) {
   const event=pbLibraryEvent || s.groupPlan?.event || '800 m';
   const value=pbLibraryChoice;
@@ -238,8 +240,8 @@ function structureHTML(course,compact=false) {
     (course.sets>1?'<p class="set-recovery">共 '+course.sets+' 组 · 组间恢复 '+recoveryText(course.setRecovery)+'</p>':'');
 }
 function courseCard(course) {
-  return '<article class="course-card"><div class="course-cover cover-'+course.categoryId+'">'+courseArt(course.categoryId)+
-    '<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape(course.band.label)+' · '+escape(course.applicablePB)+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p>'+
+  return '<article class="course-card" data-course-id="'+escape(course.id)+'" data-course-identity="'+escape(courseIdentity(course))+'"><div class="course-cover cover-'+course.categoryId+'">'+courseArt(course.categoryId)+
+    '<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape((course.trainingGroups||[contentGroups[courseGroup]]).join('／')+'组')+' · '+escape(course.applicablePB)+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p>'+
     '<details class="course-expansion"><summary>展开结构</summary><div>'+structureHTML(course)+'<p>'+escape(course.objective)+'</p><p>'+escape(course.adjustment)+'</p></div></details></div></article>';
 }
 function pbLibraryView(s) {
@@ -255,12 +257,12 @@ function pbLibraryView(s) {
   const filtered=courses.filter(item=>(pbLibraryFocus==='archive'?item.catalogStatus==='archive':item.catalogStatus!=='archive'&&(pbLibraryFocus==='all'||pbLibraryFocus===item.categoryId))&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
   const single='<div class="course-section-head"><h2>'+escape(courseCategories[pbLibraryFocus]||'发现课程')+'</h2>'+btn('按类型浏览','course-filter','','quiet')+'</div><div class="course-rail" tabindex="0" aria-label="训练课程，可横向滚动">'+
     (filtered.length?filtered.map(courseCard).join(''):'<p class="empty-courses">没有找到对应课程，试试其他关键词。</p>')+'</div>';
-  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><p class="week-purpose">'+escape(selected.weekPurpose)+'</p><p class="week-purpose" role="status">'+(weekStatus.complete?'内容编排齐全，尚待整周审核，不可一键执行。':'内容未齐全：已编排 '+weekStatus.filled+' 个训练位，另有 '+weekStatus.missing+' 个待编排；不是可直接执行的完整周课表。')+'</p>'+
+  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><p class="week-purpose">'+escape(selected.weekPurpose)+' '+escape(selected.weekEligibility||'')+'</p><p class="week-purpose" role="status">'+(weekStatus.complete?'内容编排齐全，尚待整周审核，不可一键执行。':'内容未齐全：已编排 '+weekStatus.filled+' 个训练位，另有 '+weekStatus.missing+' 个待编排；不是可直接执行的完整周课表。')+'</p>'+
     '<div class="course-dates" aria-label="课程日期">'+week.map((item,index)=>'<button data-action="course-day:'+index+'" aria-pressed="'+(index===selectedIndex)+'"><small>'+escape(fullDate(offset(day,index)))+'</small><strong>'+escape(item.category)+'</strong></button>').join('')+'</div>'+
     '<section class="week-feature" data-swipe-day="course"><p>'+escape(fullDate(offset(day,selectedIndex)))+' · '+escape(selected.category)+'</p><h2>'+escape(selected.name)+'</h2><p>'+escape(selected.main||'休息也是本周安排的一部分。')+'</p><p class="week-relation">'+escape(selected.relation)+'</p>'+
     (selected.id!=='rest'?btn('查看完整课程','pb-week:'+selectedIndex,'arrow','primary'):'')+'</section>'+
     '<ol class="week-outline">'+week.map((item,index)=>'<li><button data-action="pb-week:'+index+'"><span>'+escape(fullDate(offset(day,index)))+'</span><strong>'+escape(item.name)+'</strong><small>'+escape(item.relation)+'</small></button></li>').join('')+'</ol>';
-  return '<section id="pb-library" class="course-discover"><button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+'</span></strong><span>调整 '+icon('right')+'</span></button>'+
+  return '<section id="pb-library" class="course-discover"><button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+' · '+escape(contentGroups[courseGroup])+'组</span></strong><span>调整 '+icon('right')+'</span></button>'+
     '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">周安排草案</button></div>'+
     (trainingPaused(s)?'<div class="course-risk" role="status">已知伤痛：课程可以浏览，暂不安排执行。'+btn('查看原因','training-safety','','quiet')+'</div>':'')+
     (pbLibraryMode==='single'?single:weekContent)+'<div class="course-status"><span>课程候选 · 非自动训练推荐'+(options.youth?' · 青少年指导模式':'')+'</span></div>'+
@@ -277,13 +279,14 @@ function openPBWorkout(course,dayIndex=null) {
   if (!course) return;
   if (course.isPlanningSlot) return modal('阶段编排待确认','<p>'+escape(course.weekPurpose)+'</p><p>'+escape(course.relation)+'</p><p>此处不自动填入待审课程。请在单节训练中浏览来源与适用背景，或录入已有教练课表。</p>'+btn('返回课程','close','','quiet'),'sheet');
   if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'sheet');
+  course={...course,build:course.build||document.querySelector('meta[name=breakwind-preview]')?.content||'local'};
   activeCourse={course,date:dayIndex===null?day:offset(day,dayIndex)};
-  const key=[course.event,course.id,course.pb,activeCourse.date].join('|');
+  const key=[course.event,course.id,course.pb,course.selectedGroup,course.catalogRevision,activeCourse.date].join('|');
   const scheduled=state().plans.find(plan=>plan.id===course.planId||plan.courseKey===key);
-  if (scheduled) {activeCourse.date=scheduled.date;course={...scheduled.course,planId:scheduled.id};activeCourse.course=course;}
+  if (scheduled) {activeCourse.date=scheduled.date;course={...scheduled.course,build:scheduled.course.build||'legacy',planId:scheduled.id};activeCourse.course=course;}
   if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
-  modal(course.name,'<div class="course-detail"><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
+  modal(course.name,'<div class="course-detail" data-course-identity="'+escape(courseIdentity(course))+'"><small class="course-version">'+escape(course.build.slice(0,8)+' · '+course.event+' · '+course.id+' · '+(course.selectedGroup||'legacy')+' / '+(course.weekPhase||course.phase))+'</small><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
     '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · '+escape(course.roleLabel||'课程示例')+' · '+escape(course.review.label)+'</p>'+
     (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>组间恢复</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
     '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p><p>'+escape(course.eligibility||'')+'</p>'+(course.evidenceMap||[]).map(e=>'<article><strong>'+escape(e.parameter)+'</strong><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
@@ -293,7 +296,7 @@ function openPBWorkout(course,dayIndex=null) {
 function scheduleCourse(date) {
   const course=activeCourse?.course;
   if (!course || sample || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date<day || offset(date,0)!==date) return false;
-  const courseKey=[course.event,course.id,course.pb,date].join('|');
+  const courseKey=[course.event,course.id,course.pb,course.selectedGroup,course.catalogRevision,date].join('|');
   const existing=data.plans.find(plan=>plan.courseKey===courseKey);
   const ready=courseReadiness(data,{...course,planId:existing?.id},date,day);
   if (!ready.canSchedule) {formError(ready.reason);return false;}
@@ -612,8 +615,9 @@ const actions = {
   'course-filter': openCourseFilters,
   'course-phases': openCoursePhase,
   'course-phase': ([phase]) => {if(!Object.hasOwn(coursePhases,phase))return;coursePhase=phase;courseDate=day;editor.close();refreshPBView();},
+  'course-group': ([group]) => {if(courseSelectionDraft&&Object.hasOwn(contentGroups,group)){courseSelectionDraft.group=group;openCourseSettings(false);}},
   'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;persistPBChoice();refreshPBView();},
-  'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event||!courseSelectionDraft)return;courseSelectionDraft={event,pb:event===pbLibraryEvent?pbLibraryChoice:''};openCourseSettings(false);},
+  'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event||!courseSelectionDraft)return;courseSelectionDraft={...courseSelectionDraft,event,pb:event===pbLibraryEvent?pbLibraryChoice:''};openCourseSettings(false);},
   'pb-choice': ([index]) => {const option=pbOptions(courseSelectionDraft?.event)[Number(index)];if(!option)return;courseSelectionDraft.pb=option.label;applyCourseSelection();},
   'pb-focus': ([id]) => {if(!['all','archive'].includes(id)&&!Object.hasOwn(courseCategories,id))return;pbLibraryFocus=id;editor.close();refreshPBView();},
   'pb-week': ([index]) => {openPBWorkout(pbWeek(pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions())[Number(index)],Number(index));},
