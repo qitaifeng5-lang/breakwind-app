@@ -1,3 +1,4 @@
+import {createProgramUI} from './program-ui.js';
 import {createCoachUI} from './coach-ui.js';
 import {recurringFor} from './coach-plan.js';
 import {createWorkoutPlayer} from './workout-ui.js';
@@ -301,7 +302,8 @@ function scheduleCourse(date) {
   if (!course || sample || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date<day || offset(date,0)!==date) return false;
   if(data.plans.some(p=>p.coachIssued&&!p.cancelled&&Math.abs(Date.parse(p.date)-Date.parse(date))<3*86400000)&&course.quality){formError('已有教练安排，请先与教练核对；不会叠加推荐质量课。');return false;}
   const courseKey=[course.event,course.id,course.pb,course.selectedGroup,course.catalogRevision,date].join('|');
-  const existing=data.plans.find(plan=>plan.courseKey===courseKey);
+  const existing=data.plans.find(plan=>plan.id===course.planId||plan.courseKey===courseKey);
+  if(existing&&(existing.cancelled||existing.date!==date)){formError(existing.cancelled?'该课已取消，历史保留；请明确重新安排。':'这节课已安排在 '+existing.date+'，请先改期，不重复创建。');return false;}
   const ready=courseReadiness(data,{...course,planId:existing?.id},date,day);
   if (!ready.canSchedule) {formError(ready.reason);return false;}
   if (existing) {notify('这节课已在日程中');return existing;}
@@ -333,9 +335,10 @@ editor.addEventListener('submit',event=>{
   if (plan) runOptions(plan.id,true);
 });
 const coachUI=createCoachUI({state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
+const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
   return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
-    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+(coachUI.showLibrary()?pbLibraryView(s):'')+
+    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+programUI.view()+(coachUI.showLibrary()?pbLibraryView(s):'')+
     '<nav class="training-tools" aria-label="训练记录">'+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
@@ -616,6 +619,7 @@ const workoutPlayer=createWorkoutPlayer({editor,modal,btn,escape,prefix:storageP
   ready:course=>courseReadiness(state(),course,day,day),otherRunning:()=>Boolean(activeWorkout)||sample,refresh:render,commit});
 const actions = {
   ...coachUI.actions,
+  ...programUI.actions,
   ...workoutPlayer.actions,
   'course-settings': () => openCourseSettings(),
   'course-apply': applyCourseSelection,

@@ -293,13 +293,16 @@ export function courseReadiness(data,course,date,today=date) {
     return {status:'paused',canSchedule:false,canStart:false,reason:'已知疼痛或尚未恢复：暂停相关课程，先接受专业评估。'};
   }
   const transcribed=course.executionSpec?.origin==='coach-transcription';
+  if(course.planId&&data.plans.find(p=>p.id===course.planId)?.cancelled)return {status:'cancelled',canSchedule:false,canStart:false,reason:'该课次已取消，保留历史，不自动重建或继续执行。'};
+  const programPlan=course.planId&&data.plans.find(p=>p.id===course.planId&&p.programId);
+  if(programPlan&&data.programs?.find(p=>p.programId===programPlan.programId)?.status==='paused')return {status:'program-paused',canSchedule:false,canStart:false,reason:'长期周期已暂停。先复核恢复状态，再恢复后续执行；已有记录保留。'};
   const legacyCombo=['800 m','1500 m'].includes(course.event)&&course.id==='combination';
   if (!transcribed && course.id==='combination-development' && course.targetBases?.[0]!=='mile') return {status:'review',canSchedule:false,canStart:false,reason:'旧组合课使用了1500m替代英里节奏。历史快照保留；请重新核对修订课程，不沿用旧依据启动。'};
   if (course.isPlanningSlot) return {status:'review',canSchedule:false,canStart:false,reason:'这是阶段编排位置，尚未指定经过审核的课程，不作为运动记录。'};
   if (!transcribed && (legacyCombo || course.catalogStatus==='archive' || course.executionEligible===false)) return {status:'review',canSchedule:false,canStart:false,reason:'此课程尚缺完整参数依据，仅供审查浏览；不自动安排。已有教练课表请使用独立录入入口。'};
   const youth=profile.age==='未满18岁';
   if (youth && (!course.adapted || course.quality)) return {status:'coach',canSchedule:false,canStart:false,reason:'可浏览完整结构；青少年专项强度需教练结合成熟度评估，不能直接执行成人示例。'};
-  const hard=course.quality && [...data.runs,...data.plans].some(item=>(!course.planId || item.id!==course.planId) && !item.completed &&
+  const hard=course.quality && [...data.runs,...data.plans].some(item=>(!course.planId || item.id!==course.planId) && !item.completed && !item.cancelled && item.executionStatus!=='reference-only' &&
     (item.quality || item.effort>=6 || ['间歇跑','阈值跑','节奏跑','比赛配速跑','坡道跑'].includes(item.type)) &&
     Math.abs(Date.parse(date)-Date.parse(item.date))<3*86400000);
   if (hard) return {status:'spacing',canSchedule:false,canStart:false,reason:'附近已有质量课或高强度记录；请选择至少间隔两个低负荷日的日期。'};
