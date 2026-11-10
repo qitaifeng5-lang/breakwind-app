@@ -59,7 +59,7 @@ export function programReview(data,program,weekIndex=program.cursor,today=dateKe
     cancelled:plans.filter(p=>p.cancelled).length,missed:plans.filter(p=>!p.completed&&!p.cancelled&&p.date<today&&!runs.some(r=>r.courseSession?.course?.planId===p.id||r.planId===p.id)).map(p=>p.id),actualRuns:runs.length,
     note:'只统计关联的实际记录；未完成不自动补堆，不凭完成率提高剂量'};
 }
-export function previewProgramWeek(data,program,index,{today=dateKey(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}={}) {
+export function previewProgramWeek(data,program,index,{today=dateKey(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone,build='local'}={}) {
   const week=program.weeks[index];if(!week)throw Error('周号不存在');
   if(timezone!==program.timezone)return {index,added:[],held:[{date:week.start,reason:'当前时区与周期不同，请确认未来时区；不自动换算或移动已有课次'}],review:programReview(data,program,index,today)};
   const added=[],held=[],coachInWeek=data.plans.some(p=>p.coachIssued&&!p.cancelled&&p.executionStatus!=='reference-only'&&p.date>=week.start&&p.date<=week.end);
@@ -72,7 +72,7 @@ export function previewProgramWeek(data,program,index,{today=dateKey(),timezone=
     if(reason){held.push({id,date,reason});continue;}
     const slot=recurringFor(data,date).find(r=>r.kind==='training');let seconds=null,spec=null;
     try {const refs=Object.fromEntries(['800','1500','mile'].map(b=>[b,recentPerformance(program.referencePerformance||[],b,today)]).filter(([,r])=>r).map(([b,r])=>[b,{...r,kind:'achieved'}]));spec=templateSpecification(course,refs);seconds=workoutTotals(spec).estimatedSecondsRange?.[1];}catch{ /* missing race reference stays visible, never guessed */ }
-    const plan=occupied({id,date,name:course.name,type:course.quality?'间歇跑':'轻松跑',quality:course.quality,course:{...structuredClone(course),...(spec?{executionSpec:spec}:{})},programId:program.programId,programWeek:index,programDay:dayIndex,courseRevision:program.courseRevision,
+    const plan=occupied({id,date,name:course.name,type:course.quality?'间歇跑':'轻松跑',quality:course.quality,course:{...structuredClone(course),build,...(spec?{executionSpec:spec}:{})},programId:program.programId,programWeek:index,programDay:dayIndex,courseRevision:program.courseRevision,
       start:slot?.start||'',estimatedMinutes:seconds?seconds/60:'',recurringKey:slot?.id||'',preparationMinutes:data.coachSchedule?.preparationMinutes||0,bufferMinutes:data.coachSchedule?.bufferMinutes||0,completed:false,executionStatus:'待执行核对'});
     const review=assessSchedule({...data,plans:[...data.plans,...added]},plan,{today});plan.scheduleReview=review;
     if(slot&&(!plan.end||plan.end>slot.end)){held.push({id,date,reason:!plan.end?'固定时段容量待核对：缺少同项节奏参考，不猜结束时间':'完整课次超出固定时段，不压缩恢复'});continue;}
