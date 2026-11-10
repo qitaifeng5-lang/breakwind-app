@@ -305,7 +305,7 @@ function authoredWeek(courses,event,group,phase){
 export function courseCoverage({youth=false}={}){
   return ['800 m','1500 m'].flatMap(event=>Object.keys(contentGroups).flatMap(group=>Object.keys(coursePhases).map(phase=>{
     const courses=pbCourses(event,null,{group,youth}),week=pbWeek(event,null,{group,phase,youth});
-    return {event,group,phase,population:youth?'youth':'adult',week:weekContentStatus(week),categories:Object.keys(courseCategories).map(category=>({category,complete:courses.filter(c=>c.categoryId===category&&(c.trainingPhases||[c.phase]).includes(phase)&&(!c.trainingGroups||c.trainingGroups.includes(contentGroups[group]))&&courseContentComplete(c)).map(c=>c.id)}))};
+    return {event,group,phase,population:youth?'youth':'adult',week:weekContentStatus(week),categories:Object.keys(courseCategories).map(category=>({category,complete:courses.filter(c=>c.categoryId===category&&(!youth||(c.adapted&&!c.quality))&&(c.trainingPhases||[c.phase]).includes(phase)&&(!c.trainingGroups||c.trainingGroups.includes(contentGroups[group]))&&courseContentComplete(c)).map(c=>c.id)}))};
   })));
 }
 export function weekContentStatus(week) {

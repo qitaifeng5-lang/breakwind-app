@@ -57,6 +57,7 @@ test('youth competitive remains a separate review framework; known pain, fatigue
  assert.equal(courseReadiness(data,c,'2026-11-09').canSchedule,false);
  const young=week('800 m','develop',true);assert.equal(weekContentStatus(young).complete,false);assert.ok(young.every(c=>c.weekPurpose.includes('青少年竞技')&&!c.name.includes('走跑')));
  assert.ok(young.filter(c=>c.id!=='rest').every(c=>c.isPlanningSlot));
+ assert.ok(courseCoverage({youth:true}).filter(r=>r.group==='competitive').every(r=>r.categories.every(c=>c.complete.length===0)),'adult source-checked intervals do not count as completed youth prescriptions');
  data.cycleProfile={};data.trainingHold=true;assert.equal(courseReadiness(data,c,'2026-11-09').status,'paused');
  data.trainingHold=false;data.recovery=[{date:'2026-11-09',fatigue:5}];assert.equal(courseReadiness(data,c,'2026-11-09').status,'recovery');
  const old=structuredClone(c),spec=templateSpecification(old,refs);old.catalogRevision='2026-11-09-middle-week-v2';spec.warmup[0].durationSeconds=600;
