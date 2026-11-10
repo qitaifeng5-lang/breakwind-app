@@ -368,6 +368,8 @@ function competitiveCatalog(existing,event,youth){
     const original=existing.find(c=>c.id===id&&c.executionEligible);if(!original)continue;
     const c=structuredClone(original);Object.assign(c,{population:common.population,selectedGroup:'competitive',trainingGroups:['竞技'],catalogRevision:competitiveRevision,warmupSeconds:900,cooldownSeconds:600});
     c.eligibility=competitiveCohort+' '+original.eligibility;
+    const preparation=text=>text.replaceAll('热身、冷身各10分钟','热身15分钟、冷身10分钟').replaceAll('热身冷身各10分钟','热身15分钟、冷身10分钟').replaceAll('热身10分钟','热身15分钟').replaceAll('采用范围下端作为计时起点','采用15分钟准备与10分钟冷身作为计时起点');
+    c.evidenceMap=c.evidenceMap.map(e=>({...e,parameter:preparation(e.parameter),adaptation:preparation(e.adaptation)}));
     c.evidenceMap.push({parameter:'周内关系与准备',source:'源主段结构保持不变；周负荷没有直接验证本App的试验',adaptation:'15分钟准备、10分钟冷身为产品起点；作为唯一比赛节奏主课，与周五Tempo间隔两低负荷日；其他间歇/速度耐力/组合只能替换，不能叠加',limit:'本队列和整周仍待独立审核；不因PB较快增加重复'});
     courses.push(finalizeCourse(c));
   }

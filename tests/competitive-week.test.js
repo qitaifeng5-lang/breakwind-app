@@ -19,6 +19,7 @@ test('both adult competitive cohorts have complete, phase-compatible weeks with 
    assert.equal(c.review.reviewer,null);assert.equal(c.automaticRecommendation,false);assert.ok(c.evidenceMap.every(e=>e.source&&e.adaptation&&e.limit));
    const spec=templateSpecification(c,refs),steps=compileWorkout(spec),t=workoutTotals(spec);
    assert.equal(steps[0].kind,'warmup');assert.equal(steps.at(-1).kind,'cooldown');
+   if(c.warmupSeconds===900)assert.doesNotMatch(c.evidenceMap.map(e=>e.parameter+' '+e.adaptation).join(' '),/热身(?:、冷身各|冷身各)?10分钟/);
    assert.equal(t.repCount,c.loadSummary.repCount);assert.equal(t.recoverySeconds,c.loadSummary.recoverySeconds);
    assert.equal(t.mainDistanceM,c.loadSummary.mainDistanceM);assert.equal(t.mainDurationSeconds,c.loadSummary.mainDurationSeconds);
   }
