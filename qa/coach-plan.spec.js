@@ -6,7 +6,7 @@ test('private coach transcription preview cancel save reload and reschedule',asy
   async function preview(){await page.getByRole('button',{name:'录入／粘贴课表',exact:true}).click();await page.locator('[name=name]').fill('合成测试课表');await page.locator('[name=original]').fill(original);await page.getByRole('button',{name:'预览',exact:true}).click();}
   await preview();await page.keyboard.press('Escape');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')||'{"plans":[]}').plans.length)).toBe(0);
-  await preview();await page.locator('[name=start]').fill('17:00');await page.locator('[name=estimatedMinutes]').fill('37');await page.getByRole('button',{name:'确认保存',exact:true}).click();
+  await preview();await page.getByText('时间与安排（可选）',{exact:true}).click();await page.locator('[name=start]').fill('17:00');await page.locator('[name=estimatedMinutes]').fill('37');await page.getByRole('button',{name:'确认保存',exact:true}).click();
   await expect(page.getByRole('heading',{name:'我的课表',exact:true})).toBeVisible();await page.reload();await page.getByRole('button',{name:/合成测试课表/}).click();
   await expect(page.locator('#editor')).toContainText('3×5分钟 Tempo');
   await page.getByRole('button',{name:'改期／改时',exact:true}).click();await page.locator('[name=start]').fill('18:00');await page.getByRole('button',{name:'检查并保存',exact:true}).click();
