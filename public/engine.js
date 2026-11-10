@@ -294,6 +294,7 @@ export function courseReadiness(data,course,date,today=date) {
   }
   const transcribed=course.executionSpec?.origin==='coach-transcription';
   const legacyCombo=['800 m','1500 m'].includes(course.event)&&course.id==='combination';
+  if (!transcribed && course.id==='combination-development' && course.targetBases?.[0]!=='mile') return {status:'review',canSchedule:false,canStart:false,reason:'旧组合课使用了1500m替代英里节奏。历史快照保留；请重新核对修订课程，不沿用旧依据启动。'};
   if (course.isPlanningSlot) return {status:'review',canSchedule:false,canStart:false,reason:'这是阶段编排位置，尚未指定经过审核的课程，不作为运动记录。'};
   if (!transcribed && (legacyCombo || course.catalogStatus==='archive' || course.executionEligible===false)) return {status:'review',canSchedule:false,canStart:false,reason:'此课程尚缺完整参数依据，仅供审查浏览；不自动安排。已有教练课表请使用独立录入入口。'};
   const youth=profile.age==='未满18岁';

@@ -4,7 +4,7 @@ import {pbCourses,pbWeek,weekContentStatus,courseContentComplete,courseCoverage,
 import {templateSpecification,compileWorkout,workoutTotals,newSession,advanceSession,stopSession,sessionRecord} from '../public/workout.js';
 import {courseReadiness} from '../public/engine.js';
 import {fresh} from '../public/model.js';
-const refs={'800':{event:'800 m',seconds:130,date:'2026-11-09',kind:'achieved'},'1500':{event:'1500 m',seconds:270,date:'2026-11-09',kind:'achieved'}};
+const refs={mile:{event:'1 mile',seconds:300,date:'2026-11-09',kind:'achieved'},'800':{event:'800 m',seconds:130,date:'2026-11-09',kind:'achieved'},'1500':{event:'1500 m',seconds:270,date:'2026-11-09',kind:'achieved'}};
 test('coherent adult weeks contain full prescriptions, a single quality session and accounted recovery',()=>{
  for(const event of ['800 m','1500 m'])for(const group of ['base','advanced'])for(const phase of ['base','recover',...(group==='advanced'?['develop']:[])]){
   const week=pbWeek(event,130,{group,phase}),status=weekContentStatus(week);
@@ -42,9 +42,9 @@ test('speed endurance and dual-pace combination have independent source structur
  for(const event of ['800 m','1500 m']){
   const c=find(event,'combination-development'),s=templateSpecification(c,refs),totals=workoutTotals(s);
   assert.equal(courseContentComplete(c),true);assert.equal(c.catalogRevision,competitiveRevision);
-  assert.deepEqual(s.repetitions.map(r=>r.target.targetSecondsRange),[[72,72],[32.5,32.5]]);
+  assert.deepEqual(s.repetitions.map(r=>r.target.targetSecondsRange),[[300*400/1609.344,300*400/1609.344],[32.5,32.5]]);
   assert.equal(totals.mainDistanceM,1800);assert.equal(totals.recoverySeconds,780);assert.equal(totals.repRecoveries,3);assert.equal(totals.setRecoveries,2);
-  assert.deepEqual(totals.estimatedSecondsRange,[2593.5,2593.5]);
+  assert.deepEqual(totals.estimatedSecondsRange,[2280+3*(300*400/1609.344+32.5),2280+3*(300*400/1609.344+32.5)]);
   assert.throws(()=>templateSpecification(c,refs['800']));
   assert.equal(c.automaticRecommendation,false);
  }

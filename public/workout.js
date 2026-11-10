@@ -1,7 +1,9 @@
 // Execution specifications are snapshots, never inferred from a browsing PB.
-export const paceLabels={'800':'800m 配速','1500':'1500m 配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',easy:'轻松跑',technique:'放松加速',coach:'自定义配速'};
+export const paceLabels={'800':'800m 配速','1500':'1500m 配速',mile:'英里配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',easy:'轻松跑',technique:'放松加速',coach:'自定义配速'};
+export const referenceEvents={'800':'800 m','1500':'1500 m',mile:'1 mile'};
+export const referenceLabel=basis=>basis==='mile'?'1英里':basis+'m';
 // Only supported calibration bases are offered; display names do not infer new targets.
-export const targetBases=Object.fromEntries(['800','1500','threshold','coach'].map(key=>[key,paceLabels[key]]));
+export const targetBases=Object.fromEntries(['800','1500','mile','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
 // Version the immutable course structure, not the current browsing PB or live clock.
 export function courseIdentity(c){return [c.event,c.id,c.selectedGroup||'legacy',c.weekPhase||c.phase,c.catalogRevision||'legacy'].join('|');}
@@ -9,13 +11,13 @@ export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&(Boolean(
 const positive=n=>Number.isFinite(n)&&n>0;
 export const raceSplit=(seconds,raceDistance,distance)=>[seconds,raceDistance,distance].every(positive)?seconds*distance/raceDistance:null;
 export function recentPerformance(records,event,today) {
-  return records.filter(r=>r.event===event+' m' && r.kind!=='goal' && r.seconds>0 && r.date<=today && Date.parse(today)-Date.parse(r.date)<=90*86400000).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  return records.filter(r=>r.event===(referenceEvents[event]||event+' m') && r.kind!=='goal' && r.seconds>0 && r.date<=today && Date.parse(today)-Date.parse(r.date)<=90*86400000).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
 }
 export function targetFor(distanceM,basis,reference,range) {
   if(!positive(distanceM))return null;
-  if (basis==='800'||basis==='1500') {
-    if (!reference || reference.event!==basis+' m'||reference.kind!=='achieved'||!positive(reference.seconds)) return null;
-    const seconds=raceSplit(reference.seconds,Number(basis),distanceM);
+  if (Object.hasOwn(referenceEvents,basis)) {
+    if (!reference || reference.event!==referenceEvents[basis]||reference.kind!=='achieved'||!positive(reference.seconds)) return null;
+    const seconds=raceSplit(reference.seconds,basis==='mile'?1609.344:Number(basis),distanceM);
     return {targetBasis:basis,referencePerformance:structuredClone(reference),targetSecondsRange:[seconds,seconds],provenance:'同项已达成绩均速换算；不是生理阈值或负荷处方',status:'user-confirmed-reference'};
   }
   if (['threshold','coach'].includes(basis)&&range?.length===2&&range.every(positive)&&range[1]>=range[0]) return {targetBasis:basis,referencePerformance:null,targetSecondsRange:[...range],provenance:basis==='threshold'?'用户录入已校准阈值分段；App未测量或验证':'用户转录教练给定秒数；App未核验教练身份',status:'user-entered'};

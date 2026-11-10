@@ -14,7 +14,7 @@ for(const event of ['800 m','1500 m'])test(event+' competitive four phases and c
  const c=pbWeek(event,null,{group:'competitive',phase:'develop'})[1];await page.locator('.week-outline [data-action="pb-week:1"]').click();
  await expect(page.locator('.course-block h3')).toHaveText(['热身','主训练','组间恢复','冷身']);await click(page,'开始记录');
  const form=page.locator('#template-reference'),bases=c.targetBases||[c.targetBasis],refs={};
- for(const basis of bases){const suffix=bases.length>1?basis:'';await form.locator('[name=seconds'+suffix+']').fill(basis==='800'?'130':'270');refs[basis]={event:basis+' m',seconds:basis==='800'?130:270,kind:'achieved',source:'用户确认当前同项成绩',date:await form.locator('[name=date'+suffix+']').inputValue()};}
+ for(const basis of bases){const suffix=bases.length>1?basis:'';await form.locator('[name=seconds'+suffix+']').fill(basis==='800'?'130':basis==='mile'?'300':'270');refs[basis]={event:basis==='mile'?'1 mile':basis+' m',seconds:basis==='800'?130:basis==='mile'?300:270,kind:'achieved',source:'用户确认当前同项成绩',date:await form.locator('[name=date'+suffix+']').inputValue()};}
  await form.locator('[name=confirm]').check();await click(page,'使用课程编排');
  const spec=templateSpecification(c,refs);await expect(page.locator('.course-block').first()).toContainText('15:00');
  await click(page,'开始记录');await click(page,'确认并热身');

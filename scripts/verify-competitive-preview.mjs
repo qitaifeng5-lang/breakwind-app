@@ -32,7 +32,7 @@ try{
   let spec=c.prescription;
   if(!spec){
    await click(p,'开始记录');const f=p.locator('#template-reference'),bases=c.targetBases||[c.targetBasis],refs={};
-   for(const basis of bases){const suffix=bases.length>1?basis:'';await f.locator('[name=seconds'+suffix+']').fill(basis==='800'?'130':'270');const date=await f.locator('[name=date'+suffix+']').inputValue();refs[basis]={event:basis+' m',kind:'achieved',date,seconds:basis==='800'?130:270};}
+   for(const basis of bases){const suffix=bases.length>1?basis:'';await f.locator('[name=seconds'+suffix+']').fill(basis==='800'?'130':basis==='mile'?'300':'270');const date=await f.locator('[name=date'+suffix+']').inputValue();refs[basis]={event:basis==='mile'?'1 mile':basis+' m',kind:'achieved',date,seconds:basis==='800'?130:basis==='mile'?300:270};}
    await f.locator('[name=confirm]').check();await click(p,'使用课程编排');spec=templateSpecification(c,refs);
   }
   await expect(p.locator('.course-version').first()).toContainText(sha.slice(0,8));await expect(p.locator('.course-version').first()).toContainText(item.id);

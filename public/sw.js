@@ -1,4 +1,4 @@
-const cacheName = 'breakwind-shell-v21';
+const cacheName = 'breakwind-shell-v22';
 const cacheNamespace = cacheName.startsWith('breakwind-preview-') ? 'breakwind-preview-' : 'breakwind-shell-';
 const shell = ['./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./coach-plan.js','./coach-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));

@@ -22,3 +22,20 @@ test('fixed slot exception cancels this week only and historical reference never
   await expect(page.getByRole('heading',{name:'我的课表',exact:true})).toHaveCount(0);await page.getByText('历史参考（不执行）',{exact:true}).click();await page.getByRole('button',{name:'历史测试',exact:true}).click();await expect(page.locator('#editor')).toContainText('不作为当前执行方案');
   saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(saved.runs).toHaveLength(0);expect(saved.plans[0].executionStatus).toBe('reference-only');
 });
+
+test('time-only review warning is saved; true overlap is blocked and cancel leaves storage unchanged',async({page})=>{
+ await page.goto('/#run');
+ await page.evaluate(async()=>{
+  const {fresh,dateKey,offset}=await import('/model.js'),{occupied}=await import('/coach-plan.js');const s=fresh(),today=dateKey();
+  s.plans=[['A',offset(today,-2)],['B',today]].map(([id,date])=>occupied({id,date,name:'合成相邻课 '+id,start:'18:30',estimatedMinutes:60,quality:true,coachIssued:{original:'合成软件验收',blocks:{主训练:'参数待补'}},executionStatus:'planned'}));
+  localStorage.setItem('breakwind.local.v1',JSON.stringify(s));
+ });await page.reload();
+ const open=async()=>{await page.getByRole('button',{name:/合成相邻课 B/}).click();await page.getByRole('button',{name:'改期／改时',exact:true}).click();};
+ await open();await page.locator('[name=start]').fill('20:00');await page.keyboard.press('Escape');
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).plans[1].start)).toBe('18:30');
+ await open();await page.locator('[name=start]').fill('19:00');await page.getByRole('button',{name:'检查并保存',exact:true}).click();await expect(page.locator('#editor')).not.toBeVisible();
+ let s=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(s.plans).toHaveLength(2);expect(s.plans[1].start).toBe('19:00');expect(s.plans[1].scheduleReview.loadReview).toHaveLength(1);
+ await page.getByRole('button',{name:/合成相邻课 B/}).click();await page.getByText('日程复核 · 待核对',{exact:true}).click();await expect(page.locator('#editor')).toContainText('负荷待核对');await page.keyboard.press('Escape');
+ await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('breakwind.local.v1'));s.events.push({id:'busy',name:'合成工作',date:s.plans[1].date,start:'20:00',end:'21:00'});localStorage.setItem('breakwind.local.v1',JSON.stringify(s));});await page.reload();await open();await page.locator('[name=start]').fill('20:00');await page.getByRole('button',{name:'检查并保存',exact:true}).click();await expect(page.locator('#editor')).toContainText('占用冲突');
+ s=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(s.plans[1].start).toBe('19:00');expect(s.plans[1].scheduleAudit).toHaveLength(1);
+});

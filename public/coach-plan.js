@@ -1,3 +1,5 @@
+import {dateKey} from './model.js';
+import {courseReadiness} from './engine.js';
 // Private, deterministic transcription. No external service sees the source text.
 export const blockNames=['热身','主训练','恢复','冷身'];
 export function parseCoachText(raw) {
@@ -24,7 +26,7 @@ export function parseCoachText(raw) {
   if(unassigned.length)unresolved.push('未归类原文待核对');
   return {original,blocks,unassigned,unresolved,parserVersion:1};
 }
-const minute=value=>/^\d{2}:\d{2}$/.test(value||'')?Number(value.slice(0,2))*60+Number(value.slice(3)):null;
+const minute=value=>/^([01]\d|2[0-3]):[0-5]\d$/.test(value||'')?Number(value.slice(0,2))*60+Number(value.slice(3)):null;
 function potentialQuality(item) {
   if(typeof item.quality==='boolean')return item.quality;
   if(Number(item.effort)>=6)return true;
@@ -34,8 +36,8 @@ function potentialQuality(item) {
 export function occupied(plan) {
   const start=minute(plan.start);
   const duration=Number(plan.estimatedMinutes);
-  if(start===null||!(duration>0))return {...plan,end:'',durationStatus:'待补：含全部恢复的时长'};
-  const end=start+duration+Number(plan.preparationMinutes||0)+Number(plan.bufferMinutes||0);
+  if(start===null||!Number.isFinite(duration)||!(duration>0))return {...plan,end:'',durationStatus:'待补：含全部恢复的时长'};
+  const end=Math.ceil(start+duration+Number(plan.preparationMinutes||0)+Number(plan.bufferMinutes||0));
   if(end>=1440)return {...plan,end:'',durationStatus:'跨日占用待核对'};
   return {...plan,end:String(Math.floor(end/60)).padStart(2,'0')+':'+String(end%60).padStart(2,'0'),durationStatus:'估计（用户填写，非自动测量）'};
 }
@@ -50,22 +52,42 @@ export function recurringFor(data,date) {
   }
   return regular.map(rule=>({...rule,...exceptions[rule.id]})).filter(rule=>rule.date===date&&!rule.cancelled&&!data.plans.some(plan=>plan.recurringKey===rule.id)).map(rule=>({...rule,type:rule.kind==='training'?'俱乐部时段 · 内容待下发':'学习／工作',collection:'events',recurring:true}));
 }
-export function scheduleWarnings(data,plan) {
-  const item=occupied(plan), warnings=[];
+export function assessSchedule(data,plan,{today=dateKey(),previous=null}={}) {
+  const item=occupied(plan),conflicts=[],information=[],loadReview=[],executionRestrictions=[];
   const others=[...data.plans,...data.runs,...data.events.map(p=>({...p,collection:'events'})),...recurringFor(data,plan.date)].filter(p=>p.id!==plan.id&&!p.cancelled&&p.executionStatus!=='reference-only'&&p.id!==plan.recurringKey);
-  if(!item.end)warnings.push('结束时间待补，不能确认没有时间冲突');
+  const training=plan.collection!=='events'||plan.kind==='training';
+  if(!item.end)information.push('结束时间待补，不能确认没有时间冲突；保存不代表时间已核验');
+  if(training&&typeof plan.quality!=='boolean'&&!['轻松跑','恢复跑','休息'].includes(plan.type))information.push('强度未确定，负荷仅作待核对提示');
   for(const other of others){
-    if(other.date===plan.date&&item.start&&other.start&&(!other.end||!item.end||item.start<other.end&&other.start<item.end))warnings.push('占用冲突：'+other.name);
-    if(potentialQuality(plan)&&potentialQuality(other)&&other.collection!=='events'&&Math.abs(Date.parse(other.date)-Date.parse(plan.date))<3*86400000)warnings.push('相邻课次负荷需核对：'+other.name);
+    if(other.date===plan.date){
+      const a=minute(item.start),b=minute(item.end),c=minute(other.start),d=minute(other.end);
+      if(a!==null&&b!==null&&b>a&&c!==null&&d!==null&&d>c&&a<d&&c<b)conflicts.push('占用冲突：'+other.name+'（'+other.start+'–'+other.end+'）');
+      else if(c===null||d===null||a===null||b===null)information.push('时间范围待核对：'+other.name+'；未据此判定重叠');
+    }
+    if(training&&potentialQuality(plan)&&potentialQuality(other)&&other.collection!=='events'&&Math.abs(Date.parse(other.date)-Date.parse(plan.date))<3*86400000)loadReview.push('相邻课次负荷需核对：'+other.name+'；日期间隔不是个体适用性结论');
   }
-  return [...new Set(warnings)];
+  if(training){
+    const readiness=courseReadiness(data,{adapted:true,quality:false},plan.date,today);
+    if(['paused','recovery'].includes(readiness.status))executionRestrictions.push(readiness.reason);
+    if(data.cycleProfile?.age==='未满18岁')executionRestrictions.push('青少年执行仍需教练确认适龄、成熟度和恢复；整理日程不替代该确认');
+    if(plan.executionStatus==='reference-only')executionRestrictions.push('历史资料仅作参考，不作为当前执行方案');
+  }
+  const changeType=!previous?'new-arrangement':previous.date!==plan.date?'date-change':Number(previous.estimatedMinutes||0)!==Number(plan.estimatedMinutes||0)?'duration-estimate':'time-only';
+  return {version:1,changeType,conflicts:[...new Set(conflicts)],information:[...new Set(information)],loadReview:[...new Set(loadReview)],executionRestrictions:[...new Set(executionRestrictions)],canSave:!conflicts.length,executionApproved:false};
 }
-export function moveCoachPlan(data,id,changes) {
+export function scheduleWarnings(data,plan,options) {
+  const review=assessSchedule(data,plan,options);
+  return [...review.conflicts,...review.information,...review.loadReview,...review.executionRestrictions];
+}
+export function moveCoachPlan(data,id,changes,options={}) {
   const plan=data.plans.find(p=>p.id===id&&p.coachIssued);
   if(!plan||plan.completed)throw new Error('课次不存在或已完成');
-  const next=occupied({...plan,date:changes.date||plan.date,start:changes.start||plan.start,estimatedMinutes:changes.estimatedMinutes||plan.estimatedMinutes,id:plan.id,coachIssued:plan.coachIssued});
-  const warnings=scheduleWarnings(data,next);
-  if(warnings.length)return {warnings};
+  const next=occupied({...plan,date:changes.date??plan.date,start:changes.start??plan.start,estimatedMinutes:changes.estimatedMinutes??plan.estimatedMinutes,id:plan.id,coachIssued:plan.coachIssued});
+  const review=assessSchedule(data,next,{...options,previous:plan});
+  if(!review.canSave)return {warnings:review.conflicts,review};
+  const timing=p=>({date:p.date,start:p.start,end:p.end,estimatedMinutes:p.estimatedMinutes});
+  next.scheduleReview=review;
+  next.scheduleAudit=[...(plan.scheduleAudit||[]),{at:new Date().toISOString(),before:timing(plan),after:timing(next),review:structuredClone(review)}];
   Object.assign(plan,next);
-  return {plan};
+  return {plan,review};
 }

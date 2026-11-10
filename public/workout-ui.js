@@ -1,4 +1,4 @@
-import {templateSpecification,paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord,courseIdentity} from './workout.js';
+import {templateSpecification,referenceEvents,referenceLabel,paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord,courseIdentity} from './workout.js';
 
 const seconds=n=>Number(n.toFixed(2))+' 秒';
 const clock=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');
@@ -58,7 +58,7 @@ export function createWorkoutPlayer(api) {
       course.segments.map((s,i)=>{
         const r=previous?.repetitions[i],basis=r?.target.targetBasis;
         return '<fieldset class="execution-segment"><legend>'+s.distance+'m · 段 '+(i+1)+'</legend>'+number('reps'+i,'每大组趟数',r?.repsPerSet||s.repeats,1,30)+choice('basis'+i,'目标依据',targetBases,basis)+
-          ['800','1500'].map(b=>{const ref=r?.target.referencePerformance?.event===b+' m'?r.target.referencePerformance:recentPerformance(api.state().records,b,api.day());return '<div data-target="'+i+'-'+b+'" hidden>'+number('ref'+i+b,'当前已达 '+b+'m 成绩（总秒）',ref?.seconds,1,1800)+'<label>成绩日期<input name="date'+i+b+'" type="date" value="'+(ref?.date||api.day())+'" max="'+api.day()+'"></label><small>仅使用近期已达成绩；不从另一专项或目标 PB 推算。</small></div>';}).join('')+
+          Object.keys(referenceEvents).map(b=>{const ref=r?.target.referencePerformance?.event===referenceEvents[b]?r.target.referencePerformance:recentPerformance(api.state().records,b,api.day());return '<div data-target="'+i+'-'+b+'" hidden>'+number('ref'+i+b,'当前已达 '+referenceLabel(b)+' 成绩（总秒）',ref?.seconds,1,1800)+'<label>成绩日期<input name="date'+i+b+'" type="date" value="'+(ref?.date||api.day())+'" max="'+api.day()+'"></label><small>仅使用近期已达成绩；不从另一专项或目标 PB 推算。</small></div>';}).join('')+
           '<div data-target="'+i+'-range" hidden>'+number('min'+i,'每趟目标下限（秒）',r?.target.targetSecondsRange[0],0.1)+number('max'+i,'每趟目标上限（秒）',r?.target.targetSecondsRange[1],0.1)+'<small>阈值须来自已有校准；这里不从短距离 PB 推算。</small></div>'+
           recoveryFields('rep'+i,r?.repRecovery||{durationSeconds:s.recoverySeconds},i<course.segments.length-1||s.repeats>1)+'</fieldset>';
       }).join('')+recoveryFields('set',previous?.setRecovery||{durationSeconds:course.setRecovery},false)+
@@ -71,7 +71,7 @@ export function createWorkoutPlayer(api) {
     for(let i=0;i<course.segments.length;i++) {
       const basis=form.elements['basis'+i].value;
       form.querySelectorAll('[data-target^="'+i+'-"]').forEach(node=>{
-        node.hidden=node.dataset.target!==i+'-'+(['800','1500'].includes(basis)?basis:'range')||!basis;
+        node.hidden=node.dataset.target!==i+'-'+(Object.keys(referenceEvents).includes(basis)?basis:'range')||!basis;
         node.querySelectorAll('input').forEach(input=>input.disabled=node.hidden);
       });
       const need=i<course.segments.length-1||Number(form.elements['reps'+i].value)>1;
@@ -92,10 +92,10 @@ export function createWorkoutPlayer(api) {
       const repetitions=course.segments.map((s,i)=>{
         const basis=form.elements['basis'+i].value;
         let ref=null;
-        if(['800','1500'].includes(basis)) {
+        if(Object.keys(referenceEvents).includes(basis)) {
           const date=form.elements['date'+i+basis].value;
           if(date>api.day()||!date||Date.parse(api.day())-Date.parse(date)>90*86400000)throw new Error('参考成绩需在最近90天内；这是产品校准范围，不是能力失效判断');
-          ref={event:basis+' m',seconds:Number(form.elements['ref'+i+basis].value),date,kind:'achieved',source:'用户确认的已达成绩'};
+          ref={event:referenceEvents[basis],seconds:Number(form.elements['ref'+i+basis].value),date,kind:'achieved',source:'用户确认的已达成绩'};
         }
         const target=targetFor(s.distance,basis,ref,[Number(form.elements['min'+i].value),Number(form.elements['max'+i].value)]);
         if(!target)throw new Error('每段需要对应的当前成绩或已校准秒数，不能用浏览 PB 代替');
@@ -104,7 +104,7 @@ export function createWorkoutPlayer(api) {
       const spec={version:1,origin:'coach-transcription',setCount:Number(form.elements.sets.value),repetitions,setRecovery:readRecovery(form,'set'),
         warmup:[{label:'轻松活动 → 动态活动／跑姿 → 渐进准备',durationSeconds:Number(form.elements.warmup.value)*60,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
         cooldown:[{label:'轻松放慢，按状态结束；不适可直接停止',durationSeconds:Number(form.elements.cooldown.value)*60}],
-        objective:[...new Set(repetitions.map(r=>({'800':'800m比赛节奏熟悉','1500':'1500m比赛节奏稳定',threshold:'已校准阈值强度控制',coach:'按转录教练目标执行'}[r.target.targetBasis])))].join('；'),
+        objective:[...new Set(repetitions.map(r=>({'800':'800m比赛节奏熟悉','1500':'1500m比赛节奏稳定',mile:'英里节奏稳定',threshold:'已校准阈值强度控制',coach:'按转录教练目标执行'}[r.target.targetBasis])))].join('；'),
         parameterSource:form.elements.source.value.trim(),review:{status:'pending',label:'用户转录 · 待独立专业审核'},confirmedAt:new Date().toISOString()};
       compileWorkout(spec);workoutTotals(spec);
       if(!spec.parameterSource||spec.warmup[0].durationSeconds<=0||spec.cooldown[0].durationSeconds<=0)throw new Error('请补充来源与阶段时长');
@@ -125,7 +125,7 @@ export function createWorkoutPlayer(api) {
   }
   function templateReference() {
     const bases=course.targetBases||[course.targetBasis];
-    const fields=[...new Set(bases)].map(b=>{const ref=recentPerformance(api.state().records,b,api.day()),suffix=bases.length>1?b:'';return number('seconds'+suffix,'当前已达 '+b+'m 成绩（总秒）',ref?.seconds,1,3600)+'<label>成绩日期<input name="date'+suffix+'" type="date" value="'+(ref?.date||api.day())+'" max="'+api.day()+'" required></label>';}).join('');
+    const fields=[...new Set(bases)].map(b=>{const ref=recentPerformance(api.state().records,b,api.day()),suffix=bases.length>1?b:'';return number('seconds'+suffix,'当前已达 '+referenceLabel(b)+' 成绩（总秒）',ref?.seconds,1,3600)+'<label>成绩日期<input name="date'+suffix+'" type="date" value="'+(ref?.date||api.day())+'" max="'+api.day()+'" required></label>';}).join('');
     modal('核对当前能力','<form id="template-reference"><p>'+esc(course.eligibility)+'</p>'+fields+'<label class="ready-check"><input name="confirm" type="checkbox" required>我已成年，有上述同类负荷经验，当前无伤痛；此成绩为近期已达成绩。</label><p class="form-error" hidden></p><div class="picker-actions">'+btn('取消','workout-back','','quiet')+'<button class="btn primary">使用课程编排</button></div></form>','sheet');
   }
   editor.addEventListener('submit',event=>{
@@ -135,7 +135,7 @@ export function createWorkoutPlayer(api) {
       for(const basis of new Set(bases)){
         const suffix=bases.length>1?basis:'',date=f.elements['date'+suffix].value;
         if(!f.elements.confirm.checked||!date||date>api.day()||Date.parse(api.day())-Date.parse(date)>90*86400000)throw new Error('请确认近期已达成绩与同类训练经验；90天是产品校准范围，不代表能力降级');
-        references[basis]={event:basis+' m',seconds:Number(f.elements['seconds'+suffix].value),date,kind:'achieved',source:'用户确认当前同项成绩'};
+        references[basis]={event:referenceEvents[basis],seconds:Number(f.elements['seconds'+suffix].value),date,kind:'achieved',source:'用户确认当前同项成绩'};
       }
       const spec=templateSpecification(course,references);
       if(course.planId&&!api.savePlanSpec(course.planId,spec))throw new Error('日程规格未保存');

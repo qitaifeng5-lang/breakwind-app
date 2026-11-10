@@ -34,13 +34,13 @@ for(const event of ['800 m','1500 m'])for(const group of ['base','advanced'])tes
 });
 test('dual pace composition uses two achieved references, three intra-set rests and two between-set rests',async({page})=>{
  await page.clock.install();await choose(page,'1500 m','advanced');await click(page,'400 + 200 双节奏组合');await click(page,'开始记录');
- const form=page.locator('#template-reference');await form.locator('[name=seconds1500]').fill('270');await form.locator('[name=seconds800]').fill('130');await form.locator('[name=confirm]').check();await click(page,'使用课程编排');
- await expect(page.locator('.execution-line')).toHaveText(['1×400m｜1500m 配速｜72秒/趟','1×200m｜800m 配速｜32.5秒/趟']);
+ const form=page.locator('#template-reference');await form.locator('[name=secondsmile]').fill('300');await form.locator('[name=seconds800]').fill('130');await form.locator('[name=confirm]').check();await click(page,'使用课程编排');
+ await expect(page.locator('.execution-line')).toHaveText(['1×400m｜英里配速｜74.56秒/趟','1×200m｜800m 配速｜32.5秒/趟']);
  const date=await form.count()?null:new Date().toISOString().slice(0,10),c=pbCourses('1500 m',null,{group:'advanced'}).find(c=>c.id==='combination-development');
- const spec=templateSpecification(c,{'1500':{event:'1500 m',seconds:270,date,kind:'achieved'},'800':{event:'800 m',seconds:130,date,kind:'achieved'}});
+ const spec=templateSpecification(c,{mile:{event:'1 mile',seconds:300,date,kind:'achieved'},'800':{event:'800 m',seconds:130,date,kind:'achieved'}});
  const record=await finish(page,spec);expect(record.distance).toBe(1.8);
  expect(record.courseSession.logs.filter(l=>l.step.kind==='recovery').map(l=>[l.step.betweenSets||false,l.step.durationSeconds])).toEqual([[false,60],[true,300],[false,60],[true,300],[false,60]]);
- expect(record.courseSession.spec.repetitions.map(r=>r.target.targetSecondsRange)).toEqual([[72,72],[32.5,32.5]]);
+ expect(record.courseSession.spec.repetitions.map(r=>r.target.targetSecondsRange)).toEqual([[300*400/1609.344,300*400/1609.344],[32.5,32.5]]);
 });
 
 test('a scheduled historical course without build metadata opens with its original dose',async({page})=>{

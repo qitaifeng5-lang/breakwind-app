@@ -4,7 +4,7 @@ import {pbCourses,pbWeek,weekContentStatus,courseCoverage,courseContentComplete}
 import {templateSpecification,compileWorkout,workoutTotals,newSession} from '../public/workout.js';
 import {courseReadiness} from '../public/engine.js';
 import {fresh} from '../public/model.js';
-const refs={'800':{event:'800 m',seconds:130,date:'2026-11-09',kind:'achieved'},'1500':{event:'1500 m',seconds:270,date:'2026-11-09',kind:'achieved'}};
+const refs={mile:{event:'1 mile',seconds:300,date:'2026-11-09',kind:'achieved'},'800':{event:'800 m',seconds:130,date:'2026-11-09',kind:'achieved'},'1500':{event:'1500 m',seconds:270,date:'2026-11-09',kind:'achieved'}};
 const week=(event,phase,youth=false)=>pbWeek(event,130,{group:'competitive',phase,youth});
 const total=rows=>rows.filter(c=>c.id!=='rest').reduce((n,c)=>n+workoutTotals(templateSpecification(c,refs)).estimatedSecondsRange[0],0);
 
@@ -33,9 +33,9 @@ test('800m and 1500m competitive development differ in stimulus, references, rec
  assert.equal(b[1].id,'combination-development');
  const as=templateSpecification(a[1],refs),bs=templateSpecification(b[1],refs);
  assert.deepEqual(as.repetitions.map(r=>[r.distanceM,r.repsPerSet,r.target.targetSecondsRange[0]]),[[300,3,48.75]]);assert.equal(as.setCount,2);
- assert.deepEqual(bs.repetitions.map(r=>[r.distanceM,r.repsPerSet,r.target.targetSecondsRange[0]]),[[400,1,72],[200,1,32.5]]);assert.equal(bs.setCount,3);
+ assert.deepEqual(bs.repetitions.map(r=>[r.distanceM,r.repsPerSet,r.target.targetSecondsRange[0]]),[[400,1,300*400/1609.344],[200,1,32.5]]);assert.equal(bs.setCount,3);
  assert.equal(workoutTotals(as).recoverySeconds,1080);assert.equal(workoutTotals(bs).recoverySeconds,780);
- assert.equal(a[4].prescription.repetitions[0].durationSeconds,1200);assert.equal(b[4].prescription.repetitions[0].durationSeconds,1500);
+ assert.equal(a[4].prescription.repetitions[0].durationSeconds,300);assert.equal(b[4].prescription.repetitions[0].durationSeconds,300);
  assert.equal(workoutTotals(a[6].prescription).estimatedSecondsRange[0],3600);assert.equal(workoutTotals(b[6].prescription).estimatedSecondsRange[0],4200);
  assert.throws(()=>templateSpecification(b[1],refs['1500']));
 });
@@ -63,4 +63,16 @@ test('youth competitive remains a separate review framework; known pain, fatigue
  data.trainingHold=false;data.recovery=[{date:'2026-11-09',fatigue:5}];assert.equal(courseReadiness(data,c,'2026-11-09').status,'recovery');
  const old=structuredClone(c),spec=templateSpecification(old,refs);old.catalogRevision='2026-11-09-middle-week-v2';spec.warmup[0].durationSeconds=600;
  const saved=newSession(spec,old,0,'historical');week('800 m','prepare');assert.equal(saved.spec.warmup[0].durationSeconds,600);assert.equal(saved.course.catalogRevision,'2026-11-09-middle-week-v2');
+});
+
+test('specific Tempo retains familiar aerobic dose and recovery while the primary stimulus changes',()=>{
+ for(const event of ['800 m','1500 m']){
+  const base=week(event,'base')[1],support=week(event,'develop')[4];
+  assert.deepEqual(support.prescription.repetitions,base.prescription.repetitions);
+  const t=workoutTotals(support.prescription);assert.equal(t.mainDurationSeconds,event==='800 m'?1200:1500);assert.equal(t.recoverySeconds,event==='800 m'?180:240);
+ }
+ const c=week('1500 m','develop')[1],old=structuredClone(c);old.targetBases=['1500','800'];old.targetBasis='1500';
+ assert.equal(courseReadiness(fresh(),old,'2026-11-10').canSchedule,false);
+ assert.throws(()=>templateSpecification(c,{'1500':refs['1500'],'800':refs['800']}));
+ assert.equal(old.targetBases[0],'1500','archived snapshots are not rewritten');
 });
