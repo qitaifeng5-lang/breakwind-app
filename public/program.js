@@ -75,7 +75,12 @@ export function previewProgramWeek(data,program,index,{today=dateKey(),timezone=
     const plan=occupied({id,date,name:course.name,type:course.quality?'间歇跑':'轻松跑',quality:course.quality,course:{...structuredClone(course),build,...(spec?{executionSpec:spec}:{})},programId:program.programId,programWeek:index,programDay:dayIndex,courseRevision:program.courseRevision,
       start:slot?.start||'',estimatedMinutes:seconds?seconds/60:'',recurringKey:slot?.id||'',preparationMinutes:data.coachSchedule?.preparationMinutes||0,bufferMinutes:data.coachSchedule?.bufferMinutes||0,completed:false,executionStatus:'待执行核对'});
     const review=assessSchedule({...data,plans:[...data.plans,...added]},plan,{today});plan.scheduleReview=review;
-    if(slot&&(!plan.end||plan.end>slot.end)){held.push({id,date,reason:!plan.end?'固定时段容量待核对：缺少同项节奏参考，不猜结束时间':'完整课次超出固定时段，不压缩恢复'});continue;}
+    if(slot&&(!plan.end||plan.end>slot.end)){
+      const clockMinutes=text=>Number(text.slice(0,2))*60+Number(text.slice(3));
+      const minimum=spec?workoutTotals(spec).mainRecoverySecondsRange?.[0]:null;
+      const tooShort=minimum&&(minimum/60+Number(plan.preparationMinutes||0)+Number(plan.bufferMinutes||0)>clockMinutes(slot.end)-clockMinutes(slot.start));
+      held.push({id,date,reason:tooShort||plan.end?'主训练及恢复已超出固定时段，不压缩恢复':'固定时段容量待核对：准备、整理时长或节奏参考待补，不猜结束时间'});continue;
+    }
     if(!review.canSave){held.push({id,date,reason:review.conflicts.join('；')});continue;}
     added.push(plan);
   }

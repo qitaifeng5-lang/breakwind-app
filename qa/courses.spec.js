@@ -9,10 +9,10 @@ test('PB changes applicability, not dose or recovery; withdrawn combinations can
   await click(page,'200m 专项耐受');const dialog=page.getByRole('dialog');
   await expect(dialog.locator('.execution-line')).toContainText('10×200m');
   await expect(dialog.locator('.rep-rest')).toContainText('120秒');
-  await click(page,'返回课程');await click(page,'调整专项与PB');await click(page,'2:00');
+  await click(page,'返回');await click(page,'调整专项与PB');await click(page,'2:00');
   await click(page,'200m 专项耐受');await expect(dialog.locator('.execution-line')).toContainText('10×200m');
   await expect(dialog.locator('.rep-rest')).toContainText('120秒');
-  await click(page,'加入日程');await click(page,'200m 专项耐受');await click(page,'加入日程');
+  await click(page,'加入日程');await click(page,'200m 专项耐受');await expect(dialog.getByRole('button',{name:'加入日程',exact:true})).toHaveCount(0);await click(page,'返回');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).plans.length)).toBe(1);
   await click(page,'按类型浏览');await click(page,'教学存档');await click(page,'200 + 150 组合');
   await expect(dialog.getByRole('button',{name:'加入日程'})).toHaveCount(0);
@@ -52,7 +52,7 @@ test('youth can discover every category and coached technical variants but not s
   const dialog=page.getByRole('dialog');
   await expect(dialog).toContainText('教练结合成熟度评估');
   await expect(dialog.getByRole('button',{name:'加入日程'})).toHaveCount(0);
-  await click(page,'返回课程');await click(page,'按类型浏览');await click(page,'速度与技术');await click(page,'协调与跑姿练习');
+  await click(page,'返回');await click(page,'按类型浏览');await click(page,'速度与技术');await click(page,'协调与跑姿练习');
   await expect(dialog).toContainText('教练带领步频');
   await expect(dialog).not.toContainText('4 × 60m');
   await expect(dialog.getByRole('button',{name:'加入日程'})).toBeVisible();
@@ -90,7 +90,7 @@ test('course content leads the first screen and middle-distance phases select di
     await click(page,'按时间的有氧间歇');
     await expect(page.getByRole('dialog')).toContainText('以时间而非圈速');
     await expect(page.getByRole('dialog')).toContainText('待教练审核');
-    await click(page,'返回课程');await click(page,'周安排草案');
+    await click(page,'返回');await click(page,'周安排草案');
     const outlines=[];
     for(const phase of ['基础期','专项期','赛前期','恢复周']) {
       await click(page,'调整阶段');await click(page,phase);

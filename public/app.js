@@ -49,6 +49,7 @@ function fitEditorViewport(event) {
     if (animation.animationName==='bw-modal-rise') animation.finish();
   }
   editor.style.setProperty('--visible-height',viewport.height+'px');
+  editor.style.setProperty('--visible-top',viewport.offsetTop+'px');
   editor.style.setProperty('--keyboard-inset',Math.max(0,window.innerHeight-viewport.height-viewport.offsetTop)+'px');
 }
 window.visualViewport?.addEventListener('resize',fitEditorViewport);
@@ -281,8 +282,8 @@ function refreshPBView(keepPosition=true) {
 }
 function openPBWorkout(course,dayIndex=null) {
   if (!course) return;
-  if (course.isPlanningSlot) return modal('阶段编排待确认','<p>'+escape(course.weekPurpose)+'</p><p>'+escape(course.relation)+'</p><p>此处不自动填入待审课程。请在单节训练中浏览来源与适用背景，或录入已有教练课表。</p>'+btn('返回课程','close','','quiet'),'sheet');
-  if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'sheet');
+  if (course.isPlanningSlot) return modal('阶段编排待确认','<p>'+escape(course.weekPurpose)+'</p><p>'+escape(course.relation)+'</p><p>此处不自动填入待审课程。请在单节训练中浏览来源与适用背景，或录入已有教练课表。</p>'+btn('返回课程','close','','quiet'),'page');
+  if (course.id==='rest') return modal('休息与恢复','<p>'+escape(course.relation)+'</p>'+btn('返回课程','close','','quiet'),'page');
   course={...course,build:course.build||document.querySelector('meta[name=breakwind-preview]')?.content||'local'};
   activeCourse={course,date:dayIndex===null?day:offset(day,dayIndex)};
   const key=[course.event,course.id,course.pb,course.selectedGroup,course.catalogRevision,activeCourse.date].join('|');
@@ -290,12 +291,12 @@ function openPBWorkout(course,dayIndex=null) {
   if (scheduled) {activeCourse.date=scheduled.date;course={...scheduled.course,build:scheduled.course.build||'legacy',planId:scheduled.id};activeCourse.course=course;}
   if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
-  modal(course.name,'<div class="course-detail" data-course-identity="'+escape(courseIdentity(course))+'"><small class="course-version">'+escape(course.build.slice(0,8)+' · '+course.event+' · '+course.id+' · '+(course.selectedGroup||'legacy')+' / '+(course.weekPhase||course.phase))+'</small><button class="btn quiet" data-action="close">'+icon('left')+'返回课程</button><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
+  modal(course.name,'<div class="course-detail" data-course-identity="'+escape(courseIdentity(course))+'"><small class="course-version">'+escape(course.build.slice(0,8)+' · '+course.event+' · '+course.id+' · '+(course.selectedGroup||'legacy')+' / '+(course.weekPhase||course.phase))+'</small><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
     '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · '+escape(course.roleLabel||'课程示例')+' · '+escape(course.review.label)+'</p>'+
-    (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>组间恢复</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
+    (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>恢复说明</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
     '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p><p>'+escape(course.eligibility||'')+'</p>'+(course.evidenceMap||[]).map(e=>'<article><strong>'+escape(e.parameter)+'</strong><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
     (!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':'')+
-    (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions"><button class="btn primary" type="submit">加入日程</button>'+(ready.canSchedule?btn('开始记录','course-start','','secondary'):'')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+'</div>','sheet');
+    (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions page-primary">'+(scheduled? (ready.canSchedule?btn('开始记录','course-start','','primary'):''):'<button class="btn primary" type="submit">加入日程</button>')+'</div>'+(!scheduled&&ready.canSchedule?'<details class="alternate-action"><summary>仅记录本次</summary>'+btn('开始记录','course-start','','quiet')+'</details>':'')+'<p class="form-error" role="alert" hidden></p></form>':'')+'</div>','page');
 }
 function scheduleCourse(date) {
   const course=activeCourse?.course;
@@ -465,23 +466,68 @@ function field(config,item) {
     '<input name="' + name + '" type="' + type + '" value="' + value + '"' + req + (type === 'number' ? ' min="' + min + '" max="' + max + '" step="' + step + '"' : '') + (type === 'text' ? ' maxlength="100"' : '') + '>';
   return '<label class="' + (type === 'textarea' ? 'wide' : '') + '"><span>' + label + '</span>' + control + '</label>';
 }
+const pagePositions=new Map();
+const pageDraftKey=()=>{const f=editor.querySelector('form');return storagePrefix+'.page-draft.'+f?.id+'.'+(f?.elements.planId?.value||f?.dataset.draftId||'');};
+function clearPageDraft(){if(editor.querySelector('form'))localStorage.removeItem(pageDraftKey());}
+function restorePageDraft(){
+  editor.dataset.dirty='false';
+  if(editor.dataset.variant!=='page')return;
+  const form=editor.querySelector('form');if(!form)return;
+  try {const saved=JSON.parse(localStorage.getItem(pageDraftKey()));if(saved){
+    for(const [name,value] of Object.entries(saved)){const el=form.elements.namedItem(name);if(!el)continue;if(el.type==='checkbox')el.checked=value;else el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));}
+    const notice=document.createElement('p');notice.className='draft-notice';notice.textContent='已恢复本机草稿，尚未保存课表';form.prepend(notice);editor.dataset.dirty='true';
+  }}catch{/* Invalid local draft never changes a saved plan. */}
+}
+let pageLeave=()=>editor.close();
+function requestPageClose(onLeave=()=>editor.close()){
+  pageLeave=onLeave;
+  if(editor.dataset.variant!=='page'||editor.dataset.dirty!=='true'){pageLeave();return;}
+  if(editor.querySelector('.draft-decision'))return;
+  const box=document.createElement('div');box.className='draft-decision';box.setAttribute('role','alertdialog');box.setAttribute('aria-label','未保存的修改');
+  box.innerHTML='<h3>保留这次修改？</h3><p>课表尚未保存。</p>'+btn('保存草稿并返回','page-save-draft','','primary')+btn('放弃修改','page-discard','','quiet')+btn('继续编辑','page-keep','','quiet');editor.append(box);box.querySelector('button').focus();
+}
+editor.addEventListener('click',event=>{if(event.target.closest('[data-action=workout-back]')&&editor.dataset.dirty==='true'){event.stopImmediatePropagation();requestPageClose(()=>actions['workout-back']([]));}},true);
+editor.addEventListener('input',()=>{if(editor.dataset.variant==='page')editor.dataset.dirty='true';});
+editor.addEventListener('cancel',event=>{if(editor.dataset.variant==='page'){event.preventDefault();requestPageClose();}});
+editor.addEventListener('submit',()=>{if(editor.dataset.variant==='page'){editor.dataset.formSubmitted='true';queueMicrotask(()=>{if(!editor.open)clearPageDraft();delete editor.dataset.formSubmitted;});}},true);
+editor.addEventListener('click',event=>{
+  const action=event.target.closest('[data-action]')?.dataset.action;if(!action?.startsWith('page-'))return;
+  if(action==='page-keep'){editor.querySelector('.draft-decision')?.remove();return;}
+  if(action==='page-save-draft'){
+    const form=editor.querySelector('form'),values={};for(const el of form?.elements||[])if(el.name)values[el.name]=el.type==='checkbox'?el.checked:el.value;
+    try {localStorage.setItem(pageDraftKey(),JSON.stringify(values));editor.dispatchEvent(new Event('page-draft-save'));}catch{notify('草稿未能保存，请继续编辑');return;}
+  }else if(action==='page-discard'){clearPageDraft();editor.dispatchEvent(new Event('page-draft-discard'));}
+  editor.dataset.dirty='false';pageLeave();
+});
 function modal(title, body, variant = '') {
+  if(editor.open&&editor.dataset.variant==='page')pagePositions.set(editor.querySelector('#dialog-title')?.textContent,editor.querySelector('.dialog-body')?.scrollTop||0);
   for (const animation of editor.getAnimations()) animation.cancel();
   const previous = editor.dataset.variant;
+  if(editor.dataset.variant==='page' && editor.dataset.formSubmitted==='true') clearPageDraft();
+  delete editor.dataset.formSubmitted;
   editor.dataset.variant = variant;
   editor.style.removeProperty('transform');
   if (!editor.open) opener = document.activeElement;
   editor.innerHTML = (variant==='sheet' ? '<div class="sheet-handle" aria-hidden="true"><i></i></div>' : '') +
-    '<div class="dialog-head"><h2 id="dialog-title" tabindex="-1">' + title + '</h2><button type="button" class="icon-button" data-action="close" aria-label="关闭">' + icon('close') + '</button></div><div class="dialog-body">' + body + '</div>';
+    '<div class="dialog-head">'+(variant==='page'?'<button type="button" class="icon-button" data-action="close" aria-label="返回">'+icon('left')+'</button>':'')+'<h2 id="dialog-title" tabindex="-1">' + title + '</h2>'+(variant==='page'?'':'<button type="button" class="icon-button" data-action="close" aria-label="关闭">'+icon('close')+'</button>')+'</div><div class="dialog-body">' + body + '</div>';
   const wasOpen=editor.open;
   if (!editor.open) editor.showModal();
   fitEditorViewport();
-  if (wasOpen && !reducedMotion.matches && (variant==='live' || previous==='live') && variant!==previous) {
+  restorePageDraft();
+  if(variant==='page'){
+    const primary=editor.querySelector('.page-primary')||editor.querySelector('#coach-confirm-form>.btn.primary,#coach-import-form>.btn.primary');
+    if(primary){const form=primary.closest('form');const footer=document.createElement('div');footer.className='page-footer';
+      for(const button of primary.matches('button')?[primary]:primary.querySelectorAll('button'))if(form&&!button.dataset.action)button.setAttribute('form',form.id);
+      footer.append(primary);editor.append(footer);
+    }
+  }
+  if (wasOpen && !reducedMotion.matches && (variant==='live' || previous==='live' || variant==='page')) {
     editor.querySelector('.dialog-body').animate(
       [{opacity:0.6,transform:'translateX('+ (variant==='live'?'-18px':'18px') +')'},{opacity:1,transform:'none'}],
       {duration:220,easing:'ease-out'});
   }
   editor.querySelector('#dialog-title').focus({preventScroll:true});
+  if(variant==='page')editor.querySelector('.dialog-body').scrollTop=pagePositions.get(title)||0;
 }
 function openEditor(collection,id = '',defaults = {}) {
   if(collection==='plans'&&state().plans.find(p=>p.id===id)?.coachIssued)return coachUI.detail(id);
@@ -670,7 +716,7 @@ const actions = {
   'review-cycle': showCycleReview,
   edit: ([collection,id]) => openEditor(collection,id),
   demo: leaveSample,
-  close: () => editor.close(),
+  close: () => requestPageClose(),
   profile: () => openEditor('goals'),
   menu: () => modal('更多','<div class="menu-links">' + ['heart','book','growth'].map(route => link(routes[route][1],route)).join('') + btn('训练目标','profile','flag') + '</div>'),
   notifications: () => {

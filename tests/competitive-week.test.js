@@ -6,7 +6,7 @@ import {courseReadiness} from '../public/engine.js';
 import {fresh} from '../public/model.js';
 const refs={mile:{event:'1 mile',seconds:300,date:'2026-11-09',kind:'achieved'},'800':{event:'800 m',seconds:130,date:'2026-11-09',kind:'achieved'},'1500':{event:'1500 m',seconds:270,date:'2026-11-09',kind:'achieved'}};
 const week=(event,phase,youth=false)=>pbWeek(event,130,{group:'competitive',phase,youth});
-const total=rows=>rows.filter(c=>c.id!=='rest').reduce((n,c)=>n+workoutTotals(templateSpecification(c,refs)).estimatedSecondsRange[0],0);
+const total=rows=>rows.filter(c=>c.id!=='rest').reduce((n,c)=>n+workoutTotals(templateSpecification(c,refs)).mainRecoverySecondsRange[0],0);
 
 test('both adult competitive cohorts have complete, phase-compatible weeks with explicit workload and recovery relationships',()=>{
  for(const event of ['800 m','1500 m'])for(const phase of ['base','develop','prepare','recover']){
@@ -36,7 +36,7 @@ test('800m and 1500m competitive development differ in stimulus, references, rec
  assert.deepEqual(bs.repetitions.map(r=>[r.distanceM,r.repsPerSet,r.target.targetSecondsRange[0]]),[[400,1,300*400/1609.344],[200,1,32.5]]);assert.equal(bs.setCount,3);
  assert.equal(workoutTotals(as).recoverySeconds,1080);assert.equal(workoutTotals(bs).recoverySeconds,780);
  assert.equal(a[4].prescription.repetitions[0].durationSeconds,300);assert.equal(b[4].prescription.repetitions[0].durationSeconds,300);
- assert.equal(workoutTotals(a[6].prescription).estimatedSecondsRange[0],3600);assert.equal(workoutTotals(b[6].prescription).estimatedSecondsRange[0],4200);
+ assert.equal(workoutTotals(a[6].prescription).mainRecoverySecondsRange[0],3000);assert.equal(workoutTotals(b[6].prescription).mainRecoverySecondsRange[0],3600);
  assert.throws(()=>templateSpecification(b[1],refs['1500']));
 });
 

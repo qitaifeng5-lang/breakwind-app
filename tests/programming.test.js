@@ -8,9 +8,9 @@ const day='2026-11-09';
 const find=(event,id,pb='2:10')=>pbCourses(event,pb).find(c=>c.id===id);
 const reference=(event,seconds)=>({event,seconds,kind:'achieved',date:day});
 test('source candidates supply dose and recovery; PB scales timing only',()=>{
-  for(const [event,id,seconds,distance,rest,total] of [['800 m','interval-development',130,2000,1080,2605],['1500 m','interval',265,1500,360,1825]]){
+  for(const [event,id,seconds,distance,rest] of [['800 m','interval-development',130,2000,1080,2605],['1500 m','interval',265,1500,360,1825]]){
     const c=find(event,id),spec=templateSpecification(c,reference(event,seconds)),t=workoutTotals(spec);
-    assert.equal(t.mainDistanceM,distance);assert.equal(t.recoverySeconds,rest);assert.deepEqual(t.estimatedSecondsRange,[total,total]);
+    assert.equal(t.mainDistanceM,distance);assert.equal(t.recoverySeconds,rest);assert.equal(t.estimatedSecondsRange,null);
     assert.equal(t.setRecoveries,0);assert.equal(t.repRecoveries,spec.repetitions[0].repsPerSet-1);
     const faster=templateSpecification(find(event,id,'1:45'),reference(event,seconds-10));
     assert.equal(faster.repetitions[0].repsPerSet,spec.repetitions[0].repsPerSet);

@@ -34,7 +34,7 @@ export function recoverySteps(recovery) {
   return [{kind:'recovery',...recovery}];
 }
 export function compileWorkout(spec) {
-  for(const phase of ['warmup','cooldown'])if(!spec[phase]?.length||!spec[phase].every(s=>positive(s.durationSeconds)||positive(s.distanceM)))throw new Error('请补充热身与冷身安排');
+  for(const phase of ['warmup','cooldown'])if(!spec[phase]?.length||!spec[phase].every(s=>positive(s.durationSeconds)||positive(s.distanceM)||Boolean(s.label?.trim())))throw new Error('请补充热身与冷身安排');
   if (!Number.isInteger(spec.setCount)||spec.setCount<1||spec.setCount>20) throw new Error('大组数无效');
   const units=spec.repetitions.flatMap((r,index)=>{
     if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(['threshold','easy','technique'].includes(r.target?.targetBasis)&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
@@ -63,6 +63,7 @@ export function workoutTotals(spec) {
     jogRecoveryDistanceM:rest.filter(s=>s.mode==='jog').every(s=>s.distanceM>0)?rest.filter(s=>s.mode==='jog').reduce((n,s)=>n+s.distanceM,0):null,
     warmupDistanceM:spec.warmup.every(s=>s.distanceM>0)?spec.warmup.reduce((n,s)=>n+s.distanceM,0):null,
     cooldownDistanceM:spec.cooldown.every(s=>s.distanceM>0)?spec.cooldown.reduce((n,s)=>n+s.distanceM,0):null,
+    mainRecoverySecondsRange:rest.every(s=>s.durationSeconds>0&&!s.distanceM)?[0,1].map(i=>rest.reduce((n,s)=>n+s.durationSeconds,0)+main.reduce((n,s)=>n+(s.durationSeconds||s.target.targetSecondsRange[i]),0)):null,
     estimatedSecondsRange:knownTime?[0,1].map(i=>base+main.reduce((n,s)=>n+(s.durationSeconds||s.target.targetSecondsRange[i]),0)):null};
 }
 export function newSession(spec,course,now,id) {
@@ -98,8 +99,8 @@ export function templateSpecification(course,reference) {
   const repetitions=course.segments.map((s,i)=>{const basis=course.targetBases?.[i]||course.targetBasis;return {distanceM:s.distance,repsPerSet:s.repeats,target:targetFor(s.distance,basis,reference?.[basis]||reference),repRecovery:{mode:course.recoveryMode,endRule:'time',durationSeconds:s.recoverySeconds}};});
   if(repetitions.some(r=>!r.target))throw new Error('需要当前同项已达成绩，不能使用目标PB');
   const spec={version:1,origin:'editorial-candidate',catalogRevision:course.catalogRevision,setCount:course.sets,repetitions,setRecovery:course.sets>1?{mode:course.recoveryMode,endRule:'time',durationSeconds:course.setRecovery}:null,
-    warmup:[{label:'轻松跑、动态活动与渐进准备；'+(course.warmupSeconds||600)/60+'分钟是计时起点，准备不足可继续',durationSeconds:course.warmupSeconds||600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
-    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:course.cooldownSeconds||600}],objective:course.objective,
+    warmup:[{label:course.warmup||'轻松慢跑、动态活动、相应跑姿准备',checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
+    cooldown:[{label:course.cooldown||'轻松慢跑、放松整理'}],objective:course.objective,
     parameterSource:course.evidenceMap.map(e=>e.source+'；产品选择：'+e.adaptation).join('。'),review:structuredClone(course.review)};
   compileWorkout(spec);return spec;
 }

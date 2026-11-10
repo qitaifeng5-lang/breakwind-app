@@ -115,6 +115,13 @@ function finalizeCourse(course) {
       mainDurationSeconds:units.every(p=>['min','sec'].includes(p.unit))?units.reduce((n,p)=>n+p.distance*(p.unit==='min'?60:1),0)*course.sets:null,
       repCount:units.length*course.sets,repRecoveries:Math.max(0,units.length-1)*course.sets,setRecoveries:course.sets-1,
       recoverySeconds:recovery.every(Number.isFinite)?recovery.reduce((a,b)=>a+b,0)*course.sets+(course.sets-1)*course.setRecovery:null};
+    if(course.prescription){
+      const openPreparation=course.prescription.warmup.every(s=>!s.durationSeconds)&&course.prescription.cooldown.every(s=>!s.durationSeconds);
+      if(openPreparation){
+        course.timingPolicy='热身、冷身本人确认完成；旧编排说明里的准备时间不作为当前门槛或总时长。';
+        if(course.categoryId==='aerobic'&&course.name.includes('分钟'))course.name=course.name.replace(/ · .*分钟$/, ' · '+course.segments[0].distance+'分钟主训练');
+      }
+    }
     course.main=courseSummary(course);
     course.blocks=[{name:'热身',detail:course.warmup},{name:'主训练',detail:course.main},{name:'冷身',detail:course.cooldown}];
   return course;
@@ -160,7 +167,7 @@ function auditCourse(c) {
     c.executionEligible=true;c.targetBasis='800';c.recoveryMode='walk';
     c.eligibility='成人、有数月持续训练，并已在既有课表耐受相近2km的800m节奏重复；更快PB不能替代同类负荷经验。';
     c.evidenceMap=[{parameter:'10×200m／800m 配速／趟间120秒',source:'Momentum Sports中跑速度指南：10×200、约800m节奏、1–2分钟恢复',adaptation:'保留整套重复结构，恢复取上端；步行是产品补充，原文没有指定动作',limit:'公开教练实践不是干预试验；不是从旧4趟直接加量，不沿用原文过时的乳酸废物解释'},
-      {parameter:'热身、冷身各10分钟；专项期与同类耐受前提',source:'Haugen表2支持低强度准备和冷身类别；原教练示例未细分阶段与准入',adaptation:'计时起点、阶段与准入属于编辑选择，准备不足继续热身',limit:'不是已验证安全阈值；动作失稳或恢复不足则停止，不强求10趟'}];
+      {parameter:'热身与冷身按准备状态完成；专项期与同类耐受前提',source:'Haugen表2支持低强度准备和冷身类别；原教练示例未细分阶段与准入',adaptation:'准备内容、阶段与准入属于编辑选择；不设固定时间门槛',limit:'不是已验证安全阈值；动作失稳或恢复不足则停止，不强求10趟'}];
     c.sources.push({id:'momentum',title:'Momentum Sports · Middle Distance Speed',url:'https://www.momentumsports.co.uk/TtMDSpeed.asp',kind:'公开教练实践',population:'已有中跑训练背景者；原文未细分年龄',rule:'对应200m重复的段长、次数、目标和恢复区间',limit:'恢复动作及准入为产品补充；没有独立审核，不复制过时乳酸解释'});
   }
   if (c.id==='interval') {
@@ -214,7 +221,7 @@ function completeTempo(c) {
   c.evidenceMap=[{parameter:'5分钟工作／1分钟慢跑',source:'Haugen 2021表2：阈值分段3–10分钟，约每5分钟工作配1分钟轻松慢跑',adaptation:'采用5分钟段和60秒慢跑，不采用精英25–40分钟总量',limit:'综述为精英背景，支持组织方式而非本课对所有人的安全或有效性'},
     {parameter:'Tempo强度与训练目的',source:'V.O2训练定义与阈值训练说明：受控偏强、分段间短恢复；区别于更高强度间歇',adaptation:'使用已有训练体感，不套用精英半马配速或由800m/1500m PB推算生理阈值',limit:'体感不是阈值测量；V.O2的2025建议总量至少30分钟，本课15分钟是不同适用背景的产品衔接编排，不声称符合其完整剂量建议'},
     {parameter:'3趟／15分钟总量，基础期及已有经验的成人组',source:'资料没有验证本产品的3趟、准入条件或周方案',adaptation:'原创限量编排：已有15分钟同类经验，不做自动进阶；基础期一节主课位置，前后留低负荷日',limit:'不是第一次Tempo入门课或比赛减量课；尚无独立教练审核，未完成整周负荷核验'},
-    {parameter:'热身10分钟与冷身10分钟',source:'综述给出低强度准备与冷身类别',adaptation:'10分钟作为计时起点；准备未完成则继续，不适可直接停止',limit:'产品时长，不是保证预防伤病的阈值'}];
+    {parameter:'热身与冷身按状态完成',source:'综述给出低强度准备与冷身类别',adaptation:'轻松慢跑、动态准备与放松整理；本人确认完成，不适直接停止',limit:'产品时长，不是保证预防伤病的阈值'}];
   c.sources.push({id:'vdot-threshold',title:'V.O2 · Training definitions / Threshold',url:'https://vdoto2.com/learn-more/training-definitions',kind:'教练训练体系公开说明',population:'具备相应耐受与强度认识的跑者',rule:'受控偏强的Tempo与短恢复分段组织',limit:'不验证本App的3趟剂量；不复制其完整计划或配速数据库'});
   c.sources.push({id:'vdot-tempo-2025',title:'V.O2 · Threshold training（2025）',url:'https://news.vdoto2.com/2025/06/get-the-most-out-of-your-threshold-training/',kind:'教练体系公开训练说明',population:'已熟悉阈值强度的跑者',rule:'稳定受控强度，短恢复后不加速；该文建议更高总量',limit:'该文分段建议至少30分钟；本课15分钟是低总量衔接编排，不冒充原文完整剂量'});
   c.parameterOrigin='来源已核对；原创编排完成；独立审核未完成。当前执行还需满足适用背景和恢复条件。';
@@ -222,12 +229,12 @@ function completeTempo(c) {
   c.executionEligible=true;c.catalogRevision='2026-11-09-tempo';
   c.prescription={version:2,origin:'editorial-candidate',catalogRevision:c.catalogRevision,setCount:1,
     repetitions:[{durationSeconds:300,repsPerSet:3,target:{targetBasis:'threshold',effort:'受控偏强 · 呼吸与动作稳定',provenance:'既有Tempo体感；未测量生理阈值'},repRecovery:{mode:'jog',endRule:'time',durationSeconds:60}}],setRecovery:null,
-    warmup:[{label:'轻松跑、动态活动与渐进准备；准备不足继续',durationSeconds:600,checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
-    cooldown:[{label:'轻松放慢；不适可提前停止',durationSeconds:600}],objective:c.objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:{status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null}};
+    warmup:[{label:'轻松跑、动态活动与渐进准备；准备不足继续',checks:['轻松活动已完成','动态活动与跑姿已完成','渐进准备完成且无不适']}],
+    cooldown:[{label:'轻松放慢；不适可提前停止'}],objective:c.objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:{status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null}};
 }
 
-export const contentRevision='2026-11-10-middle-week-v3';
-export const competitiveRevision='2026-11-10-competitive-v4';
+export const contentRevision='2026-11-10-middle-week-v4';
+export const competitiveRevision='2026-11-10-competitive-v5';
 export const contentGroups={base:'基础',advanced:'进阶',competitive:'竞技'};
 const easySource={id:'ea-easy',title:'England Athletics · Runner FAQ',url:'https://www.englandathletics.org/runtogether/support/runner-frequently-asked-questions/',kind:'官方跑步指导',population:'一般跑者，非本App分组试验',rule:'稳定已有训练频率，轻松日放松，保留恢复；不突然增加频率',limit:'不直接规定本产品的20/30/35分钟或五课周'};
 function completeSupport(c) {
@@ -256,7 +263,7 @@ function completeSupport(c) {
     c.contentState={sources:'checked',programming:'complete',independentReview:'pending',currentExecution:'requires-readiness'};
     c.review={status:'pending',label:'编排完成 · 待独立审核',reviewer:null,date:null};
     c.prescription={version:3,origin:'editorial-candidate',catalogRevision:contentRevision,setCount:1,repetitions:[{durationSeconds:d.seconds,repsPerSet:d.reps,target:{targetBasis:d.basis,effort:effort[d.basis],provenance:'明确体感目标，不从短距离PB换算'},repRecovery:d.rest?{mode:'walk',endRule:'time',durationSeconds:d.rest}:null}],setRecovery:null,
-      warmup:[{label:d.basis==='easy'?'轻松进入':'轻松跑、动态准备；不足则继续',durationSeconds:d.warm,checks:['当前无不适，已完成本课所需准备']}],cooldown:[{label:'逐步放慢，不适时可立即停止',durationSeconds:d.cool}],objective:c.objective,parameterSource:d.source+'；产品编排：'+d.choice,review:structuredClone(c.review)};
+      warmup:[{label:d.basis==='easy'?'轻松进入':'轻松跑、动态准备；不足则继续',checks:['当前无不适，已完成本课所需准备']}],cooldown:[{label:'逐步放慢，不适时可立即停止'}],objective:c.objective,parameterSource:d.source+'；产品编排：'+d.choice,review:structuredClone(c.review)};
     c.parameterOrigin='来源核对与编排完成；热身/冷身及组别剂量是公开标注的产品选择，不代表教练认证。';
   }
   if(c.id==='endurance'&&c.event==='800 m'){
@@ -315,7 +322,7 @@ export function weekContentStatus(week) {
   const timed=filled.length===training.length&&training.every(c=>c.prescription);
   const totals=timed?training.map(c=>workoutTotals(c.prescription)):[];
   return {complete:week.length===7&&training.length>0&&filled.length===training.length&&coherent,coherent,filled:filled.length,missing:training.length-filled.length,
-    plannedSeconds:timed?totals.reduce((n,t)=>n+t.estimatedSecondsRange[0],0):null,qualitySessions:training.filter(c=>c.quality).length,
+    plannedSeconds:timed&&totals.every(t=>t.estimatedSecondsRange)?totals.reduce((n,t)=>n+t.estimatedSecondsRange[0],0):null,qualitySessions:training.filter(c=>c.quality).length,
     label:'周安排草案',independentReview:'pending',canExecuteWeek:false};
 }
 
@@ -348,7 +355,7 @@ function competitiveCatalog(existing,event,youth){
     c.sources=[{id:'middle',...courseSources.middle},{id:'load',...courseSources.load},...(category==='hills'?[{id:'hills',...courseSources.hills}]:[])];
     c.eligibility+=' 本课须已有'+(reps>1?reps+'趟同类重复':minutes+'分钟同类主段')+'经验；准备与冷身也计入总时长。';
     c.prescription={version:3,origin:'editorial-candidate',catalogRevision:competitiveRevision,setCount:1,repetitions:[{durationSeconds:seconds,repsPerSet:reps,target:{targetBasis:basis,effort:c.intensityBasis,provenance:'明确体感目标，非PB推算生理阈值'},repRecovery:rest?{mode:basis==='threshold'?'jog':'walk',endRule:'time',durationSeconds:rest}:null}],setRecovery:null,
-      warmup:[{label:basis==='easy'?'轻松进入':'轻松跑、动态准备和渐进活动；准备不足继续',durationSeconds:warm,checks:['已完成准备，动作与身体无不适']}],cooldown:[{label:'逐步放慢；不适时直接停止',durationSeconds:cool}],objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:structuredClone(c.review)};
+      warmup:[{label:basis==='easy'?'轻松进入':'轻松跑、动态准备和渐进活动；准备不足继续',checks:['已完成准备，动作与身体无不适']}],cooldown:[{label:'逐步放慢；不适时直接停止'}],objective,parameterSource:c.evidenceMap.map(e=>e.source+'；产品编排：'+e.adaptation).join('。'),review:structuredClone(c.review)};
     return finalizeCourse(c);
   }
   const courses=[

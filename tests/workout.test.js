@@ -47,3 +47,11 @@ test('execution is a deep snapshot, pauses exclude lost time, stopped distance e
   assert.equal(record.distance,.2);assert.equal(record.pain,true);assert.equal(record.id,'fixed-id');
   assert.equal(advanceSession(session,400000),false);
 });
+
+test('open-ended phase descriptions preserve distance requirements, actual seconds and old snapshots',()=>{
+ const old=spec(),snapshot=structuredClone(old);const s=spec();s.warmup=[{label:'慢跑2km，动态准备',distanceM:2000}];s.cooldown=[{label:'轻松慢跑、放松整理'}];
+ const t=workoutTotals(s);assert.equal(t.estimatedSecondsRange,null);assert.equal(t.warmupDistanceM,2000);assert.equal(t.mainDistanceM,800);assert.deepEqual(t.mainRecoverySecondsRange,[670,670]);
+ const run=newSession(s,{name:'200m 节奏重复'},0,'open');let now=7000;advanceSession(run,now);
+ for(const step of run.steps.slice(1)){now+=(step.kind==='cooldown'?3:step.durationSeconds||32.5)*1000;advanceSession(run,now);}
+ const record=sessionRecord(run,'2026-11-10');assert.equal(record.minutes*60,680);assert.equal(record.distance,.8);assert.equal(record.courseSession.logs.filter(l=>l.step.kind==='recovery').length,3);assert.deepEqual(old,snapshot);
+});

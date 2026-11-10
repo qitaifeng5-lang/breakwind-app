@@ -4,15 +4,15 @@ import {pbCourses,pbWeek,courseContentComplete,weekContentStatus} from '../publi
 import {compileWorkout,workoutTotals,newSession,advanceSession,sessionRecord} from '../public/workout.js';
 import {courseReadiness} from '../public/engine.js';
 import {fresh} from '../public/model.js';
-test('Tempo has three timed work bouts, two jog recoveries and full 37-minute structure; no PB-derived threshold or distance',()=>{
+test('Tempo has three timed work bouts, two jog recoveries and open-ended preparation and cooldown; no PB-derived threshold or distance',()=>{
  for(const event of ['800 m','1500 m']){
   const c=pbCourses(event,'2:00').find(c=>c.id==='tempo'),spec=c.prescription,steps=compileWorkout(spec),totals=workoutTotals(spec);
   assert.equal(courseContentComplete(c),true);assert.equal(c.contentState.independentReview,'pending');assert.equal(c.review.reviewer,null);
   assert.deepEqual(steps.map(s=>s.kind),['warmup','work','recovery','work','recovery','work','cooldown']);
-  assert.equal(totals.mainDurationSeconds,900);assert.equal(totals.mainDistanceM,null);assert.equal(totals.recoverySeconds,120);assert.deepEqual(totals.estimatedSecondsRange,[2220,2220]);
+  assert.equal(totals.mainDurationSeconds,900);assert.equal(totals.mainDistanceM,null);assert.equal(totals.recoverySeconds,120);assert.equal(totals.estimatedSecondsRange,null);
   assert.ok(spec.repetitions.every(r=>r.target.effort&&!r.target.targetSecondsRange));
   assert.deepEqual(pbCourses(event,'6:00').find(c=>c.id==='tempo').prescription,spec);
-  const session=newSession(spec,c,0,'tempo-test');let now=0;for(const step of steps){now+=step.durationSeconds*1000;advanceSession(session,now);}
+  const session=newSession(spec,c,0,'tempo-test');let now=0;for(const step of steps){now+=(step.durationSeconds??45)*1000;advanceSession(session,now);}
   const record=sessionRecord(session,'2026-11-09');assert.equal(record.completedWorkSeconds,900);assert.equal(record.distanceMeasured,false);assert.equal(record.type,'阈值跑');
  }
 });

@@ -4,8 +4,8 @@ const click=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 test('Tempo is a complete authored timed session without a design questionnaire; saves unknown distance honestly',async({page})=>{
  await page.clock.install();await page.goto('/#run');await click(page,'按类型浏览');await click(page,'Tempo／阈值');await click(page,'分段 Tempo · 3×5分钟');
  await expect(page.locator('.execution-line')).toContainText('3×5分钟｜Tempo');await expect(page.locator('.rep-rest')).toContainText('慢跑 60 秒');
- await expect(page.locator('.course-block h3')).toHaveText(['热身','主训练','组间恢复','冷身']);
- await click(page,'开始记录');await expect(page.locator('#template-reference,#workout-calibrate')).toHaveCount(0);await expect(page.getByRole('dialog')).toContainText('37:00');
+ await expect(page.locator('.course-block h3')).toHaveText(['热身','主训练','恢复说明','冷身']);
+ if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');await expect(page.locator('#template-reference,#workout-calibrate')).toHaveCount(0);await expect(page.getByRole('dialog')).toContainText('完整时长待估');
  await click(page,'确认并热身');for(const input of await page.locator('[data-warmup]').all())await input.check();
  await page.clock.fastForward(600000);await click(page,'完成本阶段');await click(page,'完成本趟');await expect(page.locator('#course-player-error')).toContainText('本段计时尚未完成');
  for(let i=0;i<3;i++){await page.clock.fastForward(300000);await click(page,'完成本趟');if(i<2){await page.clock.fastForward(60000);await click(page,'恢复完成');}}

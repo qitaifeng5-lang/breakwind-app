@@ -92,11 +92,11 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await page.goto('/#home');
   await click(page,'课次详情');
   await expect(dialog).toContainText('3 × 500m');
-  await click(page,'开始记录');
+  if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');
   await page.locator('#template-reference [name=seconds]').fill('260');
   await dialog.getByRole('checkbox').check();await click(page,'使用课程编排');
   await expect(dialog.locator('.execution-line')).toContainText('3×500m｜1500m 配速');
-  await click(page,'开始记录');await click(page,'确认并热身');
+  if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');await click(page,'确认并热身');
   await page.getByText('提醒与提前结束',{exact:true}).click();await click(page,'提前结束');await click(page,'保存分段记录');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).runs.at(-1).distance)).toBe(0);
   expect(errors).toEqual([]);

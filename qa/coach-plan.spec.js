@@ -4,7 +4,7 @@ test('private coach transcription preview cancel save reload and reschedule',asy
   await page.goto('/#run');
   const original='热身：10分钟\n主训练：3×5分钟 Tempo\n趟间恢复：慢跑60秒\n冷身：10分钟';
   async function preview(){await page.getByRole('button',{name:'录入／粘贴课表',exact:true}).click();await page.locator('[name=name]').fill('合成测试课表');await page.locator('[name=original]').fill(original);await page.getByRole('button',{name:'预览',exact:true}).click();}
-  await preview();await page.keyboard.press('Escape');
+  await preview();await page.keyboard.press('Escape');await page.getByRole('button',{name:'放弃修改',exact:true}).click();
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')||'{"plans":[]}').plans.length)).toBe(0);
   await preview();await page.getByText('时间与安排（可选）',{exact:true}).click();await page.locator('[name=start]').fill('17:00');await page.locator('[name=estimatedMinutes]').fill('37');await page.getByRole('button',{name:'确认保存',exact:true}).click();
   await expect(page.getByRole('heading',{name:'我的课表',exact:true})).toBeVisible();await page.reload();await page.getByRole('button',{name:/合成测试课表/}).click();
@@ -31,7 +31,7 @@ test('time-only review warning is saved; true overlap is blocked and cancel leav
   localStorage.setItem('breakwind.local.v1',JSON.stringify(s));
  });await page.reload();
  const open=async()=>{await page.getByRole('button',{name:/合成相邻课 B/}).click();await page.getByRole('button',{name:'改期／改时',exact:true}).click();};
- await open();await page.locator('[name=start]').fill('20:00');await page.keyboard.press('Escape');
+ await open();await page.locator('[name=start]').fill('20:00');await page.keyboard.press('Escape');await page.getByRole('button',{name:'放弃修改',exact:true}).click();
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).plans[1].start)).toBe('18:30');
  await open();await page.locator('[name=start]').fill('19:00');await page.getByRole('button',{name:'检查并保存',exact:true}).click();await expect(page.locator('#editor')).not.toBeVisible();
  let s=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(s.plans).toHaveLength(2);expect(s.plans[1].start).toBe('19:00');expect(s.plans[1].scheduleReview.loadReview).toHaveLength(1);

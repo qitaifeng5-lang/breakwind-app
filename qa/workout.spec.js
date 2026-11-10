@@ -16,11 +16,11 @@ async function configure(page,combo=false) {
     await f.locator('[name=ref11500]').fill('270');
     await f.locator('[name=setMode]').selectOption('stand');
   }
-  await f.locator('[name=warmup]').fill('10');await f.locator('[name=cooldown]').fill('5');
+  await f.getByText('热身与冷身建议时间（可选）',{exact:true}).click();await f.locator('[name=warmup]').fill('10');await f.locator('[name=cooldown]').fill('5');
   await f.locator('[name=source]').fill('自动化验收样例，非训练建议');await f.locator('[name=confirm]').check();
   await click(page,'保存执行规格');
   await expect(page.locator('.executable-spec')).toContainText('32.5秒');
-  await expect(page.locator('.compact-workout .course-block h3')).toHaveText(['热身','主训练','组间恢复','冷身']);
+  await expect(page.locator('.compact-workout .course-block h3')).toHaveText(['热身','主训练','恢复说明','冷身']);
   await expect(page.locator('.execution-line').first()).toContainText('200m｜800m 配速｜32.5秒/趟');
   await expect(page.locator('.course-original')).not.toHaveAttribute('open','');
   await expect(page.getByRole('button',{name:'录入已有教练课表',exact:true})).not.toBeVisible();
@@ -28,7 +28,7 @@ async function configure(page,combo=false) {
 }
 test('200m execution: recovery timer, interrupted reload, immutable targets and idempotent save',async({page})=>{
   await page.clock.install();await configure(page);
-  await click(page,'加入日程');await click(page,'200m 节奏重复');await click(page,'开始记录');await click(page,'确认并热身');
+  await click(page,'加入日程');await click(page,'200m 节奏重复');if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');await click(page,'确认并热身');
   for(const input of await page.locator('[data-warmup]').all())await input.check();
   await page.clock.fastForward(600000);await click(page,'完成本阶段');
   await expect(page.getByRole('dialog')).toContainText('32.5 秒');
@@ -57,7 +57,7 @@ test('combination targets use independent references; pain stops and preserves p
   await page.getByText('查看说明',{exact:true}).click();
   await expect(page.locator('.execution-notes')).toContainText('700m');
   await page.getByText('查看说明',{exact:true}).click();
-  await click(page,'开始记录');await click(page,'确认并热身');
+  if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');await click(page,'确认并热身');
   await page.getByText('提醒与提前结束',{exact:true}).click();await click(page,'疼痛／不适，立即停止');
   await click(page,'保存分段记录');await click(page,'200 + 150 组合');
   await expect(page.getByRole('dialog').getByRole('button',{name:'开始记录',exact:true})).toHaveCount(0);
@@ -71,7 +71,7 @@ test('combination executes both sets and only one set recovery, preserving the s
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).plans[0])).toEqual(before);
   await click(page,'训练日程');
   await page.locator('[data-action="open-plan:'+before.id+'"]').click();
-  await click(page,'开始记录');await click(page,'确认并热身');
+  if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');await click(page,'确认并热身');
   for(const input of await page.locator('[data-warmup]').all())await input.check();
   await page.clock.fastForward(600000);await click(page,'完成本阶段');
   for(let set=0;set<2;set++){

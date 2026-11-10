@@ -11,8 +11,8 @@ test('coherent adult weeks contain full prescriptions, a single quality session 
   assert.equal(status.complete,true);assert.equal(status.canExecuteWeek,false);assert.equal(status.independentReview,'pending');
   assert.equal(new Set(week.map(c=>c.cohortId)).size,1);assert.equal(week.filter(c=>c.isPlanningSlot).length,0);
   assert.equal(status.qualitySessions,phase==='recover'?0:1);
-  if(phase==='base')assert.equal(status.plannedSeconds,group==='base'?8250:9030);
-  if(phase==='recover')assert.equal(status.plannedSeconds,3630);
+  if(phase==='base')assert.equal(status.plannedSeconds,null); // Open-ended Tempo preparation prevents an invented full-week duration.
+  if(phase==='recover')assert.equal(status.plannedSeconds,null);
   for(const c of week.filter(c=>c.id!=='rest')){
    assert.equal(courseContentComplete(c),true);assert.equal(c.review.reviewer,null);assert.ok(c.eligibility);assert.ok(c.weekEligibility);
    const spec=templateSpecification(c,refs),steps=compileWorkout(spec);
@@ -37,14 +37,14 @@ test('speed endurance and dual-pace combination have independent source structur
  const find=(event,id)=>pbCourses(event,130,{group:'competitive'}).find(c=>c.id===id);
  const e=find('800 m','endurance'),spec=templateSpecification(e,refs),t=workoutTotals(spec);
  assert.equal(t.mainDistanceM,1800);assert.equal(t.repCount,6);assert.equal(t.repRecoveries,4);assert.equal(t.setRecoveries,1);assert.equal(t.recoverySeconds,1080);
- assert.deepEqual(t.estimatedSecondsRange,[2872.5,2872.5]);
+ assert.deepEqual(t.mainRecoverySecondsRange,[1372.5,1372.5]);
  const reserve=templateSpecification(find('1500 m','endurance'),refs);assert.equal(reserve.repetitions[0].target.targetBasis,'800');assert.equal(workoutTotals(reserve).recoverySeconds,720);
  for(const event of ['800 m','1500 m']){
   const c=find(event,'combination-development'),s=templateSpecification(c,refs),totals=workoutTotals(s);
   assert.equal(courseContentComplete(c),true);assert.equal(c.catalogRevision,competitiveRevision);
   assert.deepEqual(s.repetitions.map(r=>r.target.targetSecondsRange),[[300*400/1609.344,300*400/1609.344],[32.5,32.5]]);
   assert.equal(totals.mainDistanceM,1800);assert.equal(totals.recoverySeconds,780);assert.equal(totals.repRecoveries,3);assert.equal(totals.setRecoveries,2);
-  assert.deepEqual(totals.estimatedSecondsRange,[2280+3*(300*400/1609.344+32.5),2280+3*(300*400/1609.344+32.5)]);
+  assert.deepEqual(totals.mainRecoverySecondsRange,[780+3*(300*400/1609.344+32.5),780+3*(300*400/1609.344+32.5)]);
   assert.throws(()=>templateSpecification(c,refs['800']));
   assert.equal(c.automaticRecommendation,false);
  }
