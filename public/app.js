@@ -765,7 +765,7 @@ function networkState() {
 window.addEventListener('offline',networkState);
 window.addEventListener('online',networkState);
 networkState();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(() => {});
 
 
 function evidenceLink(source) {

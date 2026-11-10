@@ -1,9 +1,10 @@
-const cacheName = 'breakwind-shell-v18';
+const cacheName = 'breakwind-shell-v19';
 const cacheNamespace = cacheName.startsWith('breakwind-preview-') ? 'breakwind-preview-' : 'breakwind-shell-';
 const shell = ['./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)).then(() => self.skipWaiting()));
+  const requests=cacheNamespace==='breakwind-preview-'?shell.map(path=>new Request(new URL(path,self.registration.scope),{cache:'reload'})):shell;
+  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(requests)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(Promise.all([
@@ -18,7 +19,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(caches.open(cacheName).then(async cache => {
     if (event.request.mode === 'navigate' && cacheNamespace === 'breakwind-preview-') {
       try {
-        const online=await fetch(event.request);
+        const online=await fetch(event.request,{cache:'no-store'});
         if (online.ok) return online;
       } catch { /* Read the installed shell when offline. */ }
     }
