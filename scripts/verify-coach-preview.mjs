@@ -1,0 +1,31 @@
+import {chromium} from '@playwright/test';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const sha=process.argv[2];if(!/^[0-9a-f]{40}$/.test(sha))throw Error('commit required');
+const root=new URL('../.expo/coach-preview/'+sha+'/',import.meta.url);await mkdir(root,{recursive:true});
+const base='https://qitaifeng5-lang.github.io/breakwind-app/';
+const browser=await chromium.launch({channel:'msedge'});
+const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,recordVideo:{dir:root.pathname.replace(/^\/([A-Z]:)/,'$1'),size:{width:390,height:844}}});
+const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto(base+'?build='+sha+'#run');await page.waitForSelector('[data-action="coach-import"]');
+assert.equal(await page.locator('meta[name="breakwind-preview"]').getAttribute('content'),sha);
+const hashes={};for(const file of ['app.js','coach-plan.js','coach-ui.js','model.js','sw.js']){
+  const response=await context.request.get(base+file+'?v='+sha);assert.equal(response.status(),200);
+  const actual=await response.body(),expected=await readFile(new URL('../.expo/pages-preview/'+file,import.meta.url));
+  assert.deepEqual(actual,expected,file+' same build');hashes[file]=createHash('sha256').update(actual).digest('hex');
+}
+await page.getByRole('button',{name:'录入／粘贴课表',exact:true}).click();
+await page.locator('[name=name]').fill('合成验收 · Tempo衔接');
+const original='热身：10分钟\n主训练：3×5分钟 Tempo\n趟间恢复：慢跑60秒\n冷身：10分钟';
+await page.locator('[name=original]').fill(original);await page.getByRole('button',{name:'预览',exact:true}).click();
+await page.screenshot({path:new URL('preview.png',root).pathname.replace(/^\/([A-Z]:)/,'$1')});
+await page.locator('[name=start]').fill('17:00');await page.locator('[name=estimatedMinutes]').fill('37');await page.getByRole('button',{name:'确认保存',exact:true}).click();
+await page.getByRole('heading',{name:'我的课表',exact:true}).waitFor();await page.screenshot({path:new URL('my-plan.png',root).pathname.replace(/^\/([A-Z]:)/,'$1')});
+await page.getByRole('button',{name:/合成验收 · Tempo衔接/}).click();await page.screenshot({path:new URL('detail.png',root).pathname.replace(/^\/([A-Z]:)/,'$1')});
+await page.getByRole('button',{name:'改期／改时',exact:true}).click();await page.locator('[name=start]').fill('18:00');await page.getByRole('button',{name:'检查并保存',exact:true}).click();
+await page.reload();const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.preview.local.v1')));
+assert.equal(saved.plans.length,1);assert.equal(saved.plans[0].start,'18:00');assert.equal(saved.plans[0].coachIssued.original,original);assert.equal(saved.runs.length,0);assert.deepEqual(errors,[]);
+const video=page.video();await context.close();await video.saveAs(new URL('coach-flow.webm',root).pathname.replace(/^\/([A-Z]:)/,'$1'));await browser.close();
+await writeFile(new URL('verification.json',root),JSON.stringify({sha,url:base+'?build='+sha+'#run',hashes,synthetic:true,physicalIPhone:false,checks:['preview confirmation','private original retained','reschedule no duplicate','no fabricated actual run','same deployed assets'],errors},null,2));
+console.log('Verified coach flow '+sha);

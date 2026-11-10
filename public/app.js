@@ -1,3 +1,5 @@
+import {createCoachUI} from './coach-ui.js';
+import {recurringFor} from './coach-plan.js';
 import {createWorkoutPlayer} from './workout-ui.js';
 import {supportsWorkout,courseIdentity} from './workout.js';
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
@@ -130,7 +132,8 @@ const head = (eyebrow, title, sub, actions = '') => '<div class="page-head"><div
 const panel = (title, content, action = '', subtitle = '') => '<section class="panel"><div class="panel-head"><div><h2>' + title + '</h2>' + (subtitle ? '<p>' + subtitle + '</p>' : '') + '</div>' + action + '</div>' + content + '</section>';
 const metric = (label, value, unit = '') => '<div class="metric"><small>' + label + '</small><div><strong>' + escape(value) + '</strong> <span>' + escape(unit) + '</span></div></div>';
 const timeline = (s, date) => [
-  ...byDate(s.plans,date).map(item => ({...item, collection:'plans'})),
+  ...byDate(s.plans,date).filter(p=>!p.cancelled&&p.executionStatus!=='reference-only').map(item => ({...item, collection:'plans'})),
+  ...recurringFor(s,date),
   ...byDate(s.events,date).map(item => ({...item, collection:'events'}))
 ].sort((a,b) => (a.start || '99:99').localeCompare(b.start || '99:99'));
 
@@ -151,11 +154,11 @@ function bars(series, highlighted = chartDate) {
   }).join('') + '</div>';
 }
 function workoutHero(s) {
-  const scheduled=byDate(s.plans,day).find(item=>!item.completed);
+  const scheduled=byDate(s.plans,day).find(item=>!item.completed&&!item.cancelled&&item.executionStatus!=='reference-only');
   // Do not present an unverified generic easy-run fallback as the user's complete PB training plan.
   const plan = scheduled;
   const paused=trainingPaused(s);
-  const runnable=plan && !plan.completed && !['休息','交叉训练'].includes(plan.type);
+  const runnable=plan && !plan.coachIssued && !plan.completed && !['休息','交叉训练'].includes(plan.type);
   const secondary=paused ? btn('伤痛与暂停','training-safety','','quiet') :
     plan?.groupWorkout ? btn('课次详情','group-workout:'+day,'','quiet') :
     plan ? btn('课次详情','open-plan:'+plan.id,'','quiet') : link('选训练计划','run');
@@ -296,6 +299,7 @@ function openPBWorkout(course,dayIndex=null) {
 function scheduleCourse(date) {
   const course=activeCourse?.course;
   if (!course || sample || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date<day || offset(date,0)!==date) return false;
+  if(data.plans.some(p=>p.coachIssued&&!p.cancelled&&Math.abs(Date.parse(p.date)-Date.parse(date))<3*86400000)&&course.quality){formError('已有教练安排，请先与教练核对；不会叠加推荐质量课。');return false;}
   const courseKey=[course.event,course.id,course.pb,course.selectedGroup,course.catalogRevision,date].join('|');
   const existing=data.plans.find(plan=>plan.courseKey===courseKey);
   const ready=courseReadiness(data,{...course,planId:existing?.id},date,day);
@@ -328,9 +332,10 @@ editor.addEventListener('submit',event=>{
   const plan=scheduleCourse(day);
   if (plan) runOptions(plan.id,true);
 });
+const coachUI=createCoachUI({state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
 function training(s) {
   return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
-    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+pbLibraryView(s)+
+    (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+(coachUI.showLibrary()?pbLibraryView(s):'')+
     '<nav class="training-tools" aria-label="训练记录">'+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
@@ -366,7 +371,7 @@ function schedule(s) {
   }).join('');
   return head('SCHEDULE','训练与日程','把工作、学习和跑步放进同一张日历。',btn('新建事项','edit:events:','plus','primary') + btn('安排训练','edit:plans:','calendar')) +
   '<div class="split">' + panel('日历', '<div data-swipe-day="calendar"><div class="calendar-controls">' + btn('上一周期','move:-1','left','quiet') + '<strong>' + escape(calendarMode === 'month' ? selectedDate.slice(0,7) : fullDate(selectedDate)) + '</strong>' + btn('下一周期','move:1','right','quiet') + '</div><div class="calendar-days">' + dateButtons + '</div></div>', '<div class="segmented">' + [['day','日'],['week','周'],['month','月']].map(([mode,label]) => '<button type="button" aria-pressed="' + (calendarMode===mode) + '" data-action="mode:' + mode + '">' + label + '</button>').join('') + '</div>') +
-  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
+  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.recurring?btn('固定时段','coach-settings','','quiet'):item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
   const items = byDate(s.food,foodDate);
@@ -476,6 +481,7 @@ function modal(title, body, variant = '') {
   editor.querySelector('#dialog-title').focus({preventScroll:true});
 }
 function openEditor(collection,id = '',defaults = {}) {
+  if(collection==='plans'&&state().plans.find(p=>p.id===id)?.coachIssued)return coachUI.detail(id);
   const schema = schemas[collection];
   if (!schema) return;
   const item = collection === 'goals' ? state().goals : state()[collection].find(entry => entry.id === id);
@@ -609,6 +615,7 @@ const workoutPlayer=createWorkoutPlayer({editor,modal,btn,escape,prefix:storageP
   savePlanSpec:(id,spec)=>commit(next=>{const plan=next.plans.find(p=>p.id===id);if(!plan||plan.completed)throw new Error('日程不存在或已完成');plan.course.executionSpec=structuredClone(spec);}),
   ready:course=>courseReadiness(state(),course,day,day),otherRunning:()=>Boolean(activeWorkout)||sample,refresh:render,commit});
 const actions = {
+  ...coachUI.actions,
   ...workoutPlayer.actions,
   'course-settings': () => openCourseSettings(),
   'course-apply': applyCourseSelection,
@@ -890,6 +897,8 @@ function runOptions(id,courseConfirmed=false) {
   if (activeWorkout) return timerView();
   if (id && trainingPaused(data)) return showTrainingHold();
   pendingPlan = data.plans.find(plan=>plan.id===id) || groupWeek(data,day,data.groupPlan).find(plan=>plan.id===id && plan.date===day && plan.type!=='休息' && plan.type!=='交叉训练');
+  if(pendingPlan?.cancelled||pendingPlan?.executionStatus==='reference-only')return notify('已取消或历史参考课次不能作为当前执行计划。');
+  if(pendingPlan?.coachIssued)return notify('录入内容尚未校验为分段执行课表；可独立记录实际运动，不能把计划当作完成。');
   if (pendingPlan?.previewOnly) return notify('请从课程详情主动选课，浏览课表不会自动安排执行。');
   if (pendingPlan?.course) {
     activeCourse={course:{...pendingPlan.course,planId:pendingPlan.id},date:day};
@@ -1468,6 +1477,7 @@ function showSpecialty([index]) {
 function showWorkout([id]) {
   const plan=state().plans.find(item=>item.id===id);
   if (!plan) return;
+  if (plan.coachIssued) return coachUI.detail(plan.id);
   if (plan.course) return openPBWorkout({...plan.course,planId:plan.id},Math.round((Date.parse(plan.date)-Date.parse(day))/86400000));
   const fromEngine=plan.engineVersion===cycleVersion;
   const blocks=fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
