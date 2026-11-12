@@ -1,6 +1,6 @@
 // @ts-check
 /** @typedef {{mode:string,seconds:number|null,distanceM:number|null,description?:string}} Recovery */
-/** @typedef {{id:string,repeats:number,amount:number|null,unit:'m'|'min'|'sec',target:string,recovery:Recovery}} TrainingPart */
+/** @typedef {{id:string,repeats:number,amount:number|null,unit:'m'|'min'|'sec',target:string,recovery:Recovery,label?:string,skill?:boolean}} TrainingPart */
 /** @typedef {{version:1,sets:number,warmup:string,cooldown:string,parts:TrainingPart[],setRecovery:Recovery}} TrainingStructure */
 /** @typedef {{kind:'warmup'|'work'|'recovery'|'cooldown',label:string,detail:string,partId?:string,set?:number}} Segment */
 /** @returns {TrainingStructure} */
@@ -34,7 +34,7 @@ export function structureSummary(s){
 export function structureSegments(s){
  /** @type {Segment[]} */const rows=[{kind:'warmup',label:'准备',detail:s.warmup||'热身内容待补'}];
  for(let set=1;set<=s.sets;set++)s.parts.forEach((p,i)=>{for(let rep=1;rep<=p.repeats;rep++){
-  rows.push({kind:'work',label:(p.amount??'—')+({m:'m',min:'分',sec:'秒'})[p.unit],detail:'第'+set+'组 · 第'+rep+'趟 · '+(p.target||'目标待补'),partId:p.id,set});
+  rows.push({kind:'work',label:p.label||(p.amount??'—')+({m:'m',min:'分',sec:'秒'})[p.unit],detail:p.skill?p.target:'第'+set+'组 · 第'+rep+'趟 · '+(p.target||'目标待补'),partId:p.id,set});
   if(rep<p.repeats||i<s.parts.length-1)rows.push({kind:'recovery',label:'恢复',detail:restText(p.recovery),partId:p.id,set});
   else if(set<s.sets)rows.push({kind:'recovery',label:'组间',detail:restText(s.setRecovery),set});
  }});
