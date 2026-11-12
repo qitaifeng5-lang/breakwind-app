@@ -15,24 +15,29 @@
     "check:syntax": "node scripts/check-project.mjs syntax",
     "check:ios": "node scripts/check-project.mjs ios",
     "lint": "eslint .",
-    "check:types": "tsc -p tsconfig.workbench.json"
+    "check:types": "tsc -p tsconfig.workbench.json",
+    "build:native-web": "node scripts/export-native-web.mjs",
+    "premobile:start": "npm run build:native-web",
+    "premobile:ios": "npm run build:native-web",
+    "premobile:bundle": "npm run build:native-web"
   },
   "dependencies": {
-    "@kingstinct/react-native-healthkit": "16.2.0",
     "expo": "56.0.24",
     "expo-constants": "~56.0.27",
     "expo-dev-client": "~56.0.28",
+    "expo-file-system": "~56.0.11",
     "expo-location": "~56.0.26",
+    "expo-sharing": "~56.0.27",
     "expo-sqlite": "~56.0.6",
     "expo-task-manager": "~56.0.27",
     "react": "19.2.3",
     "react-native": "0.85.3",
-    "react-native-nitro-modules": "0.37.2",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-svg": "15.15.4"
+    "react-native-webview": "13.16.1"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
+    "esbuild": "^0.28.2",
     "eslint": "9.39.1",
     "globals": "16.5.0",
     "typescript": "5.9.3"

@@ -5,3 +5,5 @@ ios/
 android/
 playwright-report/
 test-results/
+
+native/generated/

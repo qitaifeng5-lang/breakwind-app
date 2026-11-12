@@ -12,24 +12,6 @@ test('full-page coach review is reading-first, drafts survive restart, discard d
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')||'{"plans":[]}').plans)).toHaveLength(0);
  await click(page,'录入／粘贴课表');await expect(page.locator('[name=name]')).toHaveValue('');
 });
-test('open-ended preparation and cooldown preserve work/recovery gates and exact actual totals',async({page})=>{
- await page.clock.install();await page.goto('/#run');
- await page.evaluate(async()=>{
-  const {fresh,dateKey}=await import('/model.js'),{pbCourses}=await import('/pb-library.js');const s=fresh(),date=dateKey();
-  const c=pbCourses('1500 m',270,{group:'base'}).find(c=>c.id==='tempo');
-  s.plans=[{id:'tempo-open',date,name:c.name,type:'阈值跑',course:{...c,executionSpec:c.prescription},completed:false}];localStorage.setItem('breakwind.local.v1',JSON.stringify(s));
- });await page.goto('/#home');await page.reload();await page.locator('[data-action="open-plan:tempo-open"]').click();
- await expect(page.locator('.course-block h3')).toHaveText(['热身','主训练','恢复说明','冷身']);
- const box=await page.locator('#editor').boundingBox();const inset=page.viewportSize().width>800?224:0;expect(box.width).toBe(page.viewportSize().width-inset);expect(box.x).toBe(inset);
- await page.addStyleTag({content:'html{font-size:24px}'});
- await expect(page.locator('#editor')).toHaveJSProperty('scrollWidth',await page.locator('#editor').evaluate(n=>n.clientWidth));
- await click(page,'开始记录');await click(page,'确认并热身');for(const c of await page.locator('[data-warmup]').all())await c.check();
- await page.clock.fastForward(7000);await click(page,'完成本阶段');await click(page,'完成本趟');await expect(page.locator('#course-player-error')).toContainText('计时尚未完成');
- for(let i=0;i<3;i++){await page.clock.fastForward(300000);await click(page,'完成本趟');if(i<2){await click(page,'恢复完成');await expect(page.locator('#course-player-error')).toContainText('恢复时间尚未到');await page.clock.fastForward(60000);await click(page,'恢复完成');}}
- await expect(page.locator('#course-remaining')).toContainText('无固定时间门槛');await page.clock.fastForward(3000);await click(page,'完成本阶段');await click(page,'保存分段记录');
- const s=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));expect(s.runs[0].minutes*60).toBeCloseTo(s.runs[0].courseSession.logs.reduce((n,l)=>n+l.actualSeconds,0),6);expect(s.runs[0].courseSession.logs[0].actualSeconds).toBeLessThan(60);expect(s.runs[0].courseSession.logs.at(-1).actualSeconds).toBeLessThan(60);expect(s.runs[0].distanceMeasured).toBe(false);expect(s.runs[0].courseSession.logs.filter(l=>l.step.kind==='recovery')).toHaveLength(2);expect(s.plans[0].course.executionSpec.warmup[0].durationSeconds).toBeUndefined();
-});
-
 test('long review and enlarged text keep last section and bottom action reachable in a reduced viewport',async({page})=>{
  await page.goto('/#run');await click(page,'录入／粘贴课表');await page.locator('[name=name]').fill('800m 节奏训练');await page.locator('[name=original]').fill('热身：轻松慢跑、动态准备\n主训练：'+ '按既有教练安排核对每趟目标。'.repeat(35)+'\n恢复：步行恢复，时间待补\n冷身：轻松慢跑、放松整理');await click(page,'预览');
  await page.addStyleTag({content:'html{font-size:24px}'});await page.setViewportSize({width:390,height:430});

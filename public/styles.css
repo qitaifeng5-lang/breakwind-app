@@ -497,7 +497,7 @@ main { animation:none }
 .compact-workout.executable-spec{border:0;margin:8px 0;padding:0}.compact-workout .course-block{padding:20px 0;margin:0;border-bottom:1px solid var(--line)}.compact-workout .course-block h3{font-size:.8rem;color:var(--sub);font-weight:500;margin:0 0 10px}.compact-workout .course-block p{margin:0;line-height:1.7}.compact-workout .execution-line{font-size:.95rem;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.compact-workout .rep-rest{display:block;margin:7px 0 14px;color:var(--sub)}.compact-workout .rep-rest:last-child{margin-bottom:0}.compact-workout .workout-set-count{margin-bottom:10px!important}.execution-notes,.course-original{padding:14px 0;margin:0}.execution-notes summary,.course-original>summary{color:var(--sub);font-size:.85rem}.course-detail>.detail-cover{display:none}.course-detail>.course-kicker{margin:12px 0 18px}.course-detail .dialog-actions{gap:10px}.compact-workout .course-segments{margin:0}.compact-workout .course-segments li{padding:8px 0}
 
 /* Reading-first training pages share the actual App viewport, not a device frame. */
-#editor[data-variant=page],#editor[data-variant=live]{inset:0;bottom:var(--keyboard-inset,0px);width:100%;max-width:none;height:var(--visible-height,100dvh);max-height:none;margin:0;border:0;border-radius:0;background:#101115;box-shadow:none}
+#editor[data-variant=page],#editor[data-variant=live]{inset:0;bottom:var(--keyboard-inset,0px);width:100%;max-width:none;height:min(100dvh,var(--visible-height,100dvh));max-height:none;margin:0;border:0;border-radius:0;background:#101115;box-shadow:none}
 #editor[data-variant=page] .dialog-head,#editor[data-variant=live] .dialog-head{padding:max(12px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));gap:12px;justify-content:flex-start;background:#101115}
 #editor[data-variant=page] .dialog-head h2{font-size:1.2rem;line-height:1.5;overflow-wrap:anywhere}
 #editor[data-variant=page] .dialog-body,#editor[data-variant=live] .dialog-body{width:100%;max-width:1100px;margin-inline:auto;padding:24px clamp(20px,4vw,56px) calc(28px + env(safe-area-inset-bottom));scroll-padding-block:24px 110px;box-sizing:border-box}
@@ -553,7 +553,7 @@ main { animation:none }
 html[data-page]{--bg:#0a101b;--surface:#151e2c;--line:#293344;--text:#f1f5fa;--sub:#aab5c5;--red:#f43f50;overflow:hidden;background:#0a101b}
 html[data-page] body{background:#0a101b}html[data-page] .sidebar{width:224px;background:#0d1522;border-color:#293344}
 html[data-page] .workspace>#main,html[data-page] .workspace>.topbar,html[data-page] .workspace>footer,html[data-page] .bottom-nav{display:none}
-#editor[data-variant=page],#editor[data-variant=live]{position:fixed;left:224px;right:0;top:var(--visible-top,0px);bottom:auto;width:auto;height:var(--visible-height,100dvh);max-height:none;margin:0;background:#0a101b;border:0;border-radius:0;box-shadow:none}
+#editor[data-variant=page],#editor[data-variant=live]{position:fixed;left:224px;right:0;top:var(--visible-top,0px);bottom:auto;width:auto;height:min(100dvh,var(--visible-height,100dvh));max-height:none;margin:0;background:#0a101b;border:0;border-radius:0;box-shadow:none}
 #editor[data-variant=page] .dialog-head{flex:none;margin:0;padding:16px 36px;border-bottom:1px solid #243044;background:#0d1522;min-height:68px}
 #editor[data-variant=page] .dialog-head h2{font-size:1rem;color:#aab5c5;font-weight:500}
 #editor[data-variant=page] .dialog-body{max-width:1200px;padding:32px 36px 36px;scroll-padding-block:20px 32px;width:100%;min-height:0}
@@ -626,3 +626,10 @@ html[data-page] .workspace>#main,html[data-page] .workspace>.topbar,html[data-pa
  #editor .workout-detail .phase-card h3{font-size:1.125rem}#editor .workout-detail .phase-content .execution-line{font-size:1.25rem}
  .detail-statistics>div{padding:20px}.detail-statistics dt{font-size:.875rem}.detail-statistics dd{font-size:1.0625rem}
 }
+/* Launch focus: two destinations, same reading design. */
+.bottom-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.completion-choices{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.completion-choices label{display:flex;align-items:center;gap:8px;padding:18px;border:1px solid #344154;border-radius:16px;background:#151e2c}.completion-choices label:has(:checked){border-color:#f43f50;background:#291d2a}#completion-form{display:grid;gap:20px}#completion-form textarea{width:100%;min-height:100px}#launch-move{display:grid;gap:20px}#topbar .icon-button{margin-left:auto}
+#native-save-status{position:fixed;z-index:1000;top:env(safe-area-inset-top,0px);left:12px;right:12px;padding:10px 16px;background:#263143;color:#fff;border-radius:12px;font-size:14px}
+
+#native-save-status{pointer-events:none}
+
+.training-mobile-settings{display:none}@media(max-width:690px){.training-product .page-head{position:relative}.training-product .page-head h1{padding-right:48px}.training-mobile-settings{display:grid;position:absolute;top:0;right:0;width:40px;height:40px}}

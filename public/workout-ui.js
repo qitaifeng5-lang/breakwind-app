@@ -37,7 +37,7 @@ export function createWorkoutPlayer(api) {
   }
   function notes(){
     const spec=course?.executionSpec;
-    return '<div class="execution-notes"><p>热身、冷身由本人确认结束。历史编排中的准备时长仅留作来源记录，不作为当前完成门槛。</p>'+ (course.prescription?'':btn('录入已有教练课表','workout-config','','secondary'))+(spec?totalsHTML(spec)+'<p>参数来源：'+esc(spec.parameterSource)+'</p>':'<p>模板提供完整编排；已有独立教练课表才使用录入入口。</p>')+'</div>';
+    return '<div class="execution-notes"><p>热身、冷身由本人确认结束。历史编排中的准备时长仅留作来源记录，不作为当前完成门槛。</p>'+ (course.prescription||api.readingOnly?'':btn('录入已有教练课表','workout-config','','secondary'))+(spec?totalsHTML(spec)+'<p>参数来源：'+esc(spec.parameterSource)+'</p>':'<p>模板提供完整编排；已有独立教练课表才使用录入入口。</p>')+'</div>';
   }
 
   function totalsHTML(spec) {
@@ -122,6 +122,7 @@ export function createWorkoutPlayer(api) {
     } catch(error){const box=form.querySelector('.form-error');box.hidden=false;box.textContent=error.message;}
   });
   function start(c) {
+    if(api.readingOnly)return;
     course=hydrate(c);
     if(session){view();return;}
     if(api.otherRunning())return api.notify('请先结束现有跑步记录');
@@ -150,6 +151,7 @@ export function createWorkoutPlayer(api) {
     }catch(error){const box=f.querySelector('.form-error');box.hidden=false;box.textContent=error.message;}
   });
   function begin() {
+    if(api.readingOnly)return;
     if(session||api.otherRunning()||!api.ready(course).canSchedule)return;
     session=newSession(course.executionSpec,course,Date.now(),crypto.randomUUID());
     if(!persist()){session=null;return;}api.refresh();view();
@@ -164,8 +166,9 @@ export function createWorkoutPlayer(api) {
     if(remaining)remaining.textContent=duration?elapsed>=duration?'参考时间已到，按实际完成情况确认':'距离参考时间 '+clock(duration-elapsed):freePhase?'按实际准备或整理情况确认，无固定时间门槛':'按场地距离手动确认';
     if(duration&&elapsed>=duration&&!alerted&&session.anchor!==null){alerted=true;if(feedback&&navigator.vibrate)navigator.vibrate([100,80,100]);}
   }
-  setInterval(()=>{tick();if(session?.status==='active'&&session.anchor!==null)persist();},1000);
+  // Launch is reading-only: no playback clock or vibration polling.
   function view() {
+    if(api.readingOnly)return summary();
     if(!session)return;
     if(session.status!=='active')return summary();
     const step=session.steps[session.index];
@@ -201,14 +204,14 @@ export function createWorkoutPlayer(api) {
       if(!data.runs.some(r=>r.id===record.id))data.runs.push(record);
       if(record.pain)data.trainingHold=true;
       const plan=data.plans.find(p=>p.id===session.course.planId);
-      if(plan&&session.status==='complete')plan.completed=true;
+      if(plan&&session.status==='complete')plan.legacyRunSaved=true;
     }))return;
     session=null;persist();editor.close();api.refresh();api.notify('已保存分段记录');
   }
   editor.addEventListener('change',event=>{if(event.target.id==='course-vibrate')feedback=event.target.checked;if(event.target.matches('[data-warmup]')&&session){session.checks=[...editor.querySelectorAll('[data-warmup]:checked')].map(n=>Number(n.dataset.warmup));persist();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&session?.status==='active'){pauseSession(session,Date.now());persist();}else if(!document.hidden&&session&&editor.querySelector('.course-live'))view();});
   window.addEventListener('pagehide',()=>{if(session?.status==='active'){pauseSession(session,Date.now());persist();}});
-  return {detail,notes,hydrate,start,view,history:summary,hasSession:()=>Boolean(session),actions:{
+  return {legacyStop:()=>{if(session){stopSession(session,Date.now(),'user');persist();summary();}},detail,notes,hydrate,start,view,history:summary,hasSession:()=>Boolean(session),actions:{
     'workout-config':configure,'workout-back':()=>api.openCourse(course),'workout-begin':begin,'workout-resume':view,'workout-next':next,'workout-save':save,
     'workout-pause':()=>{if(!session)return;if(session.anchor===null){if(!api.ready(session.course).canSchedule)return api.notify(api.ready(session.course).reason);session.anchor=Date.now();}else pauseSession(session,Date.now());persist();view();},
     'workout-stop':()=>{if(!session)return;stopSession(session,Date.now(),'user');persist();summary();},

@@ -1,3 +1,4 @@
+import {completionSummary} from './completion.js';
 import {pbWeek,pbCourses,courseContentComplete,competitiveRevision} from './pb-library.js';
 import {offset,dateKey} from './model.js';
 import {courseReadiness} from './engine.js';
@@ -55,9 +56,9 @@ export function saveProgram(data,draft,{now=Date.now(),mode='production',id=glob
 export function programReview(data,program,weekIndex=program.cursor,today=dateKey()) {
   const plans=data.plans.filter(p=>p.programId===program.programId&&p.programWeek===weekIndex);
   const runs=data.runs.filter(r=>plans.some(p=>r.courseSession?.course?.planId===p.id||r.planId===p.id));
-  return {planned:plans.filter(p=>!p.cancelled).length,completed:plans.filter(p=>p.completed||runs.some(r=>r.courseSession?.course?.planId===p.id||r.planId===p.id)).length,
-    cancelled:plans.filter(p=>p.cancelled).length,missed:plans.filter(p=>!p.completed&&!p.cancelled&&p.date<today&&!runs.some(r=>r.courseSession?.course?.planId===p.id||r.planId===p.id)).map(p=>p.id),actualRuns:runs.length,
-    note:'只统计关联的实际记录；未完成不自动补堆，不凭完成率提高剂量'};
+  const summary=completionSummary(plans,today);
+  return {planned:plans.filter(p=>!p.cancelled).length,...summary,cancelled:plans.filter(p=>p.cancelled).length,missed:plans.filter(p=>p.trainingOutcome?.status==='missed').map(p=>p.id),actualRuns:runs.length,
+    note:'完成情况来自用户明确记录；关联运动历史单独保留，未知数据不推算，不补堆漏课，不因完成率加量'};
 }
 export function previewProgramWeek(data,program,index,{today=dateKey(),timezone=Intl.DateTimeFormat().resolvedOptions().timeZone,build='local'}={}) {
   const week=program.weeks[index];if(!week)throw Error('周号不存在');
@@ -104,7 +105,7 @@ export function proposeProgramChange(data,id,{kind='auto',today=dateKey()}={}) {
   const reasons={recover:'近期恢复不足：下一周替换为恢复周，不补堆遗漏质量课',hold:'保持已熟悉结构，不因成绩或打卡提高剂量'};
   if(!reasons[kind])throw Error('未知调整');
   const source=kind==='recover'?pbWeek(p.event,p.pb,{group:p.cohort,phase:'recover'}):p.weeks[p.cursor].courses;
-  const reason=(protectedRecovery?'保留原计划恢复周，不用巩固建议替换成质量周':reasons[kind])+'；关联完成'+evidence.completed+'课、过期未完成'+evidence.missed.length+'课。'+(['paused','recovery'].includes(readiness.status)?readiness.reason:'没有恢复异常记录不等于已经确认适合升级。');
+  const reason=(protectedRecovery?'保留原计划恢复周，不用巩固建议替换成质量周':reasons[kind])+'；关联完成'+evidence.completed+'课、部分完成'+evidence.partial+'课、未记录'+evidence.unreported.length+'课。'+(['paused','recovery'].includes(readiness.status)?readiness.reason:'没有恢复异常记录不等于已经确认适合升级。');
   return {programId:id,baseRevision:p.revisionHistory.length,index,kind,today,reason,evidence,pause:readiness.status==='paused',referencePerformance:structuredClone(data.records),courses:structuredClone(source),before:structuredClone(p.weeks[index])};
 }
 export function confirmProgramChange(data,proposal,{mode='production',now=Date.now()}={}) {

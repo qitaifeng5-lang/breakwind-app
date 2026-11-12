@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+const revision=process.env.GITHUB_SHA||execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const result=await build({entryPoints:['public/app.js'],bundle:true,write:false,format:'iife',platform:'browser',target:['safari16.4'],minify:true});
+const asset=async(name,type)=>'data:'+type+';base64,'+(await readFile('public/'+name)).toString('base64');
+const icon=await asset('icon.svg','image/svg+xml'),hero=await asset('hero.jpg','image/jpeg');
+let html=await readFile('public/index.html','utf8'),css=await readFile('public/styles.css','utf8'),js=result.outputFiles[0].text;
+css=css.replaceAll('hero.jpg',hero);js=js.replaceAll('icon.svg',icon);
+html=html.replace(/<link[^>]+>/g,'').replace('<head>','<head><meta name="breakwind-native" content="'+revision+'"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:; connect-src \'none\'; base-uri \'none\'; form-action \'none\'">').replace('<script type="module" src="app.js"></script>',()=>'<script>/*__BREAKWIND_NATIVE_BOOT__*/</script><script>'+js.replaceAll('</script','<\\/script')+'</script>').replace('</head>',()=>'<style>'+css+'</style></head>');
+await mkdir('native/generated',{recursive:true});await writeFile('native/generated/web.js','// Generated from the official web entry. Do not edit.\nexport const revision='+JSON.stringify(revision)+';\nexport const html='+JSON.stringify(html)+';\n');await mkdir('.expo',{recursive:true});await writeFile('.expo/native-shell.html',html);console.log('Bundled offline native reading app: '+revision+' · '+Buffer.byteLength(html)+' bytes');

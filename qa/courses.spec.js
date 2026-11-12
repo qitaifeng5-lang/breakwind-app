@@ -12,10 +12,10 @@ test('PB changes applicability, not dose or recovery; withdrawn combinations can
   await click(page,'返回');await click(page,'调整专项与PB');await click(page,'2:00');
   await click(page,'200m 专项耐受');await expect(dialog.locator('.execution-line')).toContainText('10×200m');
   await expect(dialog.locator('.rep-rest')).toContainText('120秒');
-  await click(page,'加入日程');await click(page,'200m 专项耐受');await expect(dialog.getByRole('button',{name:'加入日程',exact:true})).toHaveCount(0);await click(page,'返回');
+  await click(page,'加入课表');await click(page,'200m 专项耐受');await expect(dialog.getByRole('button',{name:'加入课表',exact:true})).toHaveCount(0);await click(page,'返回');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).plans.length)).toBe(1);
   await click(page,'按类型浏览');await click(page,'教学存档');await click(page,'200 + 150 组合');
-  await expect(dialog.getByRole('button',{name:'加入日程'})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'加入课表'})).toHaveCount(0);
   await expect(dialog.locator('.course-readiness')).toContainText('仅供审查浏览');
 });
 
@@ -28,7 +28,7 @@ test('PB precision, hours, cancellation and reload never alter a scheduled cours
   await dialog.getByRole('combobox',{name:'百分秒',exact:true}).selectOption('30');
   await click(page,'保存成绩');
   await expect(page.locator('.pb-tiers-label')).toContainText('2:05.30');
-  await click(page,'200m 专项耐受');await click(page,'加入日程');
+  await click(page,'200m 专项耐受');await click(page,'加入课表');
   const before=await page.evaluate(()=>localStorage.getItem('breakwind.local.v1'));
   await click(page,'调整专项与PB');await click(page,'半马');await click(page,'自定义成绩');
   await dialog.getByRole('combobox',{name:'小时',exact:true}).selectOption('1');
@@ -51,11 +51,11 @@ test('youth can discover every category and coached technical variants but not s
   await click(page,'200m 专项耐受');
   const dialog=page.locator('#editor[open]');
   await expect(dialog).toContainText('教练结合成熟度评估');
-  await expect(dialog.getByRole('button',{name:'加入日程'})).toHaveCount(0);
+  await expect(dialog.getByRole('button',{name:'加入课表'})).toHaveCount(0);
   await click(page,'返回');await click(page,'按类型浏览');await click(page,'速度与技术');await click(page,'协调与跑姿练习');
   await expect(dialog).toContainText('教练带领步频');
   await expect(dialog).not.toContainText('4 × 60m');
-  await expect(dialog.getByRole('button',{name:'加入日程'})).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'加入课表'})).toBeVisible();
 });
 
 test('course search and interruptible expansion work with motion and reduce motion',async({page})=>{
