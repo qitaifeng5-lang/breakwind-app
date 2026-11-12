@@ -1,0 +1,600 @@
+{
+  "date": "2026-11-12",
+  "method": "真实官方批量数据本地查询；不是远程API实时返回，也不是虚构fixture",
+  "results": [
+    {
+      "query": "米饭",
+      "result": "通用参考／近似",
+      "id": "fdc-168878",
+      "name": "Rice, white, long-grain, regular, enriched, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "count": 61
+    },
+    {
+      "query": "米飯",
+      "result": "通用参考／近似",
+      "id": "fdc-168878",
+      "name": "Rice, white, long-grain, regular, enriched, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "count": 61
+    },
+    {
+      "query": "mifan",
+      "result": "通用参考／近似",
+      "id": "fdc-168878",
+      "name": "Rice, white, long-grain, regular, enriched, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "count": 61
+    },
+    {
+      "query": "糙米",
+      "result": "通用参考／近似",
+      "id": "fdc-168875",
+      "name": "Rice, brown, medium-grain, cooked (Includes foods for USDA's Food Distribution Program)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168875/nutrients",
+      "count": 68
+    },
+    {
+      "query": "面条",
+      "result": "通用参考／近似",
+      "id": "fdc-168907",
+      "name": "Noodles, japanese, soba, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168907/nutrients",
+      "count": 959
+    },
+    {
+      "query": "面包",
+      "result": "通用参考／近似",
+      "id": "fdc-171850",
+      "name": "Bread, wheat, sprouted",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171850/nutrients",
+      "count": 403
+    },
+    {
+      "query": "馒头",
+      "result": "估算",
+      "id": "recipe-mantou",
+      "name": "馒头（可改配方估算）",
+      "market": "家庭配方示例",
+      "count": 1
+    },
+    {
+      "query": "包子",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "饺子",
+      "result": "估算",
+      "id": "recipe-dumpling",
+      "name": "猪肉白菜水饺（可改配方估算）",
+      "market": "家庭配方示例",
+      "count": 25
+    },
+    {
+      "query": "粥",
+      "result": "估算",
+      "id": "fdc-2708418",
+      "name": "Congee",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708418/nutrients",
+      "count": 5
+    },
+    {
+      "query": "燕麦",
+      "result": "通用参考／近似",
+      "id": "fdc-169705",
+      "name": "Oats (Includes foods for USDA's Food Distribution Program)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169705/nutrients",
+      "count": 575
+    },
+    {
+      "query": "全脂牛奶",
+      "result": "通用参考／近似",
+      "id": "fdc-171265",
+      "name": "Milk, whole, 3.25% milkfat, with added vitamin D",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171265/nutrients",
+      "count": 1
+    },
+    {
+      "query": "牛奶",
+      "result": "通用参考／近似",
+      "id": "fdc-171265",
+      "name": "Milk, whole, 3.25% milkfat, with added vitamin D",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171265/nutrients",
+      "count": 1060
+    },
+    {
+      "query": "niunai",
+      "result": "通用参考／近似",
+      "id": "fdc-171265",
+      "name": "Milk, whole, 3.25% milkfat, with added vitamin D",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171265/nutrients",
+      "count": 1060
+    },
+    {
+      "query": "酸奶",
+      "result": "通用参考／近似",
+      "id": "fdc-170886",
+      "name": "Yogurt, plain, low fat",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/170886/nutrients",
+      "count": 3125
+    },
+    {
+      "query": "奶酪",
+      "result": "通用参考／近似",
+      "id": "fdc-167703",
+      "name": "Cheese, cottage, lowfat, 1% milkfat, lactose reduced",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/167703/nutrients",
+      "count": 2135
+    },
+    {
+      "query": "鸡蛋",
+      "result": "通用参考／近似",
+      "id": "fdc-173424",
+      "name": "Egg, whole, cooked, hard-boiled",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/173424/nutrients",
+      "count": 464
+    },
+    {
+      "query": "jidan",
+      "result": "通用参考／近似",
+      "id": "fdc-173424",
+      "name": "Egg, whole, cooked, hard-boiled",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/173424/nutrients",
+      "count": 464
+    },
+    {
+      "query": "水煮蛋",
+      "result": "通用参考／近似",
+      "id": "fdc-173424",
+      "name": "Egg, whole, cooked, hard-boiled",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/173424/nutrients",
+      "count": 1
+    },
+    {
+      "query": "豆腐",
+      "result": "通用参考／近似",
+      "id": "fdc-172475",
+      "name": "Tofu, raw, firm, prepared with calcium sulfate",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/172475/nutrients",
+      "count": 58
+    },
+    {
+      "query": "老豆腐",
+      "result": "通用参考／近似",
+      "id": "fdc-172475",
+      "name": "Tofu, raw, firm, prepared with calcium sulfate",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/172475/nutrients",
+      "count": 1
+    },
+    {
+      "query": "豆浆",
+      "result": "通用参考／近似",
+      "id": "fdc-172446",
+      "name": "Soymilk, original and vanilla, unfortified",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/172446/nutrients",
+      "count": 116
+    },
+    {
+      "query": "毛豆",
+      "result": "通用参考／近似",
+      "id": "fdc-169283",
+      "name": "Soybeans, green, cooked, boiled, drained, without salt",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169283/nutrients",
+      "count": 22
+    },
+    {
+      "query": "黄豆",
+      "result": "通用参考／近似",
+      "id": "fdc-168460",
+      "name": "Soybeans, mature seeds, sprouted, cooked, steamed",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168460/nutrients",
+      "count": 47
+    },
+    {
+      "query": "鸡胸肉",
+      "result": "通用参考／近似",
+      "id": "fdc-171477",
+      "name": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171477/nutrients",
+      "count": 1
+    },
+    {
+      "query": "牛肉",
+      "result": "通用参考／近似",
+      "id": "fdc-168608",
+      "name": "Beef, grass-fed, ground, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168608/nutrients",
+      "count": 1598
+    },
+    {
+      "query": "猪肉",
+      "result": "通用参考／近似",
+      "id": "fdc-167810",
+      "name": "Pork, fresh, composite of trimmed leg, loin, shoulder, and spareribs, (includes cuts to be cured), separable lean and fat, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/167810/nutrients",
+      "count": 669
+    },
+    {
+      "query": "羊肉",
+      "result": "通用参考／近似",
+      "id": "fdc-172485",
+      "name": "Lamb, leg, shank half, separable lean and fat, trimmed to 1/4\" fat, choice, cooked, roasted",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/172485/nutrients",
+      "count": 312
+    },
+    {
+      "query": "三文鱼",
+      "result": "通用参考／近似",
+      "id": "fdc-175168",
+      "name": "Fish, salmon, Atlantic, farmed, cooked, dry heat",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/175168/nutrients",
+      "count": 64
+    },
+    {
+      "query": "虾",
+      "result": "通用参考／近似",
+      "id": "fdc-171971",
+      "name": "Crustaceans, shrimp, mixed species, cooked, moist heat (may contain additives to retain moisture)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171971/nutrients",
+      "count": 110
+    },
+    {
+      "query": "苹果",
+      "result": "通用参考／近似",
+      "id": "fdc-171688",
+      "name": "Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171688/nutrients",
+      "count": 643
+    },
+    {
+      "query": "香蕉",
+      "result": "通用参考／近似",
+      "id": "fdc-173944",
+      "name": "Bananas, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/173944/nutrients",
+      "count": 489
+    },
+    {
+      "query": "橙子",
+      "result": "通用参考／近似",
+      "id": "fdc-169097",
+      "name": "Oranges, raw, all commercial varieties",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169097/nutrients",
+      "count": 723
+    },
+    {
+      "query": "草莓",
+      "result": "通用参考／近似",
+      "id": "fdc-167762",
+      "name": "Strawberries, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/167762/nutrients",
+      "count": 1576
+    },
+    {
+      "query": "蓝莓",
+      "result": "通用参考／近似",
+      "id": "fdc-171711",
+      "name": "Blueberries, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171711/nutrients",
+      "count": 551
+    },
+    {
+      "query": "西瓜",
+      "result": "通用参考／近似",
+      "id": "fdc-167765",
+      "name": "Watermelon, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/167765/nutrients",
+      "count": 129
+    },
+    {
+      "query": "芒果",
+      "result": "通用参考／近似",
+      "id": "fdc-169910",
+      "name": "Mangos, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169910/nutrients",
+      "count": 392
+    },
+    {
+      "query": "牛油果",
+      "result": "通用参考／近似",
+      "id": "fdc-171705",
+      "name": "Avocados, raw, all commercial varieties",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171705/nutrients",
+      "count": 17
+    },
+    {
+      "query": "西兰花",
+      "result": "通用参考／近似",
+      "id": "fdc-169967",
+      "name": "Broccoli, cooked, boiled, drained, without salt",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169967/nutrients",
+      "count": 306
+    },
+    {
+      "query": "胡萝卜",
+      "result": "通用参考／近似",
+      "id": "fdc-169339",
+      "name": "Carrots, cooked, boiled, drained, with salt",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169339/nutrients",
+      "count": 374
+    },
+    {
+      "query": "黄瓜",
+      "result": "通用参考／近似",
+      "id": "fdc-168409",
+      "name": "Cucumber, with peel, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168409/nutrients",
+      "count": 42
+    },
+    {
+      "query": "西红柿",
+      "result": "通用参考／近似",
+      "id": "fdc-170050",
+      "name": "Tomatoes, red, ripe, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/170050/nutrients",
+      "count": 580
+    },
+    {
+      "query": "菠菜",
+      "result": "通用参考／近似",
+      "id": "fdc-168462",
+      "name": "Spinach, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168462/nutrients",
+      "count": 136
+    },
+    {
+      "query": "土豆",
+      "result": "通用参考／近似",
+      "id": "fdc-170026",
+      "name": "Potatoes, flesh and skin, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/170026/nutrients",
+      "count": 1445
+    },
+    {
+      "query": "红薯",
+      "result": "通用参考／近似",
+      "id": "fdc-168483",
+      "name": "Sweet potato, cooked, baked in skin, flesh, without salt",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168483/nutrients",
+      "count": 98
+    },
+    {
+      "query": "玉米",
+      "result": "通用参考／近似",
+      "id": "fdc-168397",
+      "name": "Corn, sweet, yellow, canned, drained solids, rinsed with tap water",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168397/nutrients",
+      "count": 864
+    },
+    {
+      "query": "花生",
+      "result": "通用参考／近似",
+      "id": "fdc-172430",
+      "name": "Peanuts, all types, raw",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/172430/nutrients",
+      "count": 647
+    },
+    {
+      "query": "杏仁",
+      "result": "通用参考／近似",
+      "id": "fdc-168592",
+      "name": "Nuts, almonds, honey roasted, unblanched",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168592/nutrients",
+      "count": 594
+    },
+    {
+      "query": "核桃",
+      "result": "通用参考／近似",
+      "id": "fdc-170186",
+      "name": "Nuts, walnuts, black, dried",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/170186/nutrients",
+      "count": 53
+    },
+    {
+      "query": "咖啡",
+      "result": "通用参考／近似",
+      "id": "fdc-171881",
+      "name": "Beverages, coffee, brewed, breakfast blend",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/171881/nutrients",
+      "count": 849
+    },
+    {
+      "query": "奶茶",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "番茄炒蛋",
+      "result": "估算",
+      "id": "recipe-tomato-egg",
+      "name": "番茄炒蛋（可改配方估算）",
+      "market": "家庭配方示例",
+      "count": 1
+    },
+    {
+      "query": "蛋炒饭",
+      "result": "估算",
+      "id": "recipe-egg-rice",
+      "name": "鸡蛋炒饭（可改配方估算）",
+      "market": "家庭配方示例",
+      "count": 1
+    },
+    {
+      "query": "清炒菠菜",
+      "result": "估算",
+      "id": "recipe-spinach",
+      "name": "清炒菠菜（可改配方估算）",
+      "market": "家庭配方示例",
+      "count": 1
+    },
+    {
+      "query": "可口可乐",
+      "result": "品牌候选，需核对口味规格",
+      "id": "fdc-1145325",
+      "name": "Coke 20OZA PL BT",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1145325/nutrients",
+      "count": 429
+    },
+    {
+      "query": "桂格",
+      "result": "品牌候选，需核对口味规格",
+      "id": "fdc-1437950",
+      "name": "CINNAMON MULTIGRAIN CEREAL, CINNAMON",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1437950/nutrients",
+      "count": 877
+    },
+    {
+      "query": "日清",
+      "result": "品牌候选，需核对口味规格",
+      "id": "fdc-2145813",
+      "name": "KOREAN BBQ FLAVOR STIR FRY STYLE ASIAN NOODLES IN SAUCE, KOREAN BBQ",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2145813/nutrients",
+      "count": 136
+    },
+    {
+      "query": "农心",
+      "result": "品牌候选，需核对口味规格",
+      "id": "fdc-1849758",
+      "name": "TWIST SNACK, HONEY",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1849758/nutrients",
+      "count": 93
+    },
+    {
+      "query": "维他奶巧克力250ml",
+      "result": "品牌候选，需核对口味规格",
+      "id": "fdc-2622528",
+      "name": "VITASOY, SOY DRINK, CHOCOLATE, CHOCOLATE",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2622528/nutrients",
+      "count": 1
+    },
+    {
+      "query": "061954000041",
+      "result": "条码命中，核对标示市场",
+      "id": "fdc-2622528",
+      "name": "VITASOY, SOY DRINK, CHOCOLATE, CHOCOLATE",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2622528/nutrients",
+      "count": 1
+    },
+    {
+      "query": "00049000000443",
+      "result": "条码命中，核对标示市场",
+      "id": "fdc-1145325",
+      "name": "Coke 20OZA PL BT",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1145325/nutrients",
+      "count": 3
+    },
+    {
+      "query": "00030000010402",
+      "result": "条码命中，核对标示市场",
+      "id": "fdc-1164193",
+      "name": "Quaker Old Fashioned Oats 42Oz",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1164193/nutrients",
+      "count": 3
+    },
+    {
+      "query": "070662198018",
+      "result": "条码命中，核对标示市场",
+      "id": "fdc-1076697",
+      "name": "ORIGINAL SOY SAUCE FLAVOR RAMEN NOODLE SOUP, ORIGINAL SOY SAUCE",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1076697/nutrients",
+      "count": 1
+    },
+    {
+      "query": "伊利纯牛奶250ml",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "蒙牛特仑苏250ml",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "中国版可口可乐330ml",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "麦当劳巨无霸中国",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "星巴克拿铁中国大杯",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "肯德基香辣鸡腿堡中国",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "瑞幸生椰拿铁",
+      "result": "未收录",
+      "count": 0
+    },
+    {
+      "query": "不存在牌牛奶750ml",
+      "result": "未收录",
+      "count": 0
+    }
+  ]
+}

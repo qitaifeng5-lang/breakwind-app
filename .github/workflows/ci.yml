@@ -18,7 +18,6 @@ jobs:
     timeout-minutes: 20
     env:
       EXPO_NO_TELEMETRY: '1'
-      BREAKWIND_HEALTHKIT: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,6 +35,8 @@ jobs:
       - name: Check JavaScript and JSX syntax
         id: syntax
         run: npm run check:syntax
+      - name: Check training structure types
+        run: npm run check:types
       - name: Run ESLint
         id: lint
         run: npm run lint

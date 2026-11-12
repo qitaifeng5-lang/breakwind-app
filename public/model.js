@@ -1,7 +1,7 @@
 export const types = ['轻松跑', '恢复跑', '节奏跑', '阈值跑', '间歇跑', '长距离跑', '坡道跑', '加速跑', '比赛配速跑', '交叉训练', '力量训练', '休息'];
 export const meals = ['早餐', '午餐', '晚餐', '加餐'];
 export const distances = ['800 m', '1500 m', '3000 m', '5 km', '10 km', '半程马拉松', '全程马拉松', '自定义'];
-export const fresh = () => ({ version: 1, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, groupPlan: null, trainingHold: false, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
+export const fresh = () => ({ version: 1, legacyDraftArchives: [], programs: [], membershipTest: null, coachSchedule: {rules:[]}, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, groupPlan: null, trainingHold: false, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
 
 export function dateKey(date = new Date()) {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => String(n).padStart(2, '0')).join('-');
@@ -63,11 +63,13 @@ export function readData(raw) {
     }
     base[key] = parsed[key];
   }
-  for (const key of ['cycles','cycleAudit']) {
+  for (const key of ['cycles','cycleAudit','programs','legacyDraftArchives']) {
     if (parsed[key] !== undefined && !Array.isArray(parsed[key])) throw new Error('无法读取训练周期');
     base[key] = parsed[key] || [];
   }
+  base.membershipTest = parsed.membershipTest?.mode==='experience' ? parsed.membershipTest : null;
   base.cycleProfile = parsed.cycleProfile || null;
+  base.coachSchedule = parsed.coachSchedule && Array.isArray(parsed.coachSchedule.rules) ? parsed.coachSchedule : {rules:[]};
   base.groupPlan = parsed.groupPlan && typeof parsed.groupPlan === 'object' ? parsed.groupPlan : null;
   base.trainingHold = parsed.trainingHold === true;
   base.foodLibrary = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary : [];
@@ -93,4 +95,19 @@ export function demo(day) {
     food: [{ id: 'df1', date: day, name: '燕麦酸奶碗', meal: meals[0], grams: 280, kcal: 420, carbs: 62, protein: 22, fat: 10, timing: '训练前' }],
     records: [{ id: 'db1', date: offset(day, -14), event: '5 km', seconds: 1308 }, { id: 'db2', date: offset(day, -28), event: '10 km', seconds: 2782 }]
   };
+}
+
+// Merge user-owned backups without overwriting an existing record or snapshot.
+export function mergeBackup(current,backup){
+ const identity=item=>item.id||item.programId||JSON.stringify(item);
+ for(const key of ['plans','runs','food','recovery','events','records','programs','foodLibrary','cycles','cycleAudit','legacyDraftArchives']){
+  const rows=current[key]??=[],known=new Set(rows.map(identity));
+  for(const item of backup[key]||[])if(!known.has(identity(item))){rows.push(structuredClone(item));known.add(identity(item));}
+ }
+ for(const key of ['favorites','planFavorites'])current[key]=[...new Set([...current[key],...backup[key]])];
+ for(const rule of backup.coachSchedule.rules)if(!current.coachSchedule.rules.some(r=>r.id===rule.id))current.coachSchedule.rules.push(structuredClone(rule));
+ for(const key of ['cycleProfile','groupPlan'])if(!current[key]&&backup[key])current[key]=structuredClone(backup[key]);
+ for(const [key,value]of Object.entries(backup.goals))if(!current.goals[key])current.goals[key]=value;
+ current.trainingHold ||= backup.trainingHold;
+ return current;
 }
