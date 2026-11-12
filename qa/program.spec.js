@@ -4,7 +4,7 @@ import {compileWorkout} from '../public/workout.js';
 const click=(page,name)=>page.getByRole('button',{name,exact:true}).click();
 const read=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));
 test('long program preview, local entitlement, arrange, adjust, expiry and retained data are real product flows',async({page})=>{
- test.setTimeout(90000);await page.goto('/#run');await click(page,'长期训练 · 体验');
+ test.setTimeout(90000);await page.addInitScript(()=>localStorage.setItem('breakwind.pb-catalog',JSON.stringify({event:'1500 m',pb:270,group:'competitive',phase:'develop'})));await page.goto('/#run');await click(page,'长期训练 · 体验');
  await page.locator('[name=event]').selectOption('1500 m');await click(page,'预览整个周期');
  await expect(page.locator('#editor .week-outline li')).toHaveCount(12);await click(page,'保存体验周期');await expect(page.locator('#editor')).toContainText('长期计划体验未生效');
  await click(page,'VIP 测试状态');await expect(page.locator('#editor')).toContainText('不收款');await click(page,'启用本地体验');await expect(page.locator('#editor')).toContainText('模拟有效期至');await page.getByText('模拟状态验收（不是购买）',{exact:true}).click();await click(page,'模拟取消续费');await expect(page.locator('#editor')).toContainText('模拟续费已关闭');await click(page,'返回周期预览');await click(page,'保存体验周期');

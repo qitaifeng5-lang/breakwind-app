@@ -23,6 +23,7 @@ const assets = new Map(Object.entries({
   '/workout-ui.js': ['workout-ui.js', 'text/javascript; charset=utf-8'],
   '/pb-library.js': ['pb-library.js', 'text/javascript; charset=utf-8'],
   '/running.js': ['running.js', 'text/javascript; charset=utf-8'],
+  '/food-data.js': ['food-data.js', 'text/javascript; charset=utf-8'],
   '/fuel.js': ['fuel.js', 'text/javascript; charset=utf-8'],
   '/model.js': ['model.js', 'text/javascript; charset=utf-8'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
