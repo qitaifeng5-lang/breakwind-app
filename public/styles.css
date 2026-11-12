@@ -614,3 +614,15 @@ html[data-page] .workspace>#main,html[data-page] .workspace>.topbar,html[data-pa
 @media(max-width:360px){.detail-statistics{grid-template-columns:1fr}.detail-statistics>div{display:grid;grid-template-columns:24px minmax(0,1fr)}.detail-statistics .detail-metric-icon{margin:0}.workout-summary .detail-metric-icon{display:none}.workout-summary>div{display:block}}
 /* Keep the actual prescription prominent; effort/seconds are a readable supporting line. */
 .execution-prescription{display:block}.execution-target{display:block;margin-top:7px;font-size:1rem;font-weight:400;line-height:1.6;color:#dce5f2}.execution-target .target-divider{display:none}
+/* Wide touch tablets use the reading layout, not a stretched phone column. */
+@media(min-width:801px) and (min-height:600px) and (pointer:coarse){
+ #editor[data-variant=page]:has(.workout-detail) .dialog-body{padding:28px 30px 36px}
+ #editor[data-variant=page]:has(.workout-detail) .dialog-head{padding-inline:30px}
+ .workout-hero h1{font-size:2.25rem}.workout-hero{margin-bottom:24px}.workout-kicker{display:inline-flex}
+ .workout-summary{grid-template-columns:repeat(4,minmax(0,1fr));padding:20px;gap:16px;margin-bottom:24px}.workout-summary>div{grid-template-columns:26px minmax(0,1fr)}.workout-summary .detail-metric-icon{width:24px;height:24px}.workout-summary dt{font-size:.8125rem}.workout-summary dd{font-size:.9375rem}
+ .detail-tabs button{flex:1;font-size:1rem}.detail-tabs{margin-bottom:24px}
+ #editor .workout-detail .phase-card{display:grid;grid-template-columns:150px minmax(0,1fr);gap:20px;padding:24px;min-height:110px}
+ .phase-label{margin:0;gap:14px}.phase-icon{width:44px;height:44px}.phase-icon svg{width:26px;height:26px}
+ #editor .workout-detail .phase-card h3{font-size:1.125rem}#editor .workout-detail .phase-content .execution-line{font-size:1.25rem}
+ .detail-statistics>div{padding:20px}.detail-statistics dt{font-size:.875rem}.detail-statistics dd{font-size:1.0625rem}
+}
