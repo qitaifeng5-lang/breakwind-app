@@ -7,7 +7,7 @@ const out='.expo/launch-evidence/'+sha;await mkdir(out,{recursive:true});
 const browser=await chromium.launch({channel:process.env.BREAKWIND_TEST_BROWSER||undefined});
 const checks=[];
 try{for(const mobile of [false,true]){
- const context=await browser.newContext({...mobile?devices['iPhone 13']:{viewport:{width:1440,height:900}},locale:'zh-CN',timezoneId:'America/Toronto',reducedMotion:'no-preference',recordVideo:mobile?{dir:out,size:{width:390,height:844}}:undefined});
+ const context=await browser.newContext({...mobile?{...devices['iPhone 13'],viewport:{width:390,height:844}}:{viewport:{width:1440,height:900}},locale:'zh-CN',timezoneId:'America/Toronto',reducedMotion:'no-preference',recordVideo:mobile?{dir:out,size:{width:390,height:844}}:undefined});
  const page=await context.newPage(),errors=[],modules=[];page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(new URL(r.url()).pathname.endsWith('.js')&&!r.url().includes('/sw.js'))modules.push(r.url());});
  await page.clock.setFixedTime(new Date('2026-11-12T15:00:00Z'));await page.goto(base+'?build='+sha+'#run');await expect(page.locator('meta[name=breakwind-preview]')).toHaveAttribute('content',sha);await expect(page.locator('#bottom-nav a')).toHaveText(['训练','饮食']);
  const click=async name=>{await page.getByRole('button',{name,exact:true}).click();await page.waitForTimeout(320);};
@@ -16,7 +16,7 @@ try{for(const mobile of [false,true]){
  await page.getByRole('tab',{name:'说明',exact:true}).click();await page.waitForTimeout(350);await page.getByRole('tab',{name:'训练内容',exact:true}).click();await click('加入课表');await click('500m 稳定间歇');await click('查看课表');await click('改期／改时');await page.locator('#launch-move [name=start]').fill('18:30');await click('保存时间');await click('记录完成情况');await page.getByLabel('部分完成',{exact:true}).check();await click('保存完成情况');await expect(page.locator('#editor')).toContainText('部分完成');await shot('completion');await click('返回');
  await page.locator((mobile?'#bottom-nav':'#sidebar')+' a[href="#food"]').click();await click('添加午餐');await page.getByRole('searchbox').fill('米饭');await page.getByRole('button',{name:/^白米饭（熟）/}).click();await click('150 g');await shot('portion');await click('保存到午餐');await expect(page.locator('.meal-list')).toContainText('白米饭');await shot('food');
  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.preview.local.v1')));expect(stored.runs).toHaveLength(0);expect(stored.plans[0].trainingOutcome.source).toBe('user-report');expect(stored.food[0].grams).toBe(150);expect(errors).toEqual([]);expect(modules.every(u=>new URL(u).searchParams.get('v')===sha)).toBe(true);
- checks.push({mode:mobile?'browser-iPhone-390x844':'browser-desktop-1440x900',errors,modules,userFeedback:true,food:true,realDevice:false});
+ checks.push({mode:mobile?'browser-mobile':'browser-desktop',viewport:page.viewportSize(),errors,modules,userFeedback:true,food:true,realDevice:false});
  if(mobile){await page.evaluate(async()=>{await(await navigator.serviceWorker.ready).update();});await expect.poll(()=>page.evaluate(async()=>(await caches.keys()).filter(k=>k.startsWith('breakwind-preview-')))).toEqual(['breakwind-preview-'+sha]);}
  await context.close();
  }
