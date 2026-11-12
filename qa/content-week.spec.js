@@ -13,7 +13,7 @@ async function finish(page,spec){
   await page.clock.fastForward((step.durationSeconds||step.target?.targetSecondsRange?.[1]||0)*1000);
   await click(page,step.kind==='work'?'完成本趟':step.kind==='recovery'?'恢复完成':'完成本阶段');
  }
- await expect(page.getByRole('dialog')).toContainText('完整结束');await click(page,'保存分段记录');
+ await expect(page.locator('#editor[open]')).toContainText('完整结束');await click(page,'保存分段记录');
  return page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).runs.at(-1));
 }
 for(const event of ['800 m','1500 m'])for(const group of ['base','advanced'])test(event+' '+group+' full week courses keep card, detail, clock and report identical',async({page})=>{

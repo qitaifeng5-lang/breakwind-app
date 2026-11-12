@@ -1,6 +1,6 @@
-const cacheName = 'breakwind-shell-v27';
+const cacheName = 'breakwind-shell-v28';
 const cacheNamespace = cacheName.startsWith('breakwind-preview-') ? 'breakwind-preview-' : 'breakwind-shell-';
-const shell = ['./training-workbench.js','./training-structure.js','./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./program.js','./program-ui.js','./membership.js','./coach-plan.js','./coach-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
+const shell = ['./workout-detail.js','./page-host.js','./training-workbench.js','./training-structure.js','./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./program.js','./program-ui.js','./membership.js','./coach-plan.js','./coach-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {
   const requests=cacheNamespace==='breakwind-preview-'?shell.map(path=>new Request(new URL(path,self.registration.scope),{cache:'reload'})):shell;

@@ -17,7 +17,7 @@ test('source template requires only current reference; cancellation is pure; com
     await page.clock.fastForward(32500);await click(page,'完成本趟');
     if(i<9){await page.clock.fastForward(120000);await click(page,'恢复完成');}
   }
-  await expect(page.getByRole('dialog')).toContainText('冷身');
+  await expect(page.locator('#editor[open]')).toContainText('冷身');
   await page.clock.fastForward(600000);await click(page,'完成本阶段');await click(page,'保存分段记录');
   const run=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).runs.at(-1));
   expect(run.distance).toBe(2);expect(run.courseSession.spec.origin).toBe('editorial-candidate');

@@ -20,7 +20,7 @@ test('open-ended preparation and cooldown preserve work/recovery gates and exact
   s.plans=[{id:'tempo-open',date,name:c.name,type:'阈值跑',course:{...c,executionSpec:c.prescription},completed:false}];localStorage.setItem('breakwind.local.v1',JSON.stringify(s));
  });await page.goto('/#home');await page.reload();await page.locator('[data-action="open-plan:tempo-open"]').click();
  await expect(page.locator('.course-block h3')).toHaveText(['热身','主训练','恢复说明','冷身']);
- const box=await page.locator('#editor').boundingBox();expect(box.width).toBe(page.viewportSize().width);expect(box.x).toBe(0);
+ const box=await page.locator('#editor').boundingBox();const inset=page.viewportSize().width>800?224:0;expect(box.width).toBe(page.viewportSize().width-inset);expect(box.x).toBe(inset);
  await page.addStyleTag({content:'html{font-size:24px}'});
  await expect(page.locator('#editor')).toHaveJSProperty('scrollWidth',await page.locator('#editor').evaluate(n=>n.clientWidth));
  await click(page,'开始记录');await click(page,'确认并热身');for(const c of await page.locator('[data-warmup]').all())await c.check();

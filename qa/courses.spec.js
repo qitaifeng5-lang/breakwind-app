@@ -6,7 +6,7 @@ test.beforeEach(async({page})=>page.clock.setFixedTime(new Date('2026-11-07T15:0
 
 test('PB changes applicability, not dose or recovery; withdrawn combinations cannot schedule',async({page})=>{
   await page.goto('/#run');await click(page,'调整专项与PB');await click(page,'3:00');
-  await click(page,'200m 专项耐受');const dialog=page.getByRole('dialog');
+  await click(page,'200m 专项耐受');const dialog=page.locator('#editor[open]');
   await expect(dialog.locator('.execution-line')).toContainText('10×200m');
   await expect(dialog.locator('.rep-rest')).toContainText('120秒');
   await click(page,'返回');await click(page,'调整专项与PB');await click(page,'2:00');
@@ -22,7 +22,7 @@ test('PB changes applicability, not dose or recovery; withdrawn combinations can
 test('PB precision, hours, cancellation and reload never alter a scheduled course',async({page})=>{
   await page.goto('/#run');
   await click(page,'调整专项与PB');await click(page,'自定义成绩');
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   await dialog.getByRole('combobox',{name:'分',exact:true}).selectOption('2');
   await dialog.getByRole('combobox',{name:'秒',exact:true}).selectOption('5');
   await dialog.getByRole('combobox',{name:'百分秒',exact:true}).selectOption('30');
@@ -49,7 +49,7 @@ test('youth can discover every category and coached technical variants but not s
   await page.goto('/#run');await click(page,'调整专项与PB');await click(page,'2:20');
   await expect(page.locator('.course-card')).toHaveCount(15);
   await click(page,'200m 专项耐受');
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   await expect(dialog).toContainText('教练结合成熟度评估');
   await expect(dialog.getByRole('button',{name:'加入日程'})).toHaveCount(0);
   await click(page,'返回');await click(page,'按类型浏览');await click(page,'速度与技术');await click(page,'协调与跑姿练习');
@@ -88,8 +88,8 @@ test('course content leads the first screen and middle-distance phases select di
     await click(page,'按类型浏览');await click(page,'间歇');
     await expect(page.locator('.course-card')).toHaveCount(2);
     await click(page,'按时间的有氧间歇');
-    await expect(page.getByRole('dialog')).toContainText('以时间而非圈速');
-    await expect(page.getByRole('dialog')).toContainText('待教练审核');
+    await expect(page.locator('#editor[open]')).toContainText('以时间而非圈速');
+    await expect(page.locator('#editor[open]')).toContainText('待教练审核');
     await click(page,'返回');await click(page,'周安排草案');
     const outlines=[];
     for(const phase of ['基础期','专项期','赛前期','恢复周']) {

@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 const assets = new Map(Object.entries({
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/index.html': ['index.html', 'text/html; charset=utf-8'],
+  '/workout-detail.js': ['workout-detail.js', 'text/javascript; charset=utf-8'],
+  '/page-host.js': ['page-host.js', 'text/javascript; charset=utf-8'],
   '/training-workbench.js': ['training-workbench.js', 'text/javascript; charset=utf-8'],
   '/training-structure.js': ['training-structure.js', 'text/javascript; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],

@@ -1,3 +1,5 @@
+import {createPageHost} from './page-host.js';
+import {workoutDetail,phaseCard,courseStatistics,installDetailTabs} from './workout-detail.js';
 import {workbenchHTML,mountWorkbench,installTrainingMapInteractions,courseMap,trainingMap,courseStructure} from './training-workbench.js';
 import {readStructure,structureSummary,restText} from './training-structure.js';
 import {createProgramUI} from './program-ui.js';
@@ -38,7 +40,8 @@ const hostedPreview = Boolean(document.querySelector('meta[name="breakwind-previ
 const storagePrefix = hostedPreview ? 'breakwind.preview' : 'breakwind';
 const key = storagePrefix + '.local.v1';
 const main = document.querySelector('#main');
-const editor = document.querySelector('#editor');
+const editor = createPageHost();
+installDetailTabs(editor);
 installTrainingMapInteractions(editor);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // Safari keeps the layout viewport behind the keyboard. Fit sheets to the
@@ -294,12 +297,12 @@ function openPBWorkout(course,dayIndex=null) {
   if (scheduled) {activeCourse.date=scheduled.date;course={...scheduled.course,build:scheduled.course.build||'legacy',planId:scheduled.id};activeCourse.course=course;}
   if (supportsWorkout(course)) {course=workoutPlayer.hydrate(course);activeCourse.course=course;}
   const ready=courseReadiness(state(),course,activeCourse.date,day);
-  modal(course.name,'<div class="course-detail" data-course-identity="'+escape(courseIdentity(course))+'"><small class="course-version">'+escape(course.build.slice(0,8)+' · '+course.event+' · '+course.id+' · '+(course.selectedGroup||'legacy')+' / '+(course.weekPhase||course.phase))+'</small><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
-    '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · '+escape(course.roleLabel||'课程示例')+' · '+escape(course.review.label)+'</p>'+
-    courseMap(course)+(supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>恢复说明</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
-    '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p><p>'+escape(course.eligibility||'')+'</p>'+(course.evidenceMap||[]).map(e=>'<article><strong>'+escape(e.parameter)+'</strong><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
-    (!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':'')+
-    (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions page-primary">'+(scheduled? (ready.canSchedule?btn('开始记录','course-start','','primary'):''):'<button class="btn primary" type="submit">加入日程</button>')+'</div>'+(!scheduled&&ready.canSchedule?'<details class="alternate-action"><summary>仅记录本次</summary>'+btn('开始记录','course-start','','quiet')+'</details>':'')+'<p class="form-error" role="alert" hidden></p></form>':'')+'</div>','page');
+  const phases=supportsWorkout(course)?workoutPlayer.detail(course):phaseCard('热身','<p>'+escape(course.warmup||'准备内容待补')+'</p>')+phaseCard('主训练',structureHTML(course,true))+phaseCard('恢复说明','<p>趟间恢复见主训练；组间：'+(course.sets>1?recoveryText(course.setRecovery):'无')+'。仅插入相应训练段之间。</p>')+phaseCard('冷身','<p>'+escape(course.cooldown||'整理内容待补')+'</p>');
+  const notes='<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p></details>';
+  const sources='<small class="course-version">'+escape(course.build+' · '+course.event+' · '+course.id)+'</small><p>'+escape(course.eligibility||course.applicablePB)+'</p><p>'+escape(course.review?.label||'待独立审核')+'</p><p>'+escape(course.parameterOrigin)+'</p>'+(course.evidenceMap||[]).map(e=>'<article class="detail-source"><h3>'+escape(e.parameter)+'</h3><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+(course.sources||[]).map(source=>'<article class="detail-source"><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><p>'+escape(source.kind+' · '+source.population)+'</p><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('');
+  const actionsHTML=(ready.canSchedule||ready.status==='spacing'?'<form id="course-schedule"><div class="page-primary detail-actions">'+(scheduled?btn('编辑课次','edit:plans:'+scheduled.id,'','secondary'):'<details class="action-date"><summary>安排日期</summary><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label></details>')+(scheduled?(ready.canSchedule?btn('开始记录','course-start','','primary'):''):'<button class="btn primary" type="submit">加入日程</button>')+'</div><p class="form-error" role="alert" hidden></p></form>':'')+(!scheduled&&ready.canSchedule?'<details class="alternate-action"><summary>仅记录本次</summary>'+btn('开始记录','course-start','','quiet')+'</details>':'');
+  modal('训练详情',workoutDetail({title:course.name,subtitle:course.objective,summary:[['训练目的',course.roleLabel||course.phaseLabel],['适用水平',(course.trainingGroups||[contentGroups[course.selectedGroup]||contentGroups[courseGroup]]).filter(Boolean).join('／')],['专项',pbDistanceLabel(course.event)],['课程类型',course.category]],phases,notes,sources,stats:courseStatistics(course),structure:courseMap(course),actions:actionsHTML,identity:courseIdentity(course),status:!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':''}),'page');
+  rememberReading({kind:'course',course,dateIndex:dayIndex});
 }
 function scheduleCourse(date) {
   const course=activeCourse?.course;
@@ -338,7 +341,7 @@ editor.addEventListener('submit',event=>{
   const plan=scheduleCourse(day);
   if (plan) runOptions(plan.id,true);
 });
-const coachUI=createCoachUI({state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
+const coachUI=createCoachUI({rememberReading,state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
 const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
   return '<div class="training-product">'+head('','训练','每一段训练，都有清楚的安排。',btn('搜索','course-search','','quiet')+btn('编排训练','edit:plans:','plus','primary'))+
@@ -469,6 +472,14 @@ function field(config,item) {
     '<input name="' + name + '" type="' + type + '" value="' + value + '"' + req + (type === 'number' ? ' min="' + min + '" max="' + max + '" step="' + step + '"' : '') + (type === 'text' ? ' maxlength="100"' : '') + '>';
   return '<label class="' + (type === 'textarea' ? 'wide' : '') + '"><span>' + label + '</span>' + control + '</label>';
 }
+function rememberReading(descriptor){
+  const previous=JSON.parse(sessionStorage.getItem(storagePrefix+'.reading-route')||'null');
+  const entry={...descriptor,route:location.hash,scroll:previous?.scroll??editor.originScroll};
+  sessionStorage.setItem(storagePrefix+'.reading-route',JSON.stringify(entry));
+  if(!history.state?.breakwindReading)history.pushState({breakwindReading:true},'');
+}
+function restoreReading(entry){if(entry?.kind==='course')openPBWorkout(entry.course,entry.dateIndex);else if(entry?.kind==='plan')showWorkout([entry.id]);else if(entry?.kind==='coach')coachUI.detail(entry.id);}
+window.addEventListener('popstate',event=>{if(!event.state?.breakwindReading&&editor.open)requestPageClose();});
 const pagePositions=new Map();
 const pageDraftKey=()=>{const f=editor.querySelector('form');return storagePrefix+'.page-draft.'+f?.id+'.'+(f?.elements.planId?.value||f?.dataset.draftId||'');};
 function clearPageDraft(){if(editor.querySelector('form'))localStorage.removeItem(pageDraftKey());}
@@ -481,8 +492,9 @@ function restorePageDraft(){
     const notice=document.createElement('p');notice.className='draft-notice';notice.textContent='已恢复本机草稿，尚未保存课表';form.prepend(notice);editor.dataset.dirty='true';
   }}catch{/* Invalid local draft never changes a saved plan. */}
 }
+let readingReturn=null;
 let pageLeave=()=>editor.close();
-function requestPageClose(onLeave=()=>editor.close()){
+function requestPageClose(onLeave=()=>{if(readingReturn&&editor.querySelector('form')&&!editor.querySelector('.workout-detail')){const restore=readingReturn;readingReturn=null;restore();}else if(editor.querySelector('.workout-detail')&&history.state?.breakwindReading){history.back();}else editor.close();}){
   pageLeave=onLeave;
   if(editor.dataset.variant!=='page'||editor.dataset.dirty!=='true'){pageLeave();return;}
   if(editor.querySelector('.draft-decision'))return;
@@ -503,7 +515,9 @@ editor.addEventListener('click',event=>{
   editor.dataset.dirty='false';pageLeave();
 });
 function modal(title, body, variant = '') {
-  if(editor.open&&editor.dataset.variant==='page')pagePositions.set(editor.querySelector('#dialog-title')?.textContent,editor.querySelector('.dialog-body')?.scrollTop||0);
+  if(variant==='live')sessionStorage.removeItem(storagePrefix+'.reading-route');
+  if(editor.querySelector('.workout-detail')&&!body.includes('workout-detail')&&body.includes('<form')&&variant==='page'){const entry=JSON.parse(sessionStorage.getItem(storagePrefix+'.reading-route')||'null');if(entry)readingReturn=()=>restoreReading(entry);}
+  if(editor.open&&editor.dataset.variant==='page')pagePositions.set(editor.querySelector('.workout-hero h1')?.textContent||editor.querySelector('#dialog-title')?.textContent,editor.querySelector('.dialog-body')?.scrollTop||0);
   for (const animation of editor.getAnimations()) animation.cancel();
   const previous = editor.dataset.variant;
   if(editor.dataset.variant==='page' && editor.dataset.formSubmitted==='true') clearPageDraft();
@@ -512,28 +526,30 @@ function modal(title, body, variant = '') {
   editor.style.removeProperty('transform');
   if (!editor.open) opener = document.activeElement;
   editor.innerHTML = (variant==='sheet' ? '<div class="sheet-handle" aria-hidden="true"><i></i></div>' : '') +
-    '<div class="dialog-head">'+(variant==='page'?'<button type="button" class="icon-button" data-action="close" aria-label="返回">'+icon('left')+'</button>':'')+'<h2 id="dialog-title" tabindex="-1">' + title + '</h2>'+(variant==='page'?'':'<button type="button" class="icon-button" data-action="close" aria-label="关闭">'+icon('close')+'</button>')+'</div><div class="dialog-body">' + body + '</div>';
+    '<div class="dialog-head">'+(variant==='page'?'<button type="button" class="icon-button" data-action="close" aria-label="返回">'+icon('left')+'</button>':'')+'<h2 id="dialog-title" tabindex="-1">' + title + '</h2>'+(variant==='page'&&hostedPreview?'<small class="page-build">测试版 '+escape(document.querySelector('meta[name=breakwind-preview]').content.slice(0,7))+'</small>':'')+(variant==='page'?'':'<button type="button" class="icon-button" data-action="close" aria-label="关闭">'+icon('close')+'</button>')+'</div><div class="dialog-body">' + body + '</div>';
   const wasOpen=editor.open;
   if (!editor.open) editor.showModal();
+  else editor.syncPage();
   fitEditorViewport();
   restorePageDraft();
   mountWorkbench(editor);
   if(variant==='page'){
     const primary=editor.querySelector('.page-primary')||editor.querySelector('#coach-confirm-form>.btn.primary,#coach-import-form>.btn.primary');
     if(primary){const form=primary.closest('form');const footer=document.createElement('div');footer.className='page-footer';
-      for(const button of primary.matches('button')?[primary]:primary.querySelectorAll('button'))if(form&&!button.dataset.action)button.setAttribute('form',form.id);
+      for(const button of primary.matches('button')?[primary]:primary.querySelectorAll('button,input,select,textarea'))if(form&&!button.dataset.action)button.setAttribute('form',form.id);
       footer.append(primary);editor.append(footer);
     }
   }
-  if (wasOpen && !reducedMotion.matches && (variant==='live' || previous==='live' || variant==='page')) {
+  if ((wasOpen||variant==='page') && !reducedMotion.matches && (variant==='live' || previous==='live' || variant==='page')) {
     editor.querySelector('.dialog-body').animate(
-      [{opacity:0.6,transform:'translateX('+ (variant==='live'?'-18px':'18px') +')'},{opacity:1,transform:'none'}],
+      [{opacity:0.6,transform:'translateY(8px)'},{opacity:1,transform:'none'}],
       {duration:220,easing:'ease-out'});
   }
   editor.querySelector('#dialog-title').focus({preventScroll:true});
-  if(variant==='page')editor.querySelector('.dialog-body').scrollTop=pagePositions.get(title)||0;
+  if(variant==='page')editor.querySelector('.dialog-body').scrollTop=pagePositions.get(editor.querySelector('.workout-hero h1')?.textContent||title)||0;
 }
 function openEditor(collection,id = '',defaults = {}) {
+  if(collection==='plans'&&editor.querySelector('.workout-detail'))readingReturn=()=>showWorkout([id]);
   if(collection==='plans'&&state().plans.find(p=>p.id===id)?.coachIssued)return coachUI.detail(id);
   const schema = schemas[collection];
   if (!schema) return;
@@ -652,6 +668,7 @@ editor.addEventListener('submit', event => {
 });
 
 editor.addEventListener('close', () => {
+  if(!editor.open){sessionStorage.removeItem(storagePrefix+'.reading-route');if(history.state?.breakwindReading)history.replaceState(null,'');readingReturn=null;}
   // A queued close can arrive after another sheet opens or the user starts
   // typing. Restore focus only when it has not already moved elsewhere.
   if (editor.open) return;
@@ -810,6 +827,7 @@ function updateRoute() {
   window.scrollTo(0,0);
 }
 window.addEventListener('hashchange', () => {
+  if(editor.open&&editor.dataset.variant==='page'&&editor.dataset.dirty==='true'){requestPageClose(()=>{editor.close();updateRoute();});return;}
   if (editor.open) editor.close();
   if (!reducedMotion.matches && document.startViewTransition) {
     // Rapid navigation intentionally skips an unfinished visual transition.
@@ -1548,12 +1566,9 @@ function showWorkout([id]) {
   const fromEngine=plan.engineVersion===cycleVersion;
   let manualStructure=null;try{if(plan.trainingStructure)manualStructure=readStructure(plan.trainingStructure);}catch{/* Preserve invalid legacy text for manual correction. */}
   const blocks=manualStructure ? [['热身',manualStructure.warmup],['主训练',manualStructure.sets+'组 × '+manualStructure.parts.map(p=>p.repeats+'趟 × '+(p.amount??'待补')+p.unit+' · '+(p.target||'目标待补')).join('；')],['恢复说明',manualStructure.parts.filter((p,i)=>p.repeats>1||i<manualStructure.parts.length-1).map((p,i)=>'第'+(i+1)+'段趟间：'+restText(p.recovery)).join('；')+(manualStructure.sets>1?'；组间：'+restText(manualStructure.setRecovery):'；无额外组间恢复')],['冷身',manualStructure.cooldown]] : fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
-    [['课次说明',plan.note || '这节课没有记录分段说明。']];
-  modal('课次详情','<div class="report-title"><h3>'+escape(plan.name)+'</h3><p>'+escape(plan.date+' · '+plan.type+(plan.completed?' · 已完成':''))+'</p></div>'+
-    (manualStructure?trainingMap(manualStructure):'')+'<div class="mini-grid">'+metric('距离',plan.distance||'—','km')+metric('时长',plan.minutes||'—','min')+metric('配速',plan.pace||'—')+'</div>'+
-    '<ol class="workout-blocks">'+blocks.map(([title,copy])=>'<li><details><summary>'+title+'</summary><p>'+escape(copy)+'</p></details></li>').join('')+'</ol>'+
-    (fromEngine?sessionExplanation(plan):'')+'<div class="dialog-actions">'+btn(sample?'查看原始记录':'编辑课次','edit:plans:'+plan.id,'settings')+
-    (!sample&&!plan.completed&&!trainingPaused(state())?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
+    [['热身','原记录未提供热身内容'],['主训练',plan.note||'原记录未提供分段内容'],['恢复说明','原记录未提供恢复安排'],['冷身','原记录未提供冷身内容']];
+  modal('训练详情',workoutDetail({title:plan.name,subtitle:plan.date+' · '+plan.type+(plan.completed?' · 已完成':''),summary:[['来源','我的课表'],['状态',plan.completed?'已完成':'计划安排']],phases:['热身','主训练','恢复说明','冷身'].map(title=>phaseCard(title,'<p>'+escape(blocks.find(([n])=>n===title||title==='恢复说明'&&n==='恢复')?.[1]||'原记录未提供此阶段内容')+'</p>')).join(''),notes:fromEngine?sessionExplanation(plan):'<p>'+escape(plan.note||'暂无额外说明')+'</p>',sources:'<p>个人保存的课次，不代表平台专业审核。</p>',structure:manualStructure?trainingMap(manualStructure):'',stats:[['计划距离',plan.distance?plan.distance+' km':'未测量'],['预计耗时',plan.minutes?plan.minutes+' 分钟（估算）':'待估'],['目标',plan.pace||'待校准']],actions:'<div class="page-primary detail-actions">'+btn(sample?'查看原始记录':'编辑课次','edit:plans:'+plan.id,'settings','secondary')+(!sample&&!plan.completed&&!trainingPaused(state())?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>'}),'page');
+  rememberReading({kind:'plan',id:plan.id});
 }
 function trainingPaused(s) {
   return courseReadiness(s,{adapted:true,quality:false},day,day).status==='paused';
@@ -1657,6 +1672,7 @@ function setTheme([theme]) {
 }
 restoreWorkout();
 render();
+try{const entry=JSON.parse(sessionStorage.getItem(storagePrefix+'.reading-route'));if(entry?.route===location.hash){window.scrollTo(0,entry.scroll);restoreReading(entry);}}catch{/* Broken session navigation never edits stored training. */}
 
 function interactiveTrend(rows,kind) {
   const [label,unit,value]=performanceFields[kind];

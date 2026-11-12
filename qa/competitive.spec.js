@@ -23,7 +23,7 @@ for(const event of ['800 m','1500 m'])test(event+' competitive four phases and c
   await page.clock.fastForward((step.durationSeconds||step.target?.targetSecondsRange?.[1]||3)*1000);
   await click(page,step.kind==='work'?'完成本趟':step.kind==='recovery'?'恢复完成':'完成本阶段');
  }
- await expect(page.getByRole('dialog')).toContainText('完整结束');await click(page,'保存分段记录');
+ await expect(page.locator('#editor[open]')).toContainText('完整结束');await click(page,'保存分段记录');
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).runs.at(-1));
  expect(saved.courseSession.spec).toEqual(spec);expect(saved.courseSession.course.population).toBe('adult-competitive-balanced');
  expect(saved.courseSession.logs.map(l=>l.step)).toEqual(compileWorkout(spec));expect(saved.distance).toBe(1.8);

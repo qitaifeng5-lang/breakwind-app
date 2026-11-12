@@ -1,3 +1,4 @@
+import {phaseCard} from './workout-detail.js';
 import {templateSpecification,referenceEvents,referenceLabel,paceLabels,targetBases,recoveryModes,recentPerformance,targetFor,compileWorkout,workoutTotals,newSession,stepElapsed,pauseSession,advanceSession,stopSession,sessionRecord,courseIdentity} from './workout.js';
 
 const seconds=n=>Number(n.toFixed(2))+' 秒';
@@ -24,15 +25,15 @@ export function createWorkoutPlayer(api) {
   function detail(c) {
     course=hydrate(c);api.setCourse(course);
     const spec=course.executionSpec;
-    const block=(title,body)=>'<section class="course-block"><h3>'+title+'</h3>'+body+'</section>';
+    const block=phaseCard;
     const phase=(items,fallback)=>items.map(s=>[s.distanceM?s.distanceM+'m':'',s.label||fallback].filter(Boolean).join(' · ')).map(esc).join(' + ');
     const main=spec? (spec.setCount>1?'<p class="workout-set-count">'+spec.setCount+' 大组</p>':'')+spec.repetitions.map((r,i)=>'<p class="execution-line">'+r.repsPerSet+'×'+(r.durationSeconds?(r.durationSeconds%60?r.durationSeconds+'秒':r.durationSeconds/60+'分钟'):r.distanceM+'m')+'｜'+paceLabels[r.target.targetBasis]+'｜'+esc(targetText(r.target).replaceAll(' 秒','秒'))+(r.durationSeconds?'':'/趟')+'</p>'+ (r.repsPerSet>1||i<spec.repetitions.length-1?'<small class="rep-rest">趟间 '+recoveryLabel(r.repRecovery)+'</small>':'')).join(''):
       (course.sets>1?'<p>'+course.sets+' 大组</p>':'')+course.segments.map(s=>'<p class="execution-line">'+s.repeats+'×'+s.distance+'m｜配速待校准</p>'+(s.recoverySeconds?'<small class="rep-rest">趟间 '+s.recoverySeconds+'秒 · 动作待确认</small>':'')).join('');
-    return '<div class="executable-spec compact-workout">'+
+    return ''+
       block('热身','<p>'+(spec?phase(spec.warmup,'轻松慢跑、动态活动、跑姿准备'):esc(course.warmup||'轻松慢跑、动态活动、跑姿准备'))+'</p>')+
       block('主训练',main)+block('恢复说明','<p>趟间恢复见各段；只插在相应趟次之间。组间：'+(spec?(spec.setCount>1?recoveryLabel(spec.setRecovery):'无'):(course.sets>1?course.setRecovery+'秒 · 动作待确认':'无'))+'</p>')+
       block('冷身','<p>'+(spec?phase(spec.cooldown,'轻松慢跑、放松整理'):esc(course.cooldown||'轻松慢跑、放松整理'))+'</p>')+
-      '</div>';
+      '';
   }
   function notes(){
     const spec=course?.executionSpec;

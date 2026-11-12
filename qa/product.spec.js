@@ -10,7 +10,7 @@ test('PB numeric picker preserves selection and cancellation without a keyboard'
   await click(page,'1500m');
   await click(page,'4:20');
   await click(page,'调整专项与PB');await click(page,'自定义成绩');
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   await expect(dialog.locator('input:visible')).toHaveCount(0);
   await expect(dialog.getByRole('combobox',{name:'分',exact:true})).toHaveValue('4');
   await dialog.getByRole('combobox',{name:'秒',exact:true}).selectOption('55');
@@ -74,8 +74,8 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await expect(page.locator('main')).not.toContainText('轻松走跑');
   await page.screenshot({path:info.outputPath('course-discovery.png')});
   await click(page,'500m 稳定间歇');
-  const dialog=page.getByRole('dialog');
-  await expect(dialog).toContainText('组内恢复 · 3 分钟');
+  const dialog=page.locator('#editor[open]');
+  await expect(dialog.locator('.rep-rest')).toContainText('180秒');
   await expect(dialog).toContainText('待教练审核');
   await expect(dialog.locator('input:not([type=date])')).toHaveCount(0);
   await page.screenshot({path:info.outputPath('course-detail.png')});
@@ -91,7 +91,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await expect(page.locator('main')).toContainText('500m 稳定间歇');
   await page.goto('/#home');
   await click(page,'课次详情');
-  await expect(dialog).toContainText('3 × 500m');
+  await expect(dialog.locator('.execution-line')).toContainText('3×500m');
   if(await page.locator('.alternate-action').count())await page.locator('.alternate-action summary').click();await click(page,'开始记录');
   await page.locator('#template-reference [name=seconds]').fill('260');
   await dialog.getByRole('checkbox').check();await click(page,'使用课程编排');
@@ -111,7 +111,7 @@ test('running and rice at lunch persist and drive interactive data cards',async(
   await page.getByRole('spinbutton',{name:'实际耗时（分钟）'}).fill('28.5');
   await page.getByRole('spinbutton',{name:'主观强度（1–10）'}).fill('4');
   await click(page,'保存记录');
-  await expect(page.getByRole('dialog')).toContainText('5:42');
+  await expect(page.locator('#editor[open]')).toContainText('5:42');
   await click(page,'关闭');
   await page.goto('/#food');
   await click(page,'添加午餐');
@@ -122,7 +122,7 @@ test('running and rice at lunch persist and drive interactive data cards',async(
   await expect(page.getByRole('spinbutton',{name:'食用重量（g）'})).toHaveValue('150');
   await page.screenshot({path:info.outputPath('rice-portion.png'),animations:'disabled'});
   await click(page,'保存到午餐');
-  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.locator('#editor[open]')).not.toBeVisible();
   await expect(page.locator('.meal-group').filter({has:page.getByRole('heading',{name:'午餐'})})).toContainText('白米饭（熟）');
   await page.screenshot({path:info.outputPath('lunch-saved.png'),animations:'disabled'});
   await click(page,'上一天');
@@ -130,10 +130,10 @@ test('running and rice at lunch persist and drive interactive data cards',async(
   await click(page,'下一天');
   await page.goto('/#chart');
   await page.getByRole('button',{name:/主观训练负荷 114/}).click();
-  await expect(page.getByRole('dialog')).toContainText('114');
+  await expect(page.locator('#editor[open]')).toContainText('114');
   await click(page,'今天');
   await page.getByText('查看逐日数据',{exact:true}).click();
-  await expect(page.getByRole('dialog').getByText('11月7日星期六',{exact:true})).toBeVisible();
+  await expect(page.locator('#editor[open]').getByText('11月7日星期六',{exact:true})).toBeVisible();
 });
 
 test('local themes persist and official ranking stays empty',async({page})=>{
@@ -150,17 +150,17 @@ test('run timer uses the live layout and can pause and continue',async({page})=>
   await page.goto('/#run');
   await click(page,'记录跑步');
   await click(page,'开始手动计时');
-  await expect(page.getByRole('dialog')).toHaveAttribute('data-variant','live');
+  await expect(page.locator('#editor[open]')).toHaveAttribute('data-variant','live');
   await click(page,'暂停');
   await click(page,'继续');
   await click(page,'结束并填写');
-  await expect(page.getByRole('dialog')).toContainText('跑步记录');
+  await expect(page.locator('#editor[open]')).toContainText('跑步记录');
 });
 
 test('a long mobile sheet keeps close reachable, and trend points respond to taps',async({page},info)=>{
   await page.goto('/#chart?demo=1');
   await page.getByRole('button',{name:/^跑量 /}).click();
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   const close=dialog.getByRole('button',{name:'关闭',exact:true});
   await expect(dialog.getByRole('heading',{name:'跑量趋势'})).toBeFocused();
   await dialog.getByRole('button',{name:'近 30 天',exact:true}).click();
@@ -186,7 +186,7 @@ test('compact phone navigation keeps a reachable action and meal search fits a m
   const mobile=await nav.isVisible();
   const hero=page.getByRole('button',{name:'开始跑步',exact:true});
   await hero.click();
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   await expect(dialog.getByRole('button',{name:'手动填写',exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:'关闭',exact:true}).click();
   if (mobile) await nav.getByRole('link',{name:'营养',exact:true}).click();
@@ -210,7 +210,7 @@ test('specialty search, filters, comparison and favorites use the live catalog',
   await expect(page.locator('#catalog-results [role=status]')).toHaveText('1 项计划');
   await click(page,'比较');
   await click(page,'比较已选（2）');
-  const dialog=page.getByRole('dialog');
+  const dialog=page.locator('#editor[open]');
   await expect(dialog.getByRole('heading',{name:'800 m',exact:true})).toBeVisible();
   await expect(dialog.getByRole('heading',{name:'5000 m',exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath('plan-comparison.png'),animations:'disabled'});
@@ -264,7 +264,7 @@ test('date gestures select the next workout, the carousel scrolls, and a data sh
   await expect.poll(()=>page.locator('.plan-carousel').evaluate(node=>node.scrollLeft)).toBeGreaterThan(20);
   await page.goto('/#chart?demo=1');
   await page.getByRole('button',{name:/^跑量 /}).click();
-  const sheet=page.getByRole('dialog');
+  const sheet=page.locator('#editor[open]');
   const handle=await sheet.locator('.sheet-handle').boundingBox();
   const x=handle.x+handle.width/2;
   const y=handle.y+handle.height/2;
@@ -287,7 +287,7 @@ test('reported pain prevents scheduling while the full course remains browsable'
   await expect(page.locator('.course-card')).toHaveCount(15);
   await expect(page.locator('.course-risk')).toContainText('已知伤痛');
   await click(page,'200m 专项耐受');
-  await expect(page.getByRole('dialog')).toContainText('专业评估');
+  await expect(page.locator('#editor[open]')).toContainText('专业评估');
   await expect(page.getByRole('button',{name:'加入日程',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'开始记录',exact:true})).toHaveCount(0);
 });

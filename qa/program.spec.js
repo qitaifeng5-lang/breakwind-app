@@ -21,7 +21,7 @@ test('starting a program session reuses its plan and expiry does not interrupt o
  test.setTimeout(90000);await page.clock.install();await page.goto('/#run');
  await click(page,'长期训练 · 体验');await click(page,'预览整个周期');await click(page,'VIP 测试状态');await click(page,'启用本地体验');await click(page,'返回周期预览');await click(page,'保存体验周期');await click(page,'安排这一周');
  const before=await read(page),plan=before.plans[0],spec=plan.course.prescription;
- await page.locator('[data-action="program-course:0"]').click();await click(page,'开始记录');await click(page,'确认并热身');expect((await read(page)).plans).toHaveLength(before.plans.length);
+ await page.locator('[data-action="program-course:0"]').click();await expect(page.locator('.workout-detail .phase-card')).toHaveCount(4);await click(page,'开始记录');await click(page,'确认并热身');expect((await read(page)).plans).toHaveLength(before.plans.length);
  await page.evaluate(()=>{const s=JSON.parse(localStorage.getItem('breakwind.local.v1'));s.membershipTest.status='expired';localStorage.setItem('breakwind.local.v1',JSON.stringify(s));});
  await page.reload();await click(page,'继续分段训练');await click(page,'继续计时');
  for(const step of compileWorkout(spec)){
