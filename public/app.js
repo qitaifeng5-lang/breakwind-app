@@ -17,6 +17,7 @@ import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, conflicts, readData, mergeBackup, demo } from './model.js';
 
 const icons = {
+  check:'m5 12 4 4 10-10',sun:'M12 3v2 M12 19v2 M3 12h2 M19 12h2 M5.6 5.6 1.4 1.4 M17 17l1.4 1.4 M5.6 18.4 1.4-1.4 M17 7l1.4-1.4 M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z',search:'M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
   home: 'M3 10l9-7 9 7v10H3z M9 20v-6h6v6',
   run: 'M3 12h4l3-7 4 14 3-7h4',
   calendar: 'M4 6h16v15H4z M4 10h16 M8 3v5 M16 3v5',
@@ -95,6 +96,7 @@ let trainingDate = '';
 let pbLibraryEvent = '';
 let pbLibraryChoice = '';
 let pbLibraryMode = 'single';
+let trainingBrowse=false;
 let pbLibraryFocus = 'all';
 let initialSelection=restoreSelection(null,data);
 let courseGroup=initialSelection.group,groupConfirmed=initialSelection.confirmed;
@@ -259,7 +261,16 @@ function courseCard(course) {
   return '<article class="course-card" data-course-id="'+escape(course.id)+'" data-course-identity="'+escape(courseIdentity(course))+'"><div class="course-cover cover-'+course.categoryId+'">'+icon(course.categoryId==='aerobic'?'heart':'run',24)+'<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape((course.trainingGroups||[contentGroups[courseGroup]]).join('／')+'组')+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3>'+readingSummary(course)+'<details class="course-expansion"><summary>展开结构</summary><div>'+courseMap(course)+'<p>'+escape(course.objective)+'</p></div></details></div></article>';
 }
 function currentWeek(){return calendarWeek(state(),pbLibraryEvent,pbLibrarySelection(state()).seconds,courseOptions(),weekAnchor);}
-function todayTraining(s){const plans=byDate(s.plans,day).filter(p=>!p.cancelled&&p.executionStatus!=='reference-only');return '<section class="today-plan '+(plans.length?'':'today-empty')+'"><div class="panel-head"><h2>今日训练</h2><span>'+escape(fullDate(day))+'</span></div>'+(plans.length?plans.map(p=>'<button class="today-plan-link" data-action="'+(p.coachIssued?'coach-detail:':'open-plan:')+escape(p.id)+'"><span>'+escape(p.start||'时间待定')+'</span><strong>'+escape(p.name)+'</strong>'+icon('right')+'</button>').join(''):'<p>今天还没有安排</p>')+'<div class="today-links">'+btn('本周安排','pb-mode:week','calendar','quiet')+btn('日历与时间','training-calendar','calendar','quiet')+'</div></section>';}
+function todayTraining(s){
+ const plans=byDate(s.plans,day).filter(p=>!p.cancelled&&p.executionStatus!=='reference-only');
+ const start=weekStart(day),days=Array.from({length:7},(_,i)=>offset(start,i));
+ const upcoming=s.plans.filter(p=>p.date>day&&!p.cancelled&&p.executionStatus!=='reference-only').sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+ return '<div class="training-home"><header class="athlete-welcome"><span>破风</span><h2>专注今天，稳步向前。</h2><p>照自己的节奏，做好每一课。</p></header><section class="today-plan '+(plans.length?'':'today-empty')+'"><div class="panel-head"><h2>今日训练</h2><span>'+escape(fullDate(day))+'</span></div>'+(plans.length?plans.map(p=>'<button class="today-plan-link" aria-label="今日课表：'+escape(p.name)+'" data-action="'+(p.coachIssued?'coach-detail:':'open-plan:')+escape(p.id)+'"><span class="session-symbol">'+icon('run')+'</span><strong>'+escape(p.name)+'</strong>'+icon('right')+'</button>'+(p.course?'<p class="today-structure">'+escape(courseReading(p.course).sets+'大组 · '+courseReading(p.course).lines.map(l=>l.work+' · '+l.target).join('；'))+'</p>':'')+'<small>'+escape(p.start||'时间待定')+' · '+escape(p.trainingOutcome?outcomeLabels[p.trainingOutcome.status]+'（本人记录）':'未记录完成情况')+'</small>').join(''):'<p>今天还没有安排训练</p>')+'<div class="today-links">'+btn('本周安排','pb-mode:week','calendar','quiet')+btn('日历与时间','training-calendar','calendar','quiet')+'</div></section><section class="home-week"><div class="panel-head"><h2>本周概览</h2>'+btn('查看周计划','pb-mode:week','','quiet')+'</div><div class="home-week-days">'+days.map((d,i)=>{const ps=s.plans.filter(p=>p.date===d&&!p.cancelled&&p.executionStatus!=='reference-only'),done=ps.length&&ps.every(p=>p.trainingOutcome?.status==='complete');return '<button data-action="home-date:'+d+'" aria-label="'+d+' '+(done?'本人标记完成':ps.length?'已安排':'未安排')+'" class="'+(d===day?'is-today ':'')+(done?'is-done':'')+'"><span>'+['一','二','三','四','五','六','日'][i]+'</span><i>'+ (done?icon('check',16):ps.length?icon('calendar',14):'<b></b>')+'</i></button>';}).join('')+'</div></section>'+(upcoming.length?'<section class="upcoming-plans"><div class="panel-head"><h2>近期安排</h2></div>'+upcoming.map(p=>'<button data-action="open-plan:'+escape(p.id)+'"><time>'+escape(p.date.slice(5))+'</time><span><strong>'+escape(p.name)+'</strong><small>'+escape(p.course?courseReading(p.course).lines.map(l=>l.work+' · '+l.target).join('；'):p.start||'查看完整课表')+'</small></span>'+icon('right')+'</button>').join('')+'</section>':'')+'</div>';
+}
+function foodOverview(items){
+ const t=mealTotals(items),known=items.length>0,values=[t.protein,t.carbs,t.fat],energies=values.map((v,i)=>Math.max(0,v||0)*(i===2?9:4)),energy=energies.reduce((a,b)=>a+b,0),p=energy?energies[0]/energy*100:0,c=energy?energies[1]/energy*100:0;
+ return '<section class="food-overview" data-nutrients="'+(energy>0)+'" aria-label="已记录营养"><div class="nutrition-ring" style="--protein:'+p+'%;--carbs:'+(p+c)+'%"><div><strong>'+escape(known&&t.kcal!==null?num(t.kcal):'—')+'</strong><small>已记录 kcal</small></div></div><div class="macro-bars">'+[['蛋白质','protein'],['碳水化合物','carbs'],['脂肪','fat']].map(([label,key],i)=>'<div class="macro macro-'+i+'"><p><span>'+label+'</span><strong>'+escape(known&&t[key]!==null?num(t[key])+' g':known?'未知':'未记录')+'</strong></p><div class="macro-track"><i style="width:'+(energy?energies[i]/energy*100:0)+'%"></i></div></div>').join('')+'<small>'+ (known&&values.some(v=>v===null)?'部分营养未知；比例仅含已知项':'比例按已记录营养折算，不是摄入目标')+'</small></div></section>';
+}
 function pbLibraryView(s) {
   if (!pbDistances.includes(pbLibraryEvent)) {
     pbLibraryEvent=pbDistances.includes(s.groupPlan?.event)?s.groupPlan.event:'800 m';
@@ -271,11 +282,12 @@ function pbLibraryView(s) {
   const calendar=currentWeek(),week=calendar.template;
   const selected=week[selectedIndex],weekStatus=weekContentStatus(week);
   const filtered=courses.filter(item=>(pbLibraryFocus==='archive'?item.catalogStatus==='archive':item.catalogStatus!=='archive'&&(pbLibraryFocus==='all'||pbLibraryFocus===item.categoryId))&&(!courseSearch||[item.name,item.category,item.objective,item.main].join(' ').toLowerCase().includes(courseSearch.toLowerCase())));
-  const single='<div class="course-section-head"><h2>'+escape(courseCategories[pbLibraryFocus]||'选训练')+'</h2>'+btn('按类型浏览','course-filter','','quiet')+'</div><div class="course-rail" tabindex="0" aria-label="训练课程，可横向滚动">'+
+  const chips='<div class="course-chips" aria-label="快捷筛选">'+[['all','全部'],['interval','间歇'],['tempo','Tempo'],['endurance','速度耐力'],['speed','速度技术']].map(([id,label])=>'<button aria-label="筛选'+label+'" aria-pressed="'+(pbLibraryFocus===id)+'" data-action="pb-focus:'+id+'">'+label+'</button>').join('')+'</div>';
+  const single=chips+'<div class="course-section-head"><h2>'+escape(courseCategories[pbLibraryFocus]||'选训练')+'</h2>'+btn('按类型浏览','course-filter','','quiet')+'</div><div class="course-rail" tabindex="0" aria-label="训练课程">'+
     (filtered.length?filtered.map(courseCard).join(''):'<p class="empty-courses">没有找到对应课程，试试其他关键词。</p>')+'</div>';
   const totals=weekTotals(week);
-  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><div class="week-toolbar">'+btn('上一周','week-shift:-1','left','quiet')+'<strong>'+calendar.start+' — '+offset(calendar.start,6)+'</strong>'+btn('下一周','week-shift:1','right','quiet')+'</div><p class="week-purpose" role="status">'+escape(coursePhases[coursePhase])+' · '+(weekStatus.complete?'编排齐全 · 待独立审核':'内容未齐 · '+weekStatus.missing+'课待确认')+(calendar.held?' · '+calendar.held+'日需核对':'')+'</p><div class="course-dates" aria-label="课程日期">'+calendar.rows.map((r,i)=>'<button data-action="course-day:'+i+'" aria-pressed="'+(i===selectedIndex)+'"><small>'+escape(r.date.slice(5).replace('-','/')+' '+['周一','周二','周三','周四','周五','周六','周日'][i])+'</small><strong>'+escape(r.plans.length?'已安排':r.course.id==='rest'?'休息':r.course.category)+'</strong></button>').join('')+'</div><section class="week-feature" data-swipe-day="course"><p>'+escape(fullDate(calendar.rows[selectedIndex].date))+'</p><h2>'+escape(calendar.rows[selectedIndex].plans[0]?.name||calendar.rows[selectedIndex].course.name)+'</h2>'+btn('查看完整课程','pb-week:'+selectedIndex,'arrow','quiet')+'</section><ol class="week-outline outer-week">'+calendar.rows.map((r,i)=>'<li data-date="'+r.date+'" data-course-id="'+escape(r.course.id)+'"><header><span>'+escape(fullDate(r.date))+(r.slot?' · '+escape(r.slot.start):'')+'</span><small>'+escape(r.plans.length?'已保存课表':r.held||'周草案')+'</small></header>'+ (r.plans.length?r.plans.map(p=>'<h3>'+btn(p.name,'open-plan:'+p.id,'','course-title')+'</h3>'+(p.course?readingSummary(p.course):'<p>'+escape(p.coachIssued?'教练安排 · 查看四段内容':p.note||'查看已保存内容')+'</p>')).join(''):'<h3>'+btn(r.course.name,'pb-week:'+i,'','course-title')+'</h3>'+readingSummary(r.course))+'<p class="week-relation">'+escape(r.plans.length?'已保存内容优先；调整日期时重新核对相邻课次。':r.course.relation)+'</p></li>').join('')+'</ol><details class="week-explanation"><summary>本周目的、衔接与合计</summary><p class="week-purpose">'+escape(selected.weekPurpose)+'</p><p>'+escape(selected.weekEligibility||'')+'</p><p>'+escape(selected.transitionRules||'不自动提高负荷，恢复不足先调整。')+'</p><p>已知主段 '+totals.mainDistanceM+'m · 有氧 '+totals.aerobicSeconds/60+'分钟 · 其他主段 '+totals.otherMainSeconds/60+'分钟 · 休息 '+totals.recoverySeconds/60+'分钟</p><p>'+escape(totals.preparation)+'；另有 '+totals.unknown+' 项内容未知。以上为草案，不是实际完成量。</p><p>'+escape(calendar.rows[0].mapping.reason)+'</p></details>';
-  return '<section id="pb-library" class="course-discover"><button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+' · '+escape(groupConfirmed?contentGroups[courseGroup]+'组':'组别未选择 · 基础示例')+'</span></strong><span>调整 '+icon('right')+'</span></button>'+
+  const weekContent='<div class="course-section-head"><h2>'+escape(coursePhases[coursePhase])+'</h2>'+btn('调整阶段','course-phases','','quiet')+'</div><div class="week-toolbar">'+btn('上一周','week-shift:-1','left','quiet')+'<strong>'+calendar.start.slice(5).replace('-','/')+' — '+offset(calendar.start,6).slice(5).replace('-','/')+'</strong>'+btn('下一周','week-shift:1','right','quiet')+'</div><p class="week-purpose" role="status">'+escape(coursePhases[coursePhase])+' · '+(weekStatus.complete?'编排齐全 · 待独立审核':'内容未齐 · '+weekStatus.missing+'课待确认')+(calendar.held?' · '+calendar.held+'日需核对':'')+'</p><details class="week-date-picker"><summary>按日期查看</summary><div class="course-dates" aria-label="课程日期">'+calendar.rows.map((r,i)=>'<button data-action="course-day:'+i+'" aria-pressed="'+(i===selectedIndex)+'"><small>'+escape(r.date.slice(5).replace('-','/')+' '+['周一','周二','周三','周四','周五','周六','周日'][i])+'</small><strong>'+escape(r.plans.length?'已安排':r.course.id==='rest'?'休息':r.course.category)+'</strong></button>').join('')+'</div><section class="week-feature" data-swipe-day="course"><p>'+escape(fullDate(calendar.rows[selectedIndex].date))+'</p><h2>'+escape(calendar.rows[selectedIndex].plans[0]?.name||calendar.rows[selectedIndex].course.name)+'</h2>'+btn('查看完整课程','pb-week:'+selectedIndex,'arrow','quiet')+'</section></details><ol class="week-outline outer-week">'+calendar.rows.map((r,i)=>'<li data-date="'+r.date+'" data-course-id="'+escape(r.course.id)+'"><header><span>'+escape(fullDate(r.date))+(r.slot?' · '+escape(r.slot.start):'')+'</span><small>'+escape(r.plans.length?'已保存课表':r.held||'周草案')+'</small></header>'+ (r.plans.length?r.plans.map(p=>'<h3>'+btn(p.name,'open-plan:'+p.id,'','course-title')+'</h3>'+(p.course?readingSummary(p.course):'<p>'+escape(p.coachIssued?'教练安排 · 查看四段内容':p.note||'查看已保存内容')+'</p>')).join(''):'<h3>'+btn(r.course.name,'pb-week:'+i,'','course-title')+'</h3>'+readingSummary(r.course))+'<details class="week-relation"><summary>课次衔接</summary><p>'+escape(r.plans.length?'已保存内容优先；调整日期时重新核对相邻课次。':r.course.relation)+'</p></details></li>').join('')+'</ol><details class="week-explanation"><summary>本周目的、衔接与合计</summary><p class="week-purpose">'+escape(selected.weekPurpose)+'</p><p>'+escape(selected.weekEligibility||'')+'</p><p>'+escape(selected.transitionRules||'不自动提高负荷，恢复不足先调整。')+'</p><p>已知主段 '+totals.mainDistanceM+'m · 有氧 '+totals.aerobicSeconds/60+'分钟 · 其他主段 '+totals.otherMainSeconds/60+'分钟 · 休息 '+totals.recoverySeconds/60+'分钟</p><p>'+escape(totals.preparation)+'；另有 '+totals.unknown+' 项内容未知。以上为草案，不是实际完成量。</p><p>'+escape(calendar.rows[0].mapping.reason)+'</p></details>';
+  return '<section id="pb-library" class="course-discover">'+((trainingBrowse||pbLibraryMode==='week')?btn('返回训练','training-home','left','quiet'):'')+'<button class="course-profile pb-tiers-label" data-action="course-settings" aria-label="调整专项与PB"><strong>'+escape(pbDistanceLabel(event))+' <span>· PB '+escape(selection.label)+' · '+escape(groupConfirmed?contentGroups[courseGroup]+'组':'组别未选择 · 基础示例')+'</span></strong><span>调整 '+icon('right')+'</span></button>'+
     '<div class="pb-library-mode" role="group" aria-label="训练计划形式"><button data-action="pb-mode:single" aria-pressed="'+(pbLibraryMode==='single')+'">单节训练</button><button data-action="pb-mode:week" aria-pressed="'+(pbLibraryMode==='week')+'">本周计划</button>'+btn('长期',s.programs?.length?'program-open':'program-new','','quiet')+'</div>'+
     (trainingPaused(s)?'<div class="course-risk" role="status">已知伤痛：课程可以浏览，暂不安排执行。'+btn('查看原因','training-safety','','quiet')+'</div>':'')+
     (pbLibraryMode==='single'?single:weekContent)+'<div class="course-status"><span>课程候选 · 非自动训练推荐'+(options.youth?' · 青少年指导模式':'')+'</span></div>'+
@@ -285,7 +297,7 @@ function refreshPBView(keepPosition=true) {
   const root=main.querySelector('#pb-library');
   if (!root) return render();
   const positions=['.pb-tiers','.pb-events','.pb-focus'].map(selector=>[selector,root.querySelector(selector)?.scrollLeft||0]);
-  root.outerHTML=pbLibraryView(state());
+  root.outerHTML=pbLibraryView(state());main.querySelector('.training-product')?.setAttribute('data-training-view',pbLibraryMode==='week'?'week':trainingBrowse?'browse':'home');
   for (const [selector,left] of positions) main.querySelector(selector)?.scrollTo({left:keepPosition?left:0,behavior:'instant'});
 }
 function openPBWorkout(course,dayIndex=null) {
@@ -341,7 +353,7 @@ editor.addEventListener('submit',event=>{
 const coachUI=createCoachUI({rememberReading,state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
 const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
-  return '<div class="training-product">'+head('','训练','每一段训练，都有清楚的安排。',btn('搜索','course-search','','quiet')+'<button class="icon-button training-mobile-settings" data-action="menu" aria-label="个人与设置">'+icon('settings')+'</button>')+
+  return '<div class="training-product reference-shell" data-training-view="'+(pbLibraryMode==='week'?'week':trainingBrowse?'browse':'home')+'">'+head('','训练','每一段训练，都有清楚的安排。',btn('搜索','course-search','','quiet')+'<button class="icon-button training-mobile-settings" data-action="menu" aria-label="个人与设置">'+icon('settings')+'</button>')+
     (workoutPlayer.hasSession()||activeWorkout||window.__nativeLegacyPending?btn('处理旧记录草稿','legacy-record','','quiet'):'')+todayTraining(s)+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+(coachUI.showLibrary()?pbLibraryView(s):'')+coachUI.view()+(s.programs?.length?programUI.view():'')+
     '<nav class="training-tools" aria-label="训练记录">'+btn('编排训练','edit:plans:','plus','quiet')+(!s.programs?.length?programUI.view():'')+btn('训练日程','training-calendar','calendar','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
@@ -382,14 +394,15 @@ function schedule(s) {
 }
 function nutrition(s) {
   const items = byDate(s.food,foodDate);
-  return '<div class="quick-page quick-food">'+head('','饮食','',btn('添加食物','food-start','plus','primary'))+nutritionDateNav()+
+  return '<div class="quick-page quick-food">'+head('','饮食','',btn('添加食物','food-start','plus','primary'))+nutritionDateNav()+foodOverview(items)+
     '<div class="meal-list">'+meals.map(meal=>{
       const entries=items.filter(item=>item.meal===meal).reverse();
-      return '<section class="meal-group"><header><h2>'+meal+'</h2>'+btn('添加'+meal,'food-start:'+meal,'plus','quiet')+'</header>'+
+      return '<section class="meal-group meal-'+meals.indexOf(meal)+'"><header><span class="meal-symbol">'+icon(['sun','sun','moon','heart'][meals.indexOf(meal)])+'</span><h2>'+meal+'</h2><small>'+escape(entries.length&&mealTotals(entries).kcal!==null?num(mealTotals(entries).kcal)+' kcal':'尚未记录')+'</small>'+btn('添加'+meal,'food-start:'+meal,'plus','quiet')+'</header>'+
         entries.map(item=>'<button type="button" class="meal-entry" data-action="'+(item.components?'meal-detail:':'edit:food:')+item.id+
           '"><span>'+escape(item.name)+'</span><small>'+escape([item.grams?num(item.grams)+' g':'',item.timing==='日常'?'':item.timing].filter(Boolean).join(' · '))+
           '</small></button>').join('')+'</section>';
     }).join('')+'</div>'+
+    '<div class="food-shortcuts">'+btn('搜索食物','food-quick:search','search','quiet')+btn('最近吃过','food-quick:recent','clock','quiet')+btn('我的收藏','food-quick:favorite','star','quiet')+'</div>'+
     (items.length?'<details class="quick-secondary"><summary>当日营养汇总</summary>'+nutritionStats(items)+'</details>':'')+
     '<details class="quick-secondary"><summary>饮食历史与趋势</summary>'+btn('营养趋势','metric-detail:meals','','quiet')+
     rows(desc(s.food.filter(item=>item.date!==foodDate)),'food',item=>[item.name,item.date+' · '+item.meal,item.timing],'food','暂无往日餐食','')+'</details></div>';
@@ -716,7 +729,8 @@ const actions = {
   'course-phases': openCoursePhase,
   'course-phase': ([phase]) => {if(!Object.hasOwn(coursePhases,phase))return;coursePhase=phase;persistPBChoice();editor.close();refreshPBView();},
   'course-group': ([group]) => {if(courseSelectionDraft&&Object.hasOwn(contentGroups,group)){courseSelectionDraft.group=group;openCourseSettings(false);}},
-  'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;persistPBChoice();if(!coachUI.showLibrary())coachUI.actions['coach-library']();else refreshPBView();},
+  'training-home':()=>{trainingBrowse=false;pbLibraryMode='single';persistPBChoice();render();window.scrollTo({top:0,behavior:'instant'});},
+  'pb-mode': ([mode]) => {if(!['week','single'].includes(mode)) return; pbLibraryMode=mode;trainingBrowse=mode==='single';persistPBChoice();if(!coachUI.showLibrary())coachUI.actions['coach-library']();else refreshPBView();},
   'pb-event': ([index]) => {const event=pbDistances[Number(index)];if(!event||!courseSelectionDraft)return;courseSelectionDraft={...courseSelectionDraft,event,pb:event===pbLibraryEvent?pbLibraryChoice:''};openCourseSettings(false);},
 
 
@@ -802,7 +816,9 @@ const actions = {
   'cancel-timer': discardWorkout,
   finish: finishWorkout,
   devices: showDevices,
+  'home-date': ([date])=>{selectedDate=date;location.hash='calendar';},
   'food-start': startMeal,
+  'food-quick': ([tab]) => {startMeal();if(!sample)mealTab(tab);},
   'food-tab': ([tab]) => mealTab(tab),
   'food-custom': () => showCustomFood(),
   'food-manual': () => {

@@ -81,9 +81,10 @@ test('course content leads the first screen and middle-distance phases select di
   await page.goto('/#run');
   await expect(page.locator('main .pb-events')).toHaveCount(0);
   await expect(page.locator('main .pb-tiers')).toHaveCount(0);
-  const card=await page.locator('.course-card h3').first().boundingBox();
+  const today=await page.locator('.today-plan h2').boundingBox();
   await expect(page.getByRole('heading',{name:'今日训练',exact:true})).toBeVisible();
-  expect(card.y+card.height).toBeLessThan(Math.max(700,page.viewportSize().height-50));
+  expect(today.y+today.height).toBeLessThan(page.viewportSize().height-50);
+  await expect(page.getByRole('heading',{name:'本周概览',exact:true})).toBeVisible();
   for(const event of ['800m','1500m']) {
     await click(page,'调整专项与PB');await click(page,event);await click(page,'查看课程');
     await click(page,'按类型浏览');await click(page,'间歇');
