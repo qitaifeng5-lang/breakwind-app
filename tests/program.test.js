@@ -39,7 +39,7 @@ test('arranging is idempotent, retains coach priorities, respects real time boun
  const n=s.plans.length;arrangeProgramWeek(s,p.programId,0,{today});assert.equal(s.plans.length,n);assert.equal(s.runs.length,0);
  assert.equal(previewProgramWeek(s,p,0,{today:offset(today,8)}).added.length,0);
  const {s:s2,p:p2}=fixture();s2.coachSchedule.rules=[{id:'slot',weekday:new Date(today+'T12:00:00').getDay(),start:'18:00',end:'18:20',name:'合成固定时段',kind:'training'}];
- assert.ok(previewProgramWeek(s2,p2,0,{today}).held.some(h=>h.reason.includes('超出固定时段')));
+ const constrained=previewProgramWeek(s2,p2,0,{today});assert.equal(constrained.added.length,0);assert.ok(constrained.held.some(h=>/固定时段/.test(h.reason))); // Whole-week mapping may select short hills; unknown preparation still blocks fitting it into a precise slot.
 });
 test('time move keeps identity; cancellation is not regenerated; confirmed future revisions do not rewrite history',()=>{
  const {s,p}=fixture();arrangeProgramWeek(s,p.programId,0,{today});const plan=s.plans[0],snapshot=structuredClone(plan.course);

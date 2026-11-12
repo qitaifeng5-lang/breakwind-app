@@ -1,3 +1,4 @@
+import {courseMetadata} from './pb-library.js';
 import {restoreSelection,calendarWeek,weekTotals} from './week-plan.js';
 import {recordCompletion,outcomeLabels} from './completion.js';
 import {createPageHost} from './page-host.js';
@@ -202,7 +203,7 @@ function rows(items, collection, render, glyph, emptyLabel, emptyCopy) {
     return '<li><span class="tile">' + icon(glyph,17) + '</span><div class="row-text"><strong>' + escape(title) + '</strong><small>' + escape(detail) + '</small></div>' + (badge ? tag(badge) : '') + (collection === 'runs' ? btn('运动详情','run-detail:' + item.id,'','quiet') : collection === 'food' && item.components ? btn('餐食详情','meal-detail:' + item.id,'','quiet') : collection === 'plans' ? btn('课次详情','open-plan:' + item.id,'','quiet') : btn(sample ? '查看' : '编辑','edit:' + collection + ':' + item.id,'','quiet')) + '</li>';
   }).join('') + '</ul>' : empty(glyph,emptyLabel,emptyCopy);
 }
-const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : item.type];
+const planRow = item => [item.name, [item.date, item.start, item.distance ? item.distance + ' km' : '', item.minutes ? item.minutes + ' min' : '', item.pace ? item.pace + ' /km' : ''].filter(Boolean).join(' · '), item.completed ? '已完成' : (item.category||item.course?.category||item.type)];
 const runRow = item => [item.name, item.date + ' · ' + (item.distanceMeasured===false?'距离未测量 · '+item.minutes+' min':item.distance + ' km · ' + item.minutes + ' min · ' + pace(item.distance,item.minutes) + ' /km') + (item.heart ? ' · ' + item.heart + ' bpm' : ''), sourceNames[item.source] || '手动记录'];
 
 const pbCourseKinds={interval:'间歇跑',endurance:'间歇跑',tempo:'阈值跑',speed:'加速跑',combination:'间歇跑',aerobic:'轻松跑',hills:'坡道跑'};
@@ -329,7 +330,7 @@ function scheduleCourse(date) {
   if (!ready.canSchedule) {formError(ready.reason);return false;}
   if (existing) {notify('这节课已在日程中');return existing;}
   const slot=recurringFor(data,date).find(r=>r.kind==='training');
-  const plan={id:crypto.randomUUID(),date,name:course.name,type:course.id==='hills-control'?'技术训练':pbCourseKinds[course.categoryId||course.id],quality:course.quality,courseKey,
+  const plan={id:crypto.randomUUID(),date,name:course.name,type:course.id==='hills-control'?'技术训练':pbCourseKinds[course.categoryId||course.id],quality:course.quality,courseKey,...courseMetadata(course),
     course:structuredClone(course),reviewStatus:'pending',executionStatus:'待执行核对',completed:false,
     note:course.main,minutes:null,distance:null,pace:'',start:slot?.start||'',end:'',recurringKey:slot?.id||''};
   const scheduleReview=assessSchedule(data,occupied(plan),{today:day});if(!scheduleReview.canSave){formError(scheduleReview.conflicts.join('；'));return false;}plan.scheduleReview=scheduleReview;
@@ -351,7 +352,7 @@ editor.addEventListener('submit',event=>{
   if (plan) runOptions(plan.id,true);
 });
 const coachUI=createCoachUI({rememberReading,state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
-const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
+const programUI=createProgramUI({selection:()=>({event:pbLibraryEvent,pb:pbLibrarySelection(state()).seconds,group:courseGroup}),state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
   return '<div class="training-product reference-shell" data-training-view="'+(pbLibraryMode==='week'?'week':trainingBrowse?'browse':'home')+'">'+head('','训练','每一段训练，都有清楚的安排。',btn('搜索','course-search','','quiet')+'<button class="icon-button training-mobile-settings" data-action="menu" aria-label="个人与设置">'+icon('settings')+'</button>')+
     (workoutPlayer.hasSession()||activeWorkout||window.__nativeLegacyPending?btn('处理旧记录草稿','legacy-record','','quiet'):'')+todayTraining(s)+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+(coachUI.showLibrary()?pbLibraryView(s):'')+coachUI.view()+(s.programs?.length?programUI.view():'')+
@@ -390,7 +391,7 @@ function schedule(s) {
   }).join('');
   return head('','训练与日程','',btn('新建事项','edit:events:','plus','primary') + btn('安排训练','edit:plans:','calendar')) +
   '<div class="split">' + panel('日历', '<div data-swipe-day="calendar"><div class="calendar-controls">' + btn('上一周期','move:-1','left','quiet') + '<strong>' + escape(calendarMode === 'month' ? selectedDate.slice(0,7) : fullDate(selectedDate)) + '</strong>' + btn('下一周期','move:1','right','quiet') + '</div><div class="calendar-days">' + dateButtons + '</div></div>', '<div class="segmented">' + [['day','日'],['week','周'],['month','月']].map(([mode,label]) => '<button type="button" aria-pressed="' + (calendarMode===mode) + '" data-action="mode:' + mode + '">' + label + '</button>').join('') + '</div>') +
-  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.recurring?btn('固定时段','coach-settings','','quiet'):item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
+  panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.category||item.course?.category||item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.recurring?btn('固定时段','coach-settings','','quiet'):item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
   const items = byDate(s.food,foodDate);

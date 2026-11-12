@@ -1,4 +1,4 @@
-import { pbWeek } from './pb-library.js';
+import { pbWeek,courseMetadata } from './pb-library.js';
 import { offset, sum } from './model.js';
 
 export const specialties = {
@@ -320,7 +320,7 @@ export function groupWeek(data,today,profile) {
     const date=offset(start,index);
     const existing=data.plans.find(plan=>plan.date===date);
     if (existing) return {...existing,external:true};
-    return {...course,id:['group',profile.event,profile.group,profile.start,date].join('~'),date,groupWorkout:true,
+    return {...course,...courseMetadata(course),id:['group',profile.event,profile.group,profile.start,date].join('~'),date,groupWorkout:true,
       type:course.id==='rest'?'休息':course.quality?'间歇跑':'轻松跑',courseId:course.id,readiness:courseReadiness(data,course,date,today),
       previewOnly:true,minutes:null,pace:'',blocks:course.blocks?.map(block=>[block.name,block.detail])};
   });

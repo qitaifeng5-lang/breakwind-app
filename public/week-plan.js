@@ -9,7 +9,10 @@ export function restoreSelection(saved,data){
 }
 export function courseParameters(c){return {id:c.id,event:c.event,group:c.selectedGroup,revision:c.catalogRevision,sets:c.sets,segments:c.segments,setRecovery:c.setRecovery,targetBasis:c.targetBasis,targetBases:c.targetBases,prescription:c.prescription,executionSpec:c.executionSpec,warmup:c.warmup,cooldown:c.cooldown};}
 export function calendarWeek(data,event,pb,options,date){
- const start=weekStart(date),template=pbWeek(event,pb,options),days=Array.from({length:7},(_,i)=>offset(start,i));
+ return mapWeekCourses(data,pbWeek(event,pb,options),weekStart(date));
+}
+export function mapWeekCourses(data,template,start){
+ const days=Array.from({length:7},(_,i)=>offset(start,i));
  const slots=days.map(d=>recurringFor(data,d).filter(r=>r.kind==='training'&&!r.cancelled));
  const fixed=Boolean(data.coachSchedule?.rules?.some(r=>r.kind==='training'));
  // Rotate the whole structure, never randomly draw sessions or compress recovery.
