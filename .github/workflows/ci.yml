@@ -36,6 +36,8 @@ jobs:
       - name: Check JavaScript and JSX syntax
         id: syntax
         run: npm run check:syntax
+      - name: Check training structure types
+        run: npm run check:types
       - name: Run ESLint
         id: lint
         run: npm run lint

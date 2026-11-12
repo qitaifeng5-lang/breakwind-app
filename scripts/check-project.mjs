@@ -2,7 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 
 const mode=process.argv[2];
-const paths=['public/app.js','public/design-lab.js','public/model.js','public/engine.js','public/pb-library.js','public/workout.js','public/workout-ui.js','public/program.js','public/program-ui.js','public/membership.js','public/coach-plan.js','public/coach-ui.js','public/fuel.js','public/running.js','public/sw.js','server.mjs','vision.mjs','app.config.js','native/index.js','native/location.js','native/run-store.js','native/healthkit.js','native/health-data.js','native/session.js','scripts/daily-quality.mjs'];
+const paths=['public/training-workbench.js','public/training-structure.js','public/app.js','public/design-lab.js','public/model.js','public/engine.js','public/pb-library.js','public/workout.js','public/workout-ui.js','public/program.js','public/program-ui.js','public/membership.js','public/coach-plan.js','public/coach-ui.js','public/fuel.js','public/running.js','public/sw.js','server.mjs','vision.mjs','app.config.js','native/index.js','native/location.js','native/run-store.js','native/healthkit.js','native/health-data.js','native/session.js','scripts/daily-quality.mjs'];
 if (mode==='syntax') {
   for (const path of paths) execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
   // The same JSX parser used by ESLint checks the React Native screen.

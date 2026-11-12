@@ -14,7 +14,8 @@
     "check:integrity": "node scripts/check-project.mjs integrity",
     "check:syntax": "node scripts/check-project.mjs syntax",
     "check:ios": "node scripts/check-project.mjs ios",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:types": "tsc -p tsconfig.workbench.json"
   },
   "dependencies": {
     "@kingstinct/react-native-healthkit": "16.2.0",
@@ -33,7 +34,8 @@
   "devDependencies": {
     "@playwright/test": "1.56.1",
     "eslint": "9.39.1",
-    "globals": "16.5.0"
+    "globals": "16.5.0",
+    "typescript": "5.9.3"
   },
   "overrides": {
     "@expo/cli": {

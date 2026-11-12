@@ -1,6 +1,8 @@
+import {workbenchHTML,mountWorkbench,installTrainingMapInteractions,courseMap,trainingMap,courseStructure} from './training-workbench.js';
+import {readStructure,structureSummary,restText} from './training-structure.js';
 import {createProgramUI} from './program-ui.js';
 import {createCoachUI} from './coach-ui.js';
-import {recurringFor} from './coach-plan.js';
+import {recurringFor,assessSchedule} from './coach-plan.js';
 import {createWorkoutPlayer} from './workout-ui.js';
 import {supportsWorkout,courseIdentity} from './workout.js';
 import { runModes, sourceNames, addFix, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
@@ -37,6 +39,7 @@ const storagePrefix = hostedPreview ? 'breakwind.preview' : 'breakwind';
 const key = storagePrefix + '.local.v1';
 const main = document.querySelector('#main');
 const editor = document.querySelector('#editor');
+installTrainingMapInteractions(editor);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 // Safari keeps the layout viewport behind the keyboard. Fit sheets to the
 // visual viewport instead; never resize the page or discard a form draft.
@@ -245,7 +248,7 @@ function structureHTML(course,compact=false) {
     (course.sets>1?'<p class="set-recovery">共 '+course.sets+' 组 · 组间恢复 '+recoveryText(course.setRecovery)+'</p>':'');
 }
 function courseCard(course) {
-  return '<article class="course-card" data-course-id="'+escape(course.id)+'" data-course-identity="'+escape(courseIdentity(course))+'"><div class="course-cover cover-'+course.categoryId+'">'+courseArt(course.categoryId)+
+  return '<article class="course-card" data-course-id="'+escape(course.id)+'" data-course-identity="'+escape(courseIdentity(course))+'"><div class="course-cover cover-'+course.categoryId+'">'+trainingMap(courseStructure(course),{compact:true})+
     '<span>'+escape(course.category)+' · '+escape(course.phaseLabel)+'</span></div><div class="course-card-body"><small>'+escape((course.trainingGroups||[contentGroups[courseGroup]]).join('／')+'组')+' · '+escape(course.applicablePB)+' · 待审核</small><h3>'+btn(course.name,'pb-course:'+course.id,'','course-title')+'</h3><p>'+escape(course.main)+'</p>'+
     '<details class="course-expansion"><summary>展开结构</summary><div>'+structureHTML(course)+'<p>'+escape(course.objective)+'</p><p>'+escape(course.adjustment)+'</p></div></details></div></article>';
 }
@@ -293,7 +296,7 @@ function openPBWorkout(course,dayIndex=null) {
   const ready=courseReadiness(state(),course,activeCourse.date,day);
   modal(course.name,'<div class="course-detail" data-course-identity="'+escape(courseIdentity(course))+'"><small class="course-version">'+escape(course.build.slice(0,8)+' · '+course.event+' · '+course.id+' · '+(course.selectedGroup||'legacy')+' / '+(course.weekPhase||course.phase))+'</small><div class="detail-cover cover-'+(course.categoryId||course.id)+'">'+courseArt(course.categoryId||course.id)+'<span>'+escape(course.category)+'</span></div>'+
     '<p class="course-kicker">'+escape(pbDistanceLabel(course.event)+' · '+course.applicablePB+' · '+course.phaseLabel)+' · '+escape(course.roleLabel||'课程示例')+' · '+escape(course.review.label)+'</p>'+
-    (supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>恢复说明</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
+    courseMap(course)+(supportsWorkout(course)?workoutPlayer.detail(course):'<div class="compact-workout"><section class="course-block"><h3>热身</h3><p>轻松跑、动态活动、跑姿练习</p></section><section class="course-block"><h3>主训练</h3>'+structureHTML(course,true)+'</section><section class="course-block"><h3>恢复说明</h3><p>'+(course.sets>1?recoveryText(course.setRecovery):'无')+'</p></section><section class="course-block"><h3>冷身</h3><p>轻松放慢</p></section></div>')+
     '<details class="course-original course-evidence"><summary>查看说明</summary>'+(supportsWorkout(course)?workoutPlayer.notes():'')+'<p>'+escape(course.objective)+'</p><p>'+escape(course.warmup)+'</p><p>'+escape(course.cooldown)+'</p><p>'+escape(course.intensityBasis)+'</p><p>'+escape(course.adjustment)+'</p><p>'+escape(course.parameterOrigin)+'</p><p>'+escape(course.eligibility||'')+'</p>'+(course.evidenceMap||[]).map(e=>'<article><strong>'+escape(e.parameter)+'</strong><p>来源：'+escape(e.source)+'</p><p>产品选择：'+escape(e.adaptation)+'</p><p>限制：'+escape(e.limit)+'</p></article>').join('')+structureHTML(course)+course.sources.map(source=>'<article><a href="'+source.url+'" target="_blank" rel="noopener">'+escape(source.title)+'</a><small>'+escape(source.kind+' · '+source.population)+'</small><p>'+escape(source.rule)+'</p><p>'+escape(source.limit)+'</p></article>').join('')+'</details>'+
     (!ready.canSchedule?'<p class="course-readiness" role="status">'+escape(ready.reason)+'</p>':'')+
     (ready.canSchedule || ready.status==='spacing'?'<form id="course-schedule"><label class="course-date-label">加入日期<input type="date" name="date" min="'+day+'" value="'+activeCourse.date+'" required></label><div class="dialog-actions page-primary">'+(scheduled? (ready.canSchedule?btn('开始记录','course-start','','primary'):''):'<button class="btn primary" type="submit">加入日程</button>')+'</div>'+(!scheduled&&ready.canSchedule?'<details class="alternate-action"><summary>仅记录本次</summary>'+btn('开始记录','course-start','','quiet')+'</details>':'')+'<p class="form-error" role="alert" hidden></p></form>':'')+'</div>','page');
@@ -338,9 +341,9 @@ editor.addEventListener('submit',event=>{
 const coachUI=createCoachUI({state,commit:change=>sample?(notify('请返回个人模式后保存课表。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,paused:()=>trainingPaused(state()),notify});
 const programUI=createProgramUI({state,commit:change=>sample?(notify('请返回个人模式后保存周期。'),false):commit(change),modal,editor,escape,btn,render,day:()=>day,notify,openCourse:openPBWorkout});
 function training(s) {
-  return '<div class="training-product">'+head('','训练','',btn('搜索','course-search','','quiet')+btn('记录跑步','run-options','plus','quiet'))+
+  return '<div class="training-product">'+head('','训练','每一段训练，都有清楚的安排。',btn('搜索','course-search','','quiet')+btn('编排训练','edit:plans:','plus','primary'))+
     (workoutPlayer.hasSession()?btn('继续分段训练','workout-resume','play','primary'):'')+'<label class="course-search"'+(courseSearchOpen?'':' hidden')+'><span class="sr-only">搜索课程</span><input id="course-search" type="search" placeholder="搜索课程、结构或训练目的" value="'+escape(courseSearch)+'"></label>'+coachUI.view()+(s.programs?.length?programUI.view():'')+(coachUI.showLibrary()?pbLibraryView(s):'')+
-    '<nav class="training-tools" aria-label="训练记录">'+(!s.programs?.length?programUI.view():'')+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
+    '<nav class="training-tools" aria-label="训练记录">'+btn('记录跑步','run-options','plus','quiet')+(!s.programs?.length?programUI.view():'')+btn('训练日程','training-calendar','calendar','quiet')+btn('跑步历史','training-history','run','quiet')+btn('伤痛与恢复','training-safety','heart','quiet')+'</nav>'+
     '<details class="quick-secondary"><summary>计划资料与收藏</summary>'+planCarousel()+'</details></div>';
 }
 
@@ -514,6 +517,7 @@ function modal(title, body, variant = '') {
   if (!editor.open) editor.showModal();
   fitEditorViewport();
   restorePageDraft();
+  mountWorkbench(editor);
   if(variant==='page'){
     const primary=editor.querySelector('.page-primary')||editor.querySelector('#coach-confirm-form>.btn.primary,#coach-import-form>.btn.primary');
     if(primary){const form=primary.closest('form');const footer=document.createElement('div');footer.className='page-footer';
@@ -545,6 +549,10 @@ function openEditor(collection,id = '',defaults = {}) {
   if (collection === 'records' && item && !distances.includes(item.event)) {
     values.event = '自定义';
     values.custom = item.event;
+  }
+  if(collection==='plans'){
+    modal('训练工作台',workbenchHTML(values,fields.map(config=>({name:config.name,html:field(config,values)})),{id,readOnly:sample,prescribed:Boolean(item?.course)}),'page');
+    return;
   }
   modal(title,'<form id="entry-form"><fieldset class="fields"' + (sample ? ' disabled' : '') + '>' + fields.map(config => field(config,values)).join('') + '</fieldset>' + (item?.engineVersion === cycleVersion ? sessionExplanation(item) : '') + (collection === 'runs' ? '<p id="entry-pace"></p>' + (!id ? '<label class="duplicate-confirm" hidden><input type="checkbox" name="differentRun"> 我已核对，这是不同的一次跑步</label>' : '') : '') + '<p class="form-error" role="alert" hidden></p><div class="dialog-actions">' +
     (!sample && id ? btn('删除记录','ask-delete','','danger') : '') + btn(sample ? '关闭' : '取消','close','','quiet') + (!sample ? '<button class="btn primary" type="submit">保存记录</button>' : '') + '</div></form>');
@@ -591,6 +599,14 @@ editor.addEventListener('submit', event => {
     item.event = item.custom;
   }
   delete item.custom;
+  if(collection==='plans'&&form.has('trainingStructure')){
+    const original=data.plans.find(p=>p.id===id);
+    if(!original?.course)try{item.trainingStructure=readStructure(form.get('trainingStructure'));item.structureStatus=structureSummary(item.trainingStructure).gaps.length?'待补充':'自主编排 · 待执行核对';}
+    catch(error){return formError(error.message);}
+    if(original?.course)delete item.trainingStructure; // Time/metadata edits never rewrite an authored course snapshot.
+    const review=assessSchedule(data,{...original,...item,id:id||'workbench-draft',estimatedMinutes:item.start&&item.end?(Number(item.end.slice(0,2))*60+Number(item.end.slice(3)))-(Number(item.start.slice(0,2))*60+Number(item.start.slice(3))):item.minutes,quality:original?.quality??null},{today:day,previous:original});
+    if(!review.canSave)return formError(review.conflicts.join('；'));item.scheduleReview=review;
+  }
   if (collection === 'runs' && !id) {
     Object.assign(item,defaults.capture || {source:'manual'});
     if (defaults.groupWorkoutId && item.date===defaults.groupWorkoutId.split('~').at(-1)) item.groupWorkoutId=defaults.groupWorkoutId;
@@ -1530,10 +1546,11 @@ function showWorkout([id]) {
   if (plan.coachIssued) return coachUI.detail(plan.id);
   if (plan.course) return openPBWorkout({...plan.course,planId:plan.id},Math.round((Date.parse(plan.date)-Date.parse(day))/86400000));
   const fromEngine=plan.engineVersion===cycleVersion;
-  const blocks=fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
+  let manualStructure=null;try{if(plan.trainingStructure)manualStructure=readStructure(plan.trainingStructure);}catch{/* Preserve invalid legacy text for manual correction. */}
+  const blocks=manualStructure ? [['热身',manualStructure.warmup],['主训练',manualStructure.sets+'组 × '+manualStructure.parts.map(p=>p.repeats+'趟 × '+(p.amount??'待补')+p.unit+' · '+(p.target||'目标待补')).join('；')],['恢复说明',manualStructure.parts.filter((p,i)=>p.repeats>1||i<manualStructure.parts.length-1).map((p,i)=>'第'+(i+1)+'段趟间：'+restText(p.recovery)).join('；')+(manualStructure.sets>1?'；组间：'+restText(manualStructure.setRecovery):'；无额外组间恢复')],['冷身',manualStructure.cooldown]] : fromEngine ? plan.blocks || [['热身','先轻松热身，逐步进入运动状态。'],['主训练',plan.objective || plan.note],['冷身','放慢收尾，结束后记录体感。']] :
     [['课次说明',plan.note || '这节课没有记录分段说明。']];
   modal('课次详情','<div class="report-title"><h3>'+escape(plan.name)+'</h3><p>'+escape(plan.date+' · '+plan.type+(plan.completed?' · 已完成':''))+'</p></div>'+
-    '<div class="mini-grid">'+metric('距离',plan.distance||'—','km')+metric('时长',plan.minutes||'—','min')+metric('配速',plan.pace||'—')+'</div>'+
+    (manualStructure?trainingMap(manualStructure):'')+'<div class="mini-grid">'+metric('距离',plan.distance||'—','km')+metric('时长',plan.minutes||'—','min')+metric('配速',plan.pace||'—')+'</div>'+
     '<ol class="workout-blocks">'+blocks.map(([title,copy])=>'<li><details><summary>'+title+'</summary><p>'+escape(copy)+'</p></details></li>').join('')+'</ol>'+
     (fromEngine?sessionExplanation(plan):'')+'<div class="dialog-actions">'+btn(sample?'查看原始记录':'编辑课次','edit:plans:'+plan.id,'settings')+
     (!sample&&!plan.completed&&!trainingPaused(state())?btn('开始这节课','start:'+plan.id,'play','primary'):'')+'</div>','full');
