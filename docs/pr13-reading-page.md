@@ -24,3 +24,9 @@ The original reference image is not accessible in this workspace. Implementation
 Before/after capture uses the same 1500m / 500m stable-interval course, uncalibrated state, fixed date and four viewports: 1440×900, 390×844, 375×812 and 430×932. Coach capture uses an explicitly synthetic transcription in an isolated browser profile, never private user data. Screenshots and recording are generated from the deployed app, not design mockups. Additional checks cover 320px, enlarged text and landscape. Browser emulation is not a physical iPhone or Safari/native test.
 
 No prior screenshot baseline is blindly accepted. Assertions check actual card geometry, text visibility above the footer, overflow, tab interaction, route restoration, save/cancel behavior and original private-text preservation.
+
+## Attached reference images — subsequent refinement
+
+The two reference images are now available in the conversation. The shared reading component follows their title/category hierarchy, icon-led metadata strip, wide tab navigation, colored stage rails with running/stretching SVGs, and four-column metric strip. Narrow screens reflow the same data instead of scaling the desktop image. There are no added fake favorite/more actions, synthetic acceptance labels or copied hero-image assets.
+
+The new cumulative-rest metric sums only the executable specification. The real 3×5 minute Tempo remains 15 minutes main work with two 60-second recoveries, not a made-up 6–8km workout or an inferred percentage of 1500m pace. A regression verifies these values and that rendering does not mutate the prescription. Existing preparation/cooldown descriptions remain self-ended.

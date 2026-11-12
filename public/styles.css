@@ -585,3 +585,30 @@ html[data-page] .workspace>#main,html[data-page] .workspace>.topbar,html[data-pa
 #modal-shell{width:min(640px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}
 #modal-shell>#editor{width:100%;max-width:100%;max-height:calc(100dvh - 24px)}
 .page-build{margin-left:auto;color:#8f9db1;font-size:.8125rem;white-space:nowrap}
+/* Confirmed image layout: semantic summary, colored stage rails and metric strip. */
+#editor[data-variant=page]:has(.workout-detail){background:radial-gradient(ellipse at 85% 0%,#131d2c66,transparent 50%),#090f19}
+#editor[data-variant=page]:has(.workout-detail) .dialog-head{background:transparent}
+#editor[data-variant=page]:has(.workout-detail) .dialog-head h2{font-size:1.4rem;font-weight:650;color:#f4f6fa}
+#editor[data-variant=page]:has(.workout-detail) .dialog-head>.icon-button{border:0;background:transparent}
+.workout-kicker{display:inline-flex;padding:6px 14px;border-radius:20px;background:#263143;color:#e6ebf4;font-size:.875rem;margin-bottom:14px}
+.workout-hero h1{font-size:2.5rem;font-weight:750}.workout-hero{margin-bottom:28px}
+.workout-summary{border:1px solid #2a3547;border-radius:18px;background:linear-gradient(115deg,#192231,#111927);padding:20px 22px;gap:22px}
+.workout-summary>div{display:grid;grid-template-columns:30px minmax(0,1fr);column-gap:12px;align-content:center}
+.detail-metric-icon{width:28px;height:28px;grid-row:1/3;align-self:center;color:#e8eef7;flex:none}
+.workout-summary dt{color:#c7d0de;font-size:.875rem}.workout-summary dd{font-size:1rem}
+.detail-tabs{gap:0}.detail-tabs button{flex:1;text-align:center;font-size:1.0625rem}.detail-tabs button[aria-selected=true]{color:#ff6673;font-weight:650}.detail-tabs button::after{height:3px;border-radius:3px}
+#editor .workout-detail .phase-card{--phase-rgb:76,207,169;border-left:2px solid rgb(var(--phase-rgb));background:linear-gradient(100deg,rgba(var(--phase-rgb),.09),transparent 29%),linear-gradient(120deg,#151f2e,#171e2c);grid-template-columns:166px minmax(0,1fr);gap:24px;padding:24px;min-height:100px}
+#editor .workout-detail .phase-work{--phase-rgb:245,77,96;padding-block:27px}
+#editor .workout-detail .phase-recovery{--phase-rgb:77,159,232}
+#editor .workout-detail .phase-cooldown{--phase-rgb:169,126,229}
+.phase-label{align-items:center;gap:16px}.phase-icon{width:48px;height:48px;border-radius:14px;color:rgb(var(--phase-rgb));background:rgba(var(--phase-rgb),.16)}
+.phase-icon svg{width:28px;height:28px}#editor .workout-detail .phase-card h3{font-size:1.125rem;font-weight:700;line-height:1.5}
+#editor .workout-detail .phase-content .execution-line{font-size:1.35rem;line-height:1.5}#editor .workout-detail .phase-content p{line-height:1.7}
+.detail-statistics{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.detail-statistics>div{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:12px;padding:18px 16px;border-radius:18px;background:linear-gradient(130deg,#192231,#111824)}
+.detail-statistics dt{font-size:.8125rem;margin-bottom:6px}.detail-statistics dd{font-size:1rem;font-weight:600}.detail-statistics .detail-metric-icon{color:#cbd6e6}
+#editor[data-variant=page]:has(.workout-detail) .page-footer{background:#0c1320f5}
+#editor[data-variant=page]:has(.workout-detail) .page-footer .detail-actions>.btn{min-height:52px;min-width:200px;border-radius:16px}
+@media(min-width:801px) and (pointer:fine){#editor[data-variant=page]:has(.workout-detail) .page-footer .detail-actions{max-width:1128px;margin:auto}#editor[data-variant=page]:has(.workout-detail) .page-footer .detail-actions>.btn{flex:1;max-width:460px}}
+@media(max-width:1050px){.workout-summary{gap:16px;padding:18px}.workout-summary>div{column-gap:8px;grid-template-columns:24px minmax(0,1fr)}.detail-metric-icon{width:24px;height:24px}.detail-statistics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px),(hover:none) and (pointer:coarse){#editor[data-variant=page]:has(.workout-detail) .dialog-head h2{font-size:1rem}.workout-kicker{display:none}.workout-hero h1{font-size:1.75rem}.workout-hero{margin-bottom:16px}.workout-summary{padding:12px 14px;gap:10px 14px;margin-bottom:12px;border-radius:16px}.workout-summary>div{grid-template-columns:20px minmax(0,1fr);column-gap:8px}.workout-summary .detail-metric-icon{width:19px;height:19px}.workout-summary dt{font-size:.75rem}.workout-summary dd{font-size:.8125rem}.detail-tabs button{font-size:.9375rem;flex:none;min-width:30%;padding-inline:10px}.detail-tabs{justify-content:space-between}#editor .workout-detail .phase-card{display:block;padding:16px;min-height:0}#editor .workout-detail .phase-work{padding:18px 16px}.phase-label{gap:12px;margin-bottom:10px}.phase-icon{width:34px;height:34px;border-radius:10px}.phase-icon svg{width:22px;height:22px}#editor .workout-detail .phase-card h3{font-size:1rem}#editor .workout-detail .phase-content .execution-line{font-size:1.125rem}.detail-statistics>div{display:block;padding:14px}.detail-statistics .detail-metric-icon{margin-bottom:8px}.detail-statistics dd{text-align:left}.detail-statistics dt{margin-bottom:6px}#editor[data-variant=page]:has(.workout-detail) .page-footer .detail-actions>.btn{min-width:0;min-height:48px}.page-build{font-size:.75rem}}
+@media(max-width:360px){.detail-statistics{grid-template-columns:1fr}.detail-statistics>div{display:grid;grid-template-columns:24px minmax(0,1fr)}.detail-statistics .detail-metric-icon{margin:0}.workout-summary .detail-metric-icon{display:none}.workout-summary>div{display:block}}
