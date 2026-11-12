@@ -8,10 +8,10 @@ export function parseCoachText(raw) {
   const unassigned=[];
   let active='';
   for(const line of original.split(/\r?\n/)) {
-    const match=line.match(/^\s*(热身|主训练|恢复|趟间恢复|组间恢复|冷身|warm[ -]?up|main(?: set| workout| training)?|recovery|rest|between reps|between sets|cool[ -]?down)\s*[:：]\s*(.*)$/i);
+    const match=line.match(/^\s*(热身|主训练|休息安排|小组休息|大组休息|恢复|趟间恢复|组间恢复|冷身|warm[ -]?up|main(?: set| workout| training)?|recovery|rest|between reps|between sets|cool[ -]?down)\s*[:：]\s*(.*)$/i);
     if(match){
       const label=match[1];
-      active=/恢复|recovery|rest|between/i.test(label)?'恢复':/warm/i.test(label)?'热身':/cool/i.test(label)?'冷身':/main/i.test(label)?'主训练':label;
+      active=/休息|恢复|recovery|rest|between/i.test(label)?'恢复':/warm/i.test(label)?'热身':/cool/i.test(label)?'冷身':/main/i.test(label)?'主训练':label;
       blocks[active]+=(blocks[active]?'\n':'')+(active==='恢复'?label+'：':'')+match[2];
     } else if(line.trim()){
       // An unfamiliar heading is not a license to put strides into cooldown

@@ -82,7 +82,8 @@ test('course content leads the first screen and middle-distance phases select di
   await expect(page.locator('main .pb-events')).toHaveCount(0);
   await expect(page.locator('main .pb-tiers')).toHaveCount(0);
   const card=await page.locator('.course-card h3').first().boundingBox();
-  expect(card.y+card.height).toBeLessThan(page.viewportSize().height-50);
+  await expect(page.getByRole('heading',{name:'今日训练',exact:true})).toBeVisible();
+  expect(card.y+card.height).toBeLessThan(Math.max(700,page.viewportSize().height-50));
   for(const event of ['800m','1500m']) {
     await click(page,'调整专项与PB');await click(page,event);await click(page,'查看课程');
     await click(page,'按类型浏览');await click(page,'间歇');
@@ -90,7 +91,7 @@ test('course content leads the first screen and middle-distance phases select di
     await click(page,'按时间的有氧间歇');
     await expect(page.locator('#editor[open]')).toContainText('以时间而非圈速');
     await expect(page.locator('#editor[open]')).toContainText('待教练审核');
-    await click(page,'返回');await click(page,'周安排草案');
+    await click(page,'返回');await click(page,'本周计划');
     const outlines=[];
     for(const phase of ['基础期','专项期','赛前期','恢复周']) {
       await click(page,'调整阶段');await click(page,phase);

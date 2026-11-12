@@ -23,7 +23,8 @@ test('competitive group without logs browses complete courses, not a 15 minute f
   const settings={event:'1500 m',group:'competitive',pb:'4:20',start:today};
   const week=groupWeek(fresh(),today,settings);
   assert.equal(week.length,7);
-  assert.ok(week.some(plan=>plan.isPlanningSlot));
+  assert.ok(week.every(plan=>!plan.isPlanningSlot));
+  assert.ok(week.filter(plan=>plan.courseId!=='rest').every(plan=>plan.selectedGroup==='competitive'&&plan.segments?.length));
   assert.ok(pbCourses('1500 m','4:20').some(c=>c.executionEligible && c.segments.length));
   assert.ok(week.every(plan=>plan.previewOnly && plan.minutes===null && !plan.name.includes('走跑')));
   assert.ok(week.every(plan=>!plan.readiness.canStart));
@@ -40,7 +41,7 @@ test('course structure is independent of app history; saved plans and pain remai
   data.recovery.push({date:today,pain:true});
   data.plans=[];
   assert.ok(groupWeek(data,today,settings).every(plan=>plan.readiness.status==='paused'));
-  assert.ok(groupWeek(data,today,settings).some(plan=>plan.isPlanningSlot));
+  assert.ok(groupWeek(data,today,settings).every(plan=>!plan.isPlanningSlot));
 });
 
 test('execution gates known pain, recovery and youth intensity without hiding the library',()=>{

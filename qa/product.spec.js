@@ -70,7 +70,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await click(page,'1500m');
   await click(page,'4:20');
   await expect(page.locator('.course-card')).toHaveCount(15);
-  await expect(page.locator('.course-card').first()).toContainText('3 × 500m');
+  await expect(page.locator('.course-card').first()).toContainText('3×500m');
   await expect(page.locator('main')).not.toContainText('轻松走跑');
   await page.screenshot({path:info.outputPath('course-discovery.png')});
   await click(page,'500m 稳定间歇');
@@ -83,7 +83,7 @@ test('experienced 1500m runner with no logs discovers complete courses and saves
   await expect(dialog).not.toBeVisible();
   await page.reload();
   await expect(page.locator('.pb-tiers-label')).toContainText('4:20');
-  await click(page,'周安排草案');
+  await click(page,'本周计划');
   await expect(page.locator('.week-outline li')).toHaveCount(7);
   await expect(page.locator('.week-outline')).toContainText('恢复日');
   await page.screenshot({path:info.outputPath('course-week.png')});

@@ -5,6 +5,16 @@ const seconds=n=>Number(n.toFixed(2))+' 秒';
 const clock=n=>Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0');
 const targetText=t=>t?.effort?t.effort:t? (t.targetSecondsRange[0]===t.targetSecondsRange[1]?seconds(t.targetSecondsRange[0]):t.targetSecondsRange.map(n=>Number(n.toFixed(2))).join('–')+' 秒'):'配速待校准';
 export const recoveryLabel=r=>!r?'无':r.mode==='mixed'?r.steps.map(recoveryLabel).join(' → '):recoveryModes[r.mode]+' '+[r.durationSeconds?seconds(r.durationSeconds):'',r.distanceM?r.distanceM+'m':''].filter(Boolean).join(r.endRule==='both'?' 且 ':' 或 ');
+// A single read model for cards, calendar weeks and detail. Never writes a snapshot.
+export function courseReading(c){
+  const spec=c.executionSpec||c.prescription,sets=spec?.setCount||c.sets||1;
+  const reps=spec?.repetitions||c.segments?.map((s,i)=>({repsPerSet:s.repeats,distanceM:s.unit==='m'?s.distance:null,durationSeconds:s.unit==='min'?s.distance*60:s.unit==='sec'?s.distance:null,label:s.description,target:{targetBasis:c.targetBases?.[i]||c.targetBasis||(c.categoryId==='tempo'?'threshold':c.categoryId==='aerobic'?'easy':null)},repRecovery:s.recoverySeconds?{mode:c.recoveryMode||'unknown',durationSeconds:s.recoverySeconds}:null}))||[];
+  const rest=r=>!r?'待确认':r.mode==='unknown'?r.durationSeconds+'秒 · 动作待确认':recoveryLabel(r).replaceAll(' 秒','秒');
+  const lines=reps.map((r,i)=>({work:r.repsPerSet+'×'+(r.distanceM?r.distanceM+'m':r.durationSeconds?(r.durationSeconds%60?r.durationSeconds+'秒':r.durationSeconds/60+'分钟'):r.label||'内容待补'),target:(paceLabels[r.target?.targetBasis]||'配速待确认')+(r.target?.targetSecondsRange?' · '+targetText(r.target).replaceAll(' 秒','秒')+'/小组':r.target?.effort?' · '+r.target.effort:''),rest:r.repsPerSet>1||i<reps.length-1?rest(r.repRecovery):'无'}));
+  const setRest=sets>1?rest(spec?.setRecovery||(c.setRecovery?{mode:c.recoveryMode||'unknown',durationSeconds:c.setRecovery}:null)):'无';
+  return {sets,smallGroups:reps.reduce((n,r)=>n+r.repsPerSet,0),lines,setRest};
+}
+export function courseMainHTML(c,esc){const v=courseReading(c);return '<p class="workout-set-count">大组数 '+v.sets+' · 每大组 '+v.smallGroups+' 小组</p>'+v.lines.map(r=>'<p class="execution-line"><span class="execution-prescription">'+esc(r.work)+'</span><span class="execution-target">'+esc(r.target)+'</span></p>'+(r.rest!=='无'?'<small class="rep-rest">小组休息 '+esc(r.rest)+'</small>':'')).join('');}
 export function createWorkoutPlayer(api) {
   const {editor,modal,btn,escape:esc}=api,storageKey=api.prefix+'.course-session.v1';
   let session,course,feedback=false,alerted=false;
@@ -27,11 +37,10 @@ export function createWorkoutPlayer(api) {
     const spec=course.executionSpec;
     const block=phaseCard;
     const phase=(items,fallback)=>items.map(s=>[s.distanceM?s.distanceM+'m':'',s.label||fallback].filter(Boolean).join(' · ')).map(esc).join(' + ');
-    const main=spec? (spec.setCount>1?'<p class="workout-set-count">'+spec.setCount+' 大组</p>':'')+spec.repetitions.map((r,i)=>'<p class="execution-line"><span class="execution-prescription">'+r.repsPerSet+'×'+(r.durationSeconds?(r.durationSeconds%60?r.durationSeconds+'秒':r.durationSeconds/60+'分钟'):r.distanceM+'m')+'｜'+paceLabels[r.target.targetBasis]+'</span><span class="execution-target"><span class="target-divider">｜</span>'+esc(targetText(r.target).replaceAll(' 秒','秒'))+(r.durationSeconds?'':'/趟')+'</span></p>'+ (r.repsPerSet>1||i<spec.repetitions.length-1?'<small class="rep-rest">趟间 '+recoveryLabel(r.repRecovery)+'</small>':'')).join(''):
-      (course.sets>1?'<p>'+course.sets+' 大组</p>':'')+course.segments.map(s=>'<p class="execution-line">'+s.repeats+'×'+s.distance+'m｜配速待校准</p>'+(s.recoverySeconds?'<small class="rep-rest">趟间 '+s.recoverySeconds+'秒 · 动作待确认</small>':'')).join('');
+    const main=courseMainHTML(course,esc);
     return ''+
       block('热身','<p>'+(spec?phase(spec.warmup,'轻松慢跑、动态活动、跑姿准备'):esc(course.warmup||'轻松慢跑、动态活动、跑姿准备'))+'</p>')+
-      block('主训练',main)+block('恢复说明','<p>趟间恢复见各段；只插在相应趟次之间。组间：'+(spec?(spec.setCount>1?recoveryLabel(spec.setRecovery):'无'):(course.sets>1?course.setRecovery+'秒 · 动作待确认':'无'))+'</p>')+
+      block('主训练',main)+block('休息安排','<p>小组休息见主训练各段；大组休息：'+esc(courseReading(course).setRest)+'。只在对应小组或大组之间休息，不在最后重复。</p>')+
       block('冷身','<p>'+(spec?phase(spec.cooldown,'轻松慢跑、放松整理'):esc(course.cooldown||'轻松慢跑、放松整理'))+'</p>')+
       '';
   }
@@ -42,7 +51,7 @@ export function createWorkoutPlayer(api) {
 
   function totalsHTML(spec) {
     const t=workoutTotals(spec);
-    return '<dl class="workout-totals"><dt>主训练</dt><dd>'+(t.mainDistanceM===null?clock(t.mainDurationSeconds)+' · 距离未测量':t.mainDistanceM+'m')+' · '+t.repCount+' 趟</dd><dt>恢复</dt><dd>'+t.repRecoveries+' 次趟间 + '+t.setRecoveries+' 次组间 · '+(t.recoverySeconds===null?'按距离完成，时间未知':clock(t.recoverySeconds))+'</dd><dt>预计全程</dt><dd>'+(t.estimatedSecondsRange?[...new Set(t.estimatedSecondsRange.map(clock))].join('–'):'热身、冷身由本人结束；完整时长待估')+'（估算，含课程建议时长；不是完成门槛）</dd><dt>热身／冷身／慢跑恢复距离</dt><dd>按时间的部分未测量，不计入质量跑量</dd></dl>';
+    return '<dl class="workout-totals"><dt>主训练</dt><dd>'+(t.mainDistanceM===null?clock(t.mainDurationSeconds)+' · 距离未测量':t.mainDistanceM+'m')+' · '+t.repCount+' 趟</dd><dt>恢复</dt><dd>'+t.repRecoveries+' 次小组休息 + '+t.setRecoveries+' 次大组休息 · '+(t.recoverySeconds===null?'按距离完成，时间未知':clock(t.recoverySeconds))+'</dd><dt>预计全程</dt><dd>'+(t.estimatedSecondsRange?[...new Set(t.estimatedSecondsRange.map(clock))].join('–'):'热身、冷身由本人结束；完整时长待估')+'（估算，含课程建议时长；不是完成门槛）</dd><dt>热身／冷身／慢跑恢复距离</dt><dd>按时间的部分未测量，不计入质量跑量</dd></dl>';
   }
   const number=(name,label,value,min=0,max=3600)=>'<label>'+label+'<input name="'+name+'" type="number" min="'+min+'" max="'+max+'" step="0.01" value="'+(value??'')+'" required inputmode="decimal"></label>';
   const choice=(name,label,values,value='')=>'<label>'+label+'<select name="'+name+'"><option value="">请选择</option>'+Object.entries(values).map(([id,text])=>'<option value="'+id+'"'+(id===value?' selected':'')+'>'+text+'</option>').join('')+'</select></label>';

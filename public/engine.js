@@ -316,7 +316,7 @@ export function groupWeek(data,today,profile) {
       typeof profile.start!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(profile.start) || offset(profile.start,0)!==profile.start || profile.start>today) return [];
   const elapsed=Math.round((Date.parse(today)-Date.parse(profile.start))/86400000);
   const start=offset(today,-(elapsed%7));
-  return pbWeek(profile.event,profile.pb,{youth:data.cycleProfile?.age==='未满18岁'}).map((course,index)=>{
+  return pbWeek(profile.event,profile.pb,{group:profile.group,phase:profile.phase||'develop',youth:data.cycleProfile?.age==='未满18岁'}).map((course,index)=>{
     const date=offset(start,index);
     const existing=data.plans.find(plan=>plan.date===date);
     if (existing) return {...existing,external:true};

@@ -27,16 +27,16 @@ export function structureSummary(s){
  const known=s.parts.every(p=>p.amount!==null),allDistance=s.parts.every(p=>p.unit==='m'),allTime=s.parts.every(p=>p.unit!=='m');
  const total=known?s.parts.reduce((n,p)=>n+(p.amount||0)*p.repeats*(p.unit==='min'?60:1),0)*s.sets:null;
  return {reps,mainDistanceM:known&&allDistance?total:null,mainSeconds:known&&allTime?total:null,restCount:Math.max(0,reps-s.sets),setRestCount:s.sets-1,
-  gaps:[...(!s.warmup.trim()?['热身内容待补']:[]),...(!s.cooldown.trim()?['冷身内容待补']:[]),...s.parts.flatMap((p,i)=>[...(p.amount===null?['第'+(i+1)+'段距离／时长待补']:[]),...(!p.target.trim()?['第'+(i+1)+'段目标待补']:[]),...((p.repeats>1||i<s.parts.length-1)&&(!p.recovery.mode||p.recovery.seconds===null&&p.recovery.distanceM===null)?['第'+(i+1)+'段恢复待补']:[])]),...(s.sets>1&&(!s.setRecovery.mode||s.setRecovery.seconds===null&&s.setRecovery.distanceM===null)?['组间恢复待补']:[])]};
+  gaps:[...(!s.warmup.trim()?['热身内容待补']:[]),...(!s.cooldown.trim()?['冷身内容待补']:[]),...s.parts.flatMap((p,i)=>[...(p.amount===null?['第'+(i+1)+'段距离／时长待补']:[]),...(!p.target.trim()?['第'+(i+1)+'段目标待补']:[]),...((p.repeats>1||i<s.parts.length-1)&&(!p.recovery.mode||p.recovery.seconds===null&&p.recovery.distanceM===null)?['第'+(i+1)+'段恢复待补']:[])]),...(s.sets>1&&(!s.setRecovery.mode||s.setRecovery.seconds===null&&s.setRecovery.distanceM===null)?['大组休息待补']:[])]};
 }
 /** Sequence is ordinal, not proportional time, distance or physiological intensity.
  * @param {TrainingStructure} s @returns {Segment[]} */
 export function structureSegments(s){
  /** @type {Segment[]} */const rows=[{kind:'warmup',label:'准备',detail:s.warmup||'热身内容待补'}];
  for(let set=1;set<=s.sets;set++)s.parts.forEach((p,i)=>{for(let rep=1;rep<=p.repeats;rep++){
-  rows.push({kind:'work',label:p.label||(p.amount??'—')+({m:'m',min:'分',sec:'秒'})[p.unit],detail:p.skill?p.target:'第'+set+'组 · 第'+rep+'趟 · '+(p.target||'目标待补'),partId:p.id,set});
-  if(rep<p.repeats||i<s.parts.length-1)rows.push({kind:'recovery',label:'恢复',detail:restText(p.recovery),partId:p.id,set});
-  else if(set<s.sets)rows.push({kind:'recovery',label:'组间',detail:restText(s.setRecovery),set});
+  rows.push({kind:'work',label:p.label||(p.amount??'—')+({m:'m',min:'分',sec:'秒'})[p.unit],detail:p.skill?p.target:'第'+set+'大组 · 第'+rep+'小组 · '+(p.target||'目标待补'),partId:p.id,set});
+  if(rep<p.repeats||i<s.parts.length-1)rows.push({kind:'recovery',label:'小组休息',detail:restText(p.recovery),partId:p.id,set});
+  else if(set<s.sets)rows.push({kind:'recovery',label:'大组休息',detail:restText(s.setRecovery),set});
  }});
  rows.push({kind:'cooldown',label:'冷身',detail:s.cooldown||'冷身内容待补'});return rows;
 }
