@@ -12,6 +12,6 @@ test('reference home shows only explicit completion and dates open the real cale
 test('food reference has no fabricated target and shortcuts reach real recent and favorite lists',async({page})=>{
  await page.goto('/#food');await expect(page.locator('.food-overview')).toHaveAttribute('data-nutrients','false');await expect(page.locator('.nutrition-ring strong')).toHaveText('—');await expect(page.locator('.macro')).toHaveCount(3);
  await page.getByRole('button',{name:'添加食物',exact:true}).click();await page.getByRole('button',{name:'最近吃过',exact:true}).click();await expect(page.locator('.food-tabs [aria-pressed=true]')).toHaveText('最近吃过');await page.keyboard.press('Escape');
- await page.getByRole('button',{name:'我的收藏',exact:true}).click();await expect(page.locator('.food-tabs [aria-pressed=true]')).toHaveText('收藏');
+ await page.getByRole('button',{name:'我的收藏',exact:true}).click();await expect(page.locator('.food-shelf-tabs [aria-pressed=true]')).toHaveText('我的收藏');
  expect(await page.locator('svg path[d="undefined"]').count()).toBe(0);
 });

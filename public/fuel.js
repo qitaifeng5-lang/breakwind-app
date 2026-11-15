@@ -19,6 +19,7 @@ const index=new WeakMap();
 // Search relevance is an editorial name mapping, never a nutrition substitution.
 // A food mentioned as an ingredient/flavour must not outrank the food itself.
 const subjects={
+ '牛奶':/^Milk, (?:whole|reduced fat|lowfat|nonfat|low fat|skim)(?!.*(?:chocolate|flavor|powder|dry|evaporated|condensed))/i,
  '馄饨':/^Soup, wonton$/i,
  '米饭':/^Rice, (?:white|brown),.*cooked/i,'白米饭':/^Rice, white,.*cooked/i,
  '面条':/^noodles,.*(?:cooked|boiled)/i,'面包':/^bread, (?:white|whole-wheat|wheat),/i,

@@ -3,13 +3,13 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 const target=new URL('../.expo/pages-preview/',import.meta.url);
 const source=new URL('../public/',import.meta.url);
 export const assets=[
-  'food-zh.js','food-data.js','week-plan.js','completion.js','workout-detail.js','page-host.js','training-workbench.js','training-structure.js','index.html','app.js','styles.css','model.js','engine.js','pb-library.js','workout.js','workout-ui.js','program.js','program-ui.js','membership.js','coach-plan.js','coach-ui.js','knowledge.js','running.js','fuel.js',
+  'nutrition.css','food-photos.png','food-zh.js','food-data.js','week-plan.js','completion.js','workout-detail.js','page-host.js','training-workbench.js','training-structure.js','index.html','app.js','styles.css','model.js','engine.js','pb-library.js','workout.js','workout-ui.js','program.js','program-ui.js','membership.js','coach-plan.js','coach-ui.js','knowledge.js','running.js','fuel.js',
   'hero.jpg','icon.svg','icon-192.png','icon-512.png','manifest.webmanifest','sw.js'
 ];
 const revision=process.env.GITHUB_SHA || 'local';
 if (!/^(local|[0-9a-f]{40})$/.test(revision)) throw new Error('Invalid preview revision');
 const modules=new Set(assets.filter(name=>name.endsWith('.js') && name!=='sw.js'));
-const versionedAssets=[...modules,'styles.css'];
+const versionedAssets=[...modules,'styles.css','nutrition.css'];
 await mkdir(target,{recursive:true});
 const allowed=new Set([...assets,'.nojekyll']);
 const unexpected=(await readdir(target)).filter(name=>!allowed.has(name));
