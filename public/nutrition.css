@@ -20,3 +20,4 @@ button.portion-product{width:100%;text-align:left;color:inherit}.portion-product
 .food-meal-menu{background:none;border:0;color:inherit;font-size:16px;padding:6px}.nutrition-page:has(#food-query:not(:placeholder-shown)) .food-tabs{display:none}.nutrition-page .food-search-head[data-meals-open=true] .meal-switch{display:flex}.food-kind-tabs{padding-top:0}.nutrition-page .food-search-head{padding-top:12px}
 .nutrition-page:has(#food-query) .food-search-head[data-meals-open=true] .meal-switch{display:flex}
 .nutrition-page .food-search input:focus-visible{outline:none!important}.nutrition-page .food-search:focus-within{outline:2px solid #82b5f1;outline-offset:0}#editor:has(.nutrition-page) .page-footer .primary{box-shadow:0 5px 20px #286cff22}
+.portion-other{margin:0 0 16px;font-size:12px;color:#99b5d6}.portion-other .portion-choices{margin-top:12px}
