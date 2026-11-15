@@ -36,7 +36,7 @@ test('training, food and calendar fit the viewport and capture screenshots',asyn
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   const routes = [
-    ['run','训练'],['food','饮食'],['calendar','训练与日程']
+    ['run','训练'],['food','饮食记录'],['calendar','训练与日程']
   ];
   for (const [route,title] of routes) {
     await page.goto('/#'+route+'?demo=1');
