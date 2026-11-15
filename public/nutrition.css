@@ -21,3 +21,9 @@ button.portion-product{width:100%;text-align:left;color:inherit}.portion-product
 .nutrition-page:has(#food-query) .food-search-head[data-meals-open=true] .meal-switch{display:flex}
 .nutrition-page .food-search input:focus-visible{outline:none!important}.nutrition-page .food-search:focus-within{outline:2px solid #82b5f1;outline-offset:0}#editor:has(.nutrition-page) .page-footer .primary{box-shadow:0 5px 20px #286cff22}
 .portion-other{margin:0 0 16px;font-size:12px;color:#99b5d6}.portion-other .portion-choices{margin-top:12px}
+
+/* Each original atlas cell is a food-type illustration, never a product package. */
+.food-art.food-sheet-produce{background-image:url('food-produce.png');background-size:600% 400%}
+.food-art.food-sheet-staples{background-image:url('food-staples.png');background-size:600% 400%}
+.food-art.food-sheet-dishes{background-image:url('food-dishes.png');background-size:600% 400%}
+.food-art.food-sheet-basics{background-image:url('food-basics.png');background-size:600% 400%}
