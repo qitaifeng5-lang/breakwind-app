@@ -5,7 +5,7 @@ test('Chinese staple searches rank the actual food above flavour, ingredient and
  for(const [query,subject] of [['面条',/^noodles,.*cooked/i],['酸奶',/^yogurt, plain/i],['橙子',/^oranges, raw/i],['芒果',/^mangos, raw/i],['牛油果',/^avocados, raw/i],['胡萝卜',/^carrots,/i],['西红柿',/^tomatoes,/i],['花生',/^peanuts,/i],['燕麦',/^oats/i],['核桃',/^nuts, walnuts/i]]){
   assert.match(searchFood(catalog,query)[0].originalName,subject,query);
  }
- assert.equal(searchFood(catalog,'奶茶').length,0,'separate milk and tea aliases do not create a milk-tea product');
+ assert.equal(searchFood(catalog,'奶茶')[0].originalName,'Tea, hot, with milk','only a direct milk-tea record, not adjacent milk/tea aliases');assert.equal(searchFood(catalog,'喜茶多肉葡萄').length,0);
  assert.ok(!searchFood(catalog,'黄瓜').some(f=>/sea cucumber/i.test(f.originalName)));
 });
 test('official offline records retain source, raw cooking description, nullable nutrients and stable IDs',()=>{

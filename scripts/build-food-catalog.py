@@ -5,6 +5,7 @@ import csv,io,json,zipfile,re,hashlib,argparse,urllib.request,shutil
 from pathlib import Path
 parser=argparse.ArgumentParser();parser.add_argument('root',nargs='?',default='.expo/food-source');parser.add_argument('--download',action='store_true');args=parser.parse_args();root=Path(args.root)
 sources={
+ 'foundation.zip':('https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-10-29.zip','dd414cc9f1a132626bad354ef6655972c78b44aff14f16114dc899708663c579'),
  'sr.zip':('https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip','b80817294b8850530aaedf2e515c02593b1824f763a0ff356e5c2081643e6fd0'),
  'fndds.zip':('https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_json_2024-10-31.zip','dfb06ae7ddc397ccd570b91c14b75438ab2ba39f64f22d321f61d4a52a77f3eb'),
  'branded.zip':('https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_branded_food_csv_2026-10-29.zip','17f1e52ea91854d8c6c266487597bf1dd6ce63441bfe27c9e61f64e2768440c7')}
@@ -33,7 +34,7 @@ def translated(desc):
  return ('、'.join(x.split()[0] for x in matches[:3])+('（'+ '／'.join(states)+'）' if states else '')+' · '+desc if matches else desc),' '.join(matches)
 def base(fid,desc,provider,date):
  name,aliases=translated(desc)
- row={'id':'fdc-'+str(fid),'provider':'USDA FDC','providerId':str(fid),'name':name,'originalName':desc,'aliases':aliases,'portion':100,'basis':{'amount':100,'unit':'g'},'portions':[],'source':'USDA FoodData Central · '+provider,'url':'https://fdc.nal.usda.gov/food-details/'+str(fid)+'/nutrients','sourceUpdated':date,'retrieved':'2026-11-12','license':'CC0-1.0','verification':'official-dataset-not-individual-label','market':'美国参考','matchKind':'generic','kcal':None,'protein':None,'carbs':None,'fat':None}
+ row={'id':'fdc-'+str(fid),'provider':'USDA FDC','providerId':str(fid),'name':name,'originalName':desc,'aliases':aliases,'portion':100,'basis':{'amount':100,'unit':'g'},'portions':[],'source':'USDA FoodData Central · '+provider,'url':'https://fdc.nal.usda.gov/food-details/'+str(fid)+'/nutrients','sourceUpdated':date,'retrieved':'2026-11-14','license':'CC0-1.0','verification':'official-dataset-not-individual-label','market':'美国参考','matchKind':'generic','kcal':None,'protein':None,'carbs':None,'fat':None}
  if fid in legacy:row.update(name=legacy[fid][0],aliases=legacy[fid][1],portion=legacy[fid][2],preferred=True)
  return row
 def table(z,name):
@@ -51,6 +52,20 @@ for f in survey:
   key=keys.get(str(n['nutrient']['id']))
   if key and isinstance(n.get('amount'),(int,float)):r[key]=n['amount']
  r['portions']=[{'label':p.get('portionDescription') or p.get('modifier'),'amount':p['gramWeight'],'unit':'g','source':'USDA foodPortions '+str(p['id'])} for p in f.get('foodPortions',[]) if p.get('gramWeight',0)>0]
+ rows[str(f['fdcId'])]=r
+
+# Foundation 2026-10: use published energy measures, never infer kcal from macros.
+z=zipfile.ZipFile(root/'foundation.zip');foundation=json.load(z.open(next(n for n in z.namelist() if n.endswith('.json'))))['FoundationFoods']
+for f in foundation:
+ r=base(f['fdcId'],f['description'],'Foundation 2026-10',f.get('publicationDate'))
+ ns={str(n['nutrient']['id']):n for n in f['foodNutrients'] if isinstance(n.get('amount'),(int,float))}
+ r['sourceNutrients']={}
+ for nutrient,key in keys.items():
+  n=ns.get(nutrient)
+  if key=='kcal':n=ns.get('1008') or ns.get('2048') or ns.get('2047')
+  if n:
+   r[key]=n['amount'];r['sourceNutrients'][key]={'id':n['nutrient']['id'],'name':n['nutrient']['name'],'unit':n['nutrient']['unitName']}
+ r['portions']=[{'label':p.get('portionDescription') or p.get('modifier') or 'source portion','amount':p['gramWeight'],'unit':'g','source':'USDA foodPortions '+str(p.get('id'))} for p in f.get('foodPortions',[]) if p.get('gramWeight',0)>0]
  rows[str(f['fdcId'])]=r
 
 # Branded subset is selected reproducibly from the official bulk release, not API scraping.
@@ -94,10 +109,10 @@ for r in rows.values():
  r['aliases']=basic+' '+' '.join(zh for en,zh in brands+[('coke','可口可乐'),('fanta','芬达'),('sprite','雪碧'),('gatorade','佳得乐')] if re.sub('[^a-z0-9]','',en) in normalized)
  if r.get('brand')==r.get('brandOwner'):r['brand']='品牌未单列（供应商：'+r['brandOwner']+'）'
 foods=list(rows.values());foods.sort(key=lambda f:(not f.get('preferred',False),f['providerId']))
-fields=['id','name','originalName','aliases','portion','basis','portions','source','sourceUpdated','market','matchKind','kcal','protein','carbs','fat','brand','brandOwner','barcode','packageSize','servingText','preferred','verification']
+fields=['id','name','originalName','aliases','portion','basis','portions','source','sourceUpdated','market','matchKind','kcal','protein','carbs','fat','brand','brandOwner','barcode','packageSize','servingText','preferred','verification','sourceNutrients']
 compact=[[f.get(k) for k in fields] for f in foods]
-script="// Generated USDA CC0 data; rebuild with scripts/build-food-catalog.py.\nconst fields="+json.dumps(fields)+";\nconst rows="+json.dumps(compact,ensure_ascii=False,separators=(',',':'))+";\nexport const foodData=rows.map(row=>{const f=Object.fromEntries(fields.map((key,i)=>[key,row[i]]));return {...f,provider:'USDA FDC',providerId:f.id.slice(4),license:'CC0-1.0',retrieved:'2026-11-12',url:'https://fdc.nal.usda.gov/food-details/'+f.id.slice(4)+'/nutrients'};});\n"
+script="// Generated USDA CC0 data; rebuild with scripts/build-food-catalog.py.\nconst fields="+json.dumps(fields)+";\nconst rows="+json.dumps(compact,ensure_ascii=False,separators=(',',':'))+";\nexport const foodData=rows.map(row=>{const f=Object.fromEntries(fields.map((key,i)=>[key,row[i]]));return {...f,provider:'USDA FDC',providerId:f.id.slice(4),license:'CC0-1.0',retrieved:'2026-11-14',url:'https://fdc.nal.usda.gov/food-details/'+f.id.slice(4)+'/nutrients'};});\n"
 out.write_text(script,encoding='utf-8')
-manifest={'license':'CC0-1.0','foods':len(foods),'retrieved':'2026-11-12','sources':[{'file':n,'url':sources[n][0],'sha256':hashlib.sha256((root/n).read_bytes()).hexdigest()} for n in ['sr.zip','fndds.zip','branded.zip'] if (root/n).exists()],'nutrition':'Only original nutrient values; missing values remain null','translation':'Editorial search index; original description retained; not localized Chinese nutrient measurements'}
+manifest={'license':'CC0-1.0','foods':len(foods),'retrieved':'2026-11-14','sources':[{'file':n,'url':sources[n][0],'sha256':hashlib.sha256((root/n).read_bytes()).hexdigest()} for n in ['sr.zip','fndds.zip','branded.zip','foundation.zip'] if (root/n).exists()],'nutrition':'Only original nutrient values; missing values remain null','translation':'Editorial search index; original description retained; not localized Chinese nutrient measurements'}
 Path('docs/food-source-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
 print('Generated',len(foods),'records',out.stat().st_size,'bytes')

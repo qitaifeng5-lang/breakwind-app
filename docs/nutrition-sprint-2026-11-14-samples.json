@@ -1,0 +1,1202 @@
+{
+  "date": "2026-11-14",
+  "method": "从下载的官方源数据实际检索，不是实时远程API或模型生成",
+  "results": [
+    {
+      "query": "米饭",
+      "result": "通用近似",
+      "id": "fdc-168878",
+      "name": "白米饭（熟）",
+      "original": "Rice, white, long-grain, regular, enriched, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "updated": "2019-04-01",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "150 g",
+          "amount": 150,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（158 g）",
+          "amount": 158,
+          "unit": "g",
+          "source": "USDA food_portion 83928"
+        }
+      ],
+      "count": 56
+    },
+    {
+      "query": "白米饭",
+      "result": "通用近似",
+      "id": "fdc-168878",
+      "name": "白米饭（熟）",
+      "original": "Rice, white, long-grain, regular, enriched, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "updated": "2019-04-01",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "150 g",
+          "amount": 150,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（158 g）",
+          "amount": 158,
+          "unit": "g",
+          "source": "USDA food_portion 83928"
+        }
+      ],
+      "count": 3
+    },
+    {
+      "query": "糙米饭",
+      "result": "通用近似",
+      "id": "fdc-168875",
+      "name": "糙米饭（中粒，熟）",
+      "original": "Rice, brown, medium-grain, cooked (Includes foods for USDA's Food Distribution Program)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168875/nutrients",
+      "updated": "2019-04-01",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（195 g）",
+          "amount": 195,
+          "unit": "g",
+          "source": "USDA food_portion 83925"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "面条",
+      "result": "通用近似",
+      "id": "fdc-168907",
+      "name": "荞麦面（熟）",
+      "original": "Noodles, japanese, soba, cooked",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/168907/nutrients",
+      "updated": "2019-04-01",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（114 g）",
+          "amount": 114,
+          "unit": "g",
+          "source": "USDA food_portion 83960"
+        }
+      ],
+      "count": 963
+    },
+    {
+      "query": "燕麦",
+      "result": "通用近似",
+      "id": "fdc-169705",
+      "name": "燕麦（干）",
+      "original": "Oats (Includes foods for USDA's Food Distribution Program)",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/169705/nutrients",
+      "updated": "2019-04-01",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（156 g）",
+          "amount": 156,
+          "unit": "g",
+          "source": "USDA food_portion 85379"
+        }
+      ],
+      "count": 580
+    },
+    {
+      "query": "包子",
+      "result": "估算／调查参考",
+      "id": "fdc-2708724",
+      "name": "包子（馅料未细分）",
+      "original": "Bao bun",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708724/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（100 g）",
+          "amount": 100,
+          "unit": "g",
+          "source": "USDA foodPortions 304682"
+        },
+        {
+          "label": "1 item, any size（100 g）",
+          "amount": 100,
+          "unit": "g",
+          "source": "USDA foodPortions 304681"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "query": "素包子",
+      "result": "估算／调查参考",
+      "id": "fdc-2708725",
+      "name": "素包子",
+      "original": "Bao bun, no meat",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708725/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 item, any size（100 g）",
+          "amount": 100,
+          "unit": "g",
+          "source": "USDA foodPortions 304683"
+        },
+        {
+          "label": "Quantity not specified（100 g）",
+          "amount": 100,
+          "unit": "g",
+          "source": "USDA foodPortions 304684"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "饺子",
+      "result": "估算／调查参考",
+      "id": "fdc-2708344",
+      "name": "素馅饺子",
+      "original": "Dumpling, no meat",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708344/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 302636"
+        },
+        {
+          "label": "1 item, any size（25 g）",
+          "amount": 25,
+          "unit": "g",
+          "source": "USDA foodPortions 302634"
+        },
+        {
+          "label": "1 杯（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 302635"
+        }
+      ],
+      "count": 22
+    },
+    {
+      "query": "蒸饺",
+      "result": "估算／调查参考",
+      "id": "fdc-2708708",
+      "name": "蒸饺／蒸馄饨（馅料未细分）",
+      "original": "Wonton, dumpling or pot sticker, steamed",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708708/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 304641"
+        },
+        {
+          "label": "1 item, any size（25 g）",
+          "amount": 25,
+          "unit": "g",
+          "source": "USDA foodPortions 304639"
+        },
+        {
+          "label": "1 杯（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 304640"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "锅贴",
+      "result": "估算／调查参考",
+      "id": "fdc-2708705",
+      "name": "煎饺／锅贴（馅料未细分）",
+      "original": "Wonton, dumpling or pot sticker, fried",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708705/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 304631"
+        },
+        {
+          "label": "1 item, any size（25 g）",
+          "amount": 25,
+          "unit": "g",
+          "source": "USDA foodPortions 304629"
+        },
+        {
+          "label": "1 杯（75 g）",
+          "amount": 75,
+          "unit": "g",
+          "source": "USDA foodPortions 304630"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "query": "白粥",
+      "result": "估算／调查参考",
+      "id": "fdc-2708418",
+      "name": "白粥（调查参考）",
+      "original": "Congee",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708418/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（255 g）",
+          "amount": 255,
+          "unit": "g",
+          "source": "USDA foodPortions 302915"
+        },
+        {
+          "label": "1 杯（255 g）",
+          "amount": 255,
+          "unit": "g",
+          "source": "USDA foodPortions 302914"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "鸡蛋粥",
+      "result": "估算／调查参考",
+      "id": "fdc-2708984",
+      "name": "鸡蛋粥",
+      "original": "Congee, with egg",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708984/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（255 g）",
+          "amount": 255,
+          "unit": "g",
+          "source": "USDA foodPortions 305448"
+        },
+        {
+          "label": "1 杯（255 g）",
+          "amount": 255,
+          "unit": "g",
+          "source": "USDA foodPortions 305447"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "虾仁炒饭",
+      "result": "估算／调查参考",
+      "id": "fdc-2708956",
+      "name": "虾仁炒饭",
+      "original": "Rice, fried, with shrimp",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708956/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（198 g）",
+          "amount": 198,
+          "unit": "g",
+          "source": "USDA foodPortions 305375"
+        },
+        {
+          "label": "Quantity not specified（198 g）",
+          "amount": 198,
+          "unit": "g",
+          "source": "USDA foodPortions 305376"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "鸡肉炒饭",
+      "result": "估算／调查参考",
+      "id": "fdc-2708953",
+      "name": "鸡肉炒饭",
+      "original": "Rice, fried, with chicken",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708953/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（198 g）",
+          "amount": 198,
+          "unit": "g",
+          "source": "USDA foodPortions 305369"
+        },
+        {
+          "label": "Quantity not specified（198 g）",
+          "amount": 198,
+          "unit": "g",
+          "source": "USDA foodPortions 305370"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "牛肉捞面",
+      "result": "估算／调查参考",
+      "id": "fdc-2708802",
+      "name": "牛肉捞面",
+      "original": "Lo mein, with beef",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2708802/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（200 g）",
+          "amount": 200,
+          "unit": "g",
+          "source": "USDA foodPortions 304932"
+        },
+        {
+          "label": "1 杯（200 g）",
+          "amount": 200,
+          "unit": "g",
+          "source": "USDA foodPortions 304931"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "馄饨",
+      "result": "估算／调查参考",
+      "id": "fdc-2709160",
+      "name": "馄饨汤（调查参考）",
+      "original": "Soup, wonton",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2709160/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 305835"
+        },
+        {
+          "label": "Quantity not specified（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 305836"
+        }
+      ],
+      "count": 21
+    },
+    {
+      "query": "蛋花汤",
+      "result": "估算／调查参考",
+      "id": "fdc-2707282",
+      "name": "蛋花汤（调查参考）",
+      "original": "Soup, egg drop",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2707282/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 297681"
+        },
+        {
+          "label": "1 杯（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 297680"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "酸辣汤",
+      "result": "估算／调查参考",
+      "id": "fdc-2707136",
+      "name": "酸辣汤（调查参考）",
+      "original": "Soup, hot and sour",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2707136/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "Quantity not specified（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 297226"
+        },
+        {
+          "label": "1 杯（245 g）",
+          "amount": 245,
+          "unit": "g",
+          "source": "USDA foodPortions 297225"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "宫保鸡丁",
+      "result": "估算／调查参考",
+      "id": "fdc-2706796",
+      "name": "宫保鸡丁（美国调查参考）",
+      "original": "Kung pao chicken",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2706796/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（162 g）",
+          "amount": 162,
+          "unit": "g",
+          "source": "USDA foodPortions 296213"
+        },
+        {
+          "label": "Quantity not specified（121 g）",
+          "amount": 121,
+          "unit": "g",
+          "source": "USDA foodPortions 296214"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "盖饭",
+      "result": "估算／调查参考",
+      "id": "fdc-2706497",
+      "name": "酱汁牛肉配饭（调查参考）",
+      "original": "Beef and rice with soy-based sauce",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2706497/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（244 g）",
+          "amount": 244,
+          "unit": "g",
+          "source": "USDA foodPortions 295457"
+        },
+        {
+          "label": "1 包, prepared（1266 g）",
+          "amount": 1266,
+          "unit": "g",
+          "source": "USDA foodPortions 295459"
+        },
+        {
+          "label": "Quantity not specified（244 g）",
+          "amount": 244,
+          "unit": "g",
+          "source": "USDA foodPortions 295458"
+        }
+      ],
+      "count": 3
+    },
+    {
+      "query": "糖醋肉饭",
+      "result": "估算／调查参考",
+      "id": "fdc-2706655",
+      "name": "糖醋肉配饭（调查参考）",
+      "original": "Sweet and sour pork with rice",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2706655/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（244 g）",
+          "amount": 244,
+          "unit": "g",
+          "source": "USDA foodPortions 295908"
+        },
+        {
+          "label": "Quantity not specified（244 g）",
+          "amount": 244,
+          "unit": "g",
+          "source": "USDA foodPortions 295909"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "烧烤",
+      "result": "估算／调查参考",
+      "id": "fdc-2706391",
+      "name": "烤牛肉（无酱，美国调查参考）",
+      "original": "Barbecue beef, no sauce",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2706391/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 片（60 g）",
+          "amount": 60,
+          "unit": "g",
+          "source": "USDA foodPortions 295155"
+        },
+        {
+          "label": "Quantity not specified（85 g）",
+          "amount": 85,
+          "unit": "g",
+          "source": "USDA foodPortions 295156"
+        },
+        {
+          "label": "1 杯（135 g）",
+          "amount": 135,
+          "unit": "g",
+          "source": "USDA foodPortions 295154"
+        }
+      ],
+      "count": 3
+    },
+    {
+      "query": "羊肉串",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "火锅",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "拿铁",
+      "result": "估算／调查参考",
+      "id": "fdc-2710386",
+      "name": "拿铁（调查参考）",
+      "original": "Coffee, Latte",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2710386/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 中（480 g）",
+          "amount": 480,
+          "unit": "g",
+          "source": "USDA foodPortions 310499"
+        },
+        {
+          "label": "Quantity not specified（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 310501"
+        },
+        {
+          "label": "1 杯 (8 fl oz)（240 g）",
+          "amount": 240,
+          "unit": "g",
+          "source": "USDA foodPortions 310497"
+        },
+        {
+          "label": "1 大（600 g）",
+          "amount": 600,
+          "unit": "g",
+          "source": "USDA foodPortions 310500"
+        },
+        {
+          "label": "1 小（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 310498"
+        },
+        {
+          "label": "1 fl oz（30 g）",
+          "amount": 30,
+          "unit": "g",
+          "source": "USDA foodPortions 310496"
+        }
+      ],
+      "count": 4
+    },
+    {
+      "query": "卡布奇诺",
+      "result": "估算／调查参考",
+      "id": "fdc-2710472",
+      "name": "卡布奇诺（调查参考）",
+      "original": "Coffee, Cappuccino",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2710472/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 fl oz（30 g）",
+          "amount": 30,
+          "unit": "g",
+          "source": "USDA foodPortions 310953"
+        },
+        {
+          "label": "1 杯 (8 fl oz)（240 g）",
+          "amount": 240,
+          "unit": "g",
+          "source": "USDA foodPortions 310955"
+        },
+        {
+          "label": "Quantity not specified（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 310954"
+        },
+        {
+          "label": "1 小（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 310956"
+        },
+        {
+          "label": "1 中（480 g）",
+          "amount": 480,
+          "unit": "g",
+          "source": "USDA foodPortions 310957"
+        },
+        {
+          "label": "1 大（600 g）",
+          "amount": 600,
+          "unit": "g",
+          "source": "USDA foodPortions 310958"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "奶茶",
+      "result": "估算／调查参考",
+      "id": "fdc-2710506",
+      "name": "热茶加奶（配方未细分，调查参考）",
+      "original": "Tea, hot, with milk",
+      "market": "美国参考",
+      "source": "https://fdc.nal.usda.gov/food-details/2710506/nutrients",
+      "updated": "10/31/2024",
+      "flavor": null,
+      "package": null,
+      "portions": [
+        {
+          "label": "100 g",
+          "amount": 100,
+          "unit": "g"
+        },
+        {
+          "label": "1 杯（240 g）",
+          "amount": 240,
+          "unit": "g",
+          "source": "USDA foodPortions 311107"
+        },
+        {
+          "label": "1 fl oz（30 g）",
+          "amount": 30,
+          "unit": "g",
+          "source": "USDA foodPortions 311106"
+        },
+        {
+          "label": "1 大（600 g）",
+          "amount": 600,
+          "unit": "g",
+          "source": "USDA foodPortions 311110"
+        },
+        {
+          "label": "1 小（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 311108"
+        },
+        {
+          "label": "Quantity not specified（360 g）",
+          "amount": 360,
+          "unit": "g",
+          "source": "USDA foodPortions 311111"
+        },
+        {
+          "label": "1 中（480 g）",
+          "amount": 480,
+          "unit": "g",
+          "source": "USDA foodPortions 311109"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "珍珠奶茶",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "佳得乐橙味",
+      "result": "品牌候选（核对市场／口味／规格）",
+      "id": "fdc-1165176",
+      "name": "佳得乐橙味运动饮料（20 fl oz，美国市场）",
+      "original": "Gatorade Thirst Quencher Orange 20 Fluid Ounce Plastic Bottle",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1165176/nutrients",
+      "updated": "2018-05-08",
+      "flavor": "橙味",
+      "package": "包装净含量未提供",
+      "portions": [
+        {
+          "label": "600 ml",
+          "amount": 600,
+          "unit": "ml"
+        },
+        {
+          "label": "1 瓶 (591 mL)（600 ml）",
+          "amount": 600,
+          "unit": "ml",
+          "source": "USDA branded_food serving_size"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "维他奶巧克力250ml",
+      "result": "品牌候选（核对市场／口味／规格）",
+      "id": "fdc-2622528",
+      "name": "维他奶巧克力豆奶（250mL，美国市场）",
+      "original": "VITASOY, SOY DRINK, CHOCOLATE, CHOCOLATE",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2622528/nutrients",
+      "updated": "2023-07-11",
+      "flavor": "巧克力",
+      "package": "8.45 fl oz/250 mL",
+      "portions": [
+        {
+          "label": "250 ml",
+          "amount": 250,
+          "unit": "ml"
+        },
+        {
+          "label": "1 盒（250 ml）",
+          "amount": 250,
+          "unit": "ml",
+          "source": "USDA branded_food serving_size"
+        },
+        {
+          "label": "整包／瓶标注净含量（250 ml）",
+          "amount": 250,
+          "unit": "ml",
+          "source": "USDA package_weight"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "桂格传统燕麦片",
+      "result": "品牌候选（核对市场／口味／规格）",
+      "id": "fdc-2723877",
+      "name": "桂格传统燕麦片（42 oz，美国市场）",
+      "original": "Quaker Oats Old Fashioned 42 Oz",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2723877/nutrients",
+      "updated": "2025-01-27",
+      "flavor": null,
+      "package": "42 ONZ",
+      "portions": [
+        {
+          "label": "40 g",
+          "amount": 40,
+          "unit": "g"
+        },
+        {
+          "label": "1/2 杯 dry (40 g)（40 g）",
+          "amount": 40,
+          "unit": "g",
+          "source": "USDA branded_food serving_size"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "061954000041",
+      "result": "条码命中（需核对市场与版本）",
+      "id": "fdc-2622528",
+      "name": "维他奶巧克力豆奶（250mL，美国市场）",
+      "original": "VITASOY, SOY DRINK, CHOCOLATE, CHOCOLATE",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/2622528/nutrients",
+      "updated": "2023-07-11",
+      "flavor": "巧克力",
+      "package": "8.45 fl oz/250 mL",
+      "portions": [
+        {
+          "label": "250 ml",
+          "amount": 250,
+          "unit": "ml"
+        },
+        {
+          "label": "1 盒（250 ml）",
+          "amount": 250,
+          "unit": "ml",
+          "source": "USDA branded_food serving_size"
+        },
+        {
+          "label": "整包／瓶标注净含量（250 ml）",
+          "amount": 250,
+          "unit": "ml",
+          "source": "USDA package_weight"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "00052000328677",
+      "result": "条码命中（需核对市场与版本）",
+      "id": "fdc-1165176",
+      "name": "佳得乐橙味运动饮料（20 fl oz，美国市场）",
+      "original": "Gatorade Thirst Quencher Orange 20 Fluid Ounce Plastic Bottle",
+      "market": "United States",
+      "source": "https://fdc.nal.usda.gov/food-details/1165176/nutrients",
+      "updated": "2018-05-08",
+      "flavor": "橙味",
+      "package": "包装净含量未提供",
+      "portions": [
+        {
+          "label": "600 ml",
+          "amount": 600,
+          "unit": "ml"
+        },
+        {
+          "label": "1 瓶 (591 mL)（600 ml）",
+          "amount": 600,
+          "unit": "ml",
+          "source": "USDA branded_food serving_size"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "query": "伊利纯牛奶250ml",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "蒙牛特仑苏",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "元气森林白桃气泡水",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "康师傅红烧牛肉面",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "三全水饺",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "麦当劳巨无霸中国",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "肯德基香辣鸡腿堡中国",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "瑞幸生椰拿铁",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "喜茶多肉葡萄",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    },
+    {
+      "query": "宝矿力水特中国500ml",
+      "result": "未收录",
+      "id": null,
+      "name": null,
+      "original": null,
+      "market": null,
+      "source": null,
+      "updated": null,
+      "flavor": null,
+      "package": null,
+      "portions": [],
+      "count": 0
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "license": "CC0-1.0",
-  "foods": 53264,
-  "retrieved": "2026-11-12",
+  "foods": 53688,
+  "retrieved": "2026-11-14",
   "sources": [
     {
       "file": "sr.zip",
@@ -17,6 +17,11 @@
       "file": "branded.zip",
       "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_branded_food_csv_2026-10-29.zip",
       "sha256": "17f1e52ea91854d8c6c266487597bf1dd6ce63441bfe27c9e61f64e2768440c7"
+    },
+    {
+      "file": "foundation.zip",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-10-29.zip",
+      "sha256": "dd414cc9f1a132626bad354ef6655972c78b44aff14f16114dc899708663c579"
     }
   ],
   "nutrition": "Only original nutrient values; missing values remain null",

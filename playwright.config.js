@@ -13,7 +13,7 @@ export default defineConfig({
     serviceWorkers:'block',reducedMotion:'reduce',screenshot:'only-on-failure',trace:'retain-on-failure'},
   projects:[
     {name:'compact-320',use:{viewport:{width:320,height:568},isMobile:true,hasTouch:true}},
-    {name:'iphone-small',use:{...devices['iPhone SE'],defaultBrowserType:'chromium'}},
+    {name:'iphone-small',use:{...devices['iPhone SE'],viewport:{width:375,height:812},defaultBrowserType:'chromium'}},
     {name:'iphone-standard',use:{...devices['iPhone 13'],defaultBrowserType:'chromium'}},
     {name:'iphone-large',use:{...devices['iPhone 14 Pro Max'],defaultBrowserType:'chromium'}},
     {name:'android',use:{...devices['Pixel 7'],defaultBrowserType:'chromium'}},

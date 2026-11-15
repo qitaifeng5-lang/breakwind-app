@@ -1,7 +1,7 @@
 export const types = ['轻松跑', '恢复跑', '节奏跑', '阈值跑', '间歇跑', '长距离跑', '坡道跑', '加速跑', '比赛配速跑', '交叉训练', '力量训练', '休息'];
 export const meals = ['早餐', '午餐', '晚餐', '加餐'];
 export const distances = ['800 m', '1500 m', '3000 m', '5 km', '10 km', '半程马拉松', '全程马拉松', '自定义'];
-export const fresh = () => ({ version: 1, legacyDraftArchives: [], programs: [], membershipTest: null, coachSchedule: {rules:[]}, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, groupPlan: null, trainingHold: false, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
+export const fresh = () => ({ version: 1, legacyDraftArchives: [], programs: [], membershipTest: null, coachSchedule: {rules:[]}, runs: [], plans: [], recovery: [], food: [], foodLibrary: [], foodCombos: [], favorites: [], planFavorites: [], events: [], records: [], cycles: [], cycleAudit: [], cycleProfile: null, groupPlan: null, trainingHold: false, goals: { weekly: 0, days: 0, race: '', target: '', raceDate: '' } });
 
 export function dateKey(date = new Date()) {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => String(n).padStart(2, '0')).join('-');
@@ -73,6 +73,7 @@ export function readData(raw) {
   base.groupPlan = parsed.groupPlan && typeof parsed.groupPlan === 'object' ? parsed.groupPlan : null;
   base.trainingHold = parsed.trainingHold === true;
   base.foodLibrary = Array.isArray(parsed.foodLibrary) ? parsed.foodLibrary : [];
+  base.foodCombos = Array.isArray(parsed.foodCombos) ? parsed.foodCombos.filter(c=>c && typeof c.id==='string' && Array.isArray(c.components)) : [];
   base.favorites = Array.isArray(parsed.favorites) ? parsed.favorites : [];
   base.planFavorites = Array.isArray(parsed.planFavorites) ? parsed.planFavorites.filter(value => typeof value === 'string') : [];
   base.goals = { ...base.goals, ...parsed.goals };
@@ -100,7 +101,7 @@ export function demo(day) {
 // Merge user-owned backups without overwriting an existing record or snapshot.
 export function mergeBackup(current,backup){
  const identity=item=>item.id||item.programId||JSON.stringify(item);
- for(const key of ['plans','runs','food','recovery','events','records','programs','foodLibrary','cycles','cycleAudit','legacyDraftArchives']){
+ for(const key of ['plans','runs','food','recovery','events','records','programs','foodLibrary','foodCombos','cycles','cycleAudit','legacyDraftArchives']){
   const rows=current[key]??=[],known=new Set(rows.map(identity));
   for(const item of backup[key]||[])if(!known.has(identity(item))){rows.push(structuredClone(item));known.add(identity(item));}
  }

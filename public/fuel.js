@@ -1,12 +1,26 @@
 import {foodData} from './food-data.js';
+import {chineseFoods} from './food-zh.js';
 export const nutrients=['kcal','protein','carbs','fat'];
-export const catalog=[...recipeCatalog(foodData),...dedupeFoodRecords(foodData)];
+// Copy the recorded snapshot, never today's catalog values. Repeating a copy is idempotent.
+export function copyMealSnapshots(records,ids,targetDate){
+ const selected=new Set(ids),result=[];
+ for(const source of records.filter(m=>selected.has(m.id)&&m.date!==targetDate)){
+  if(records.some(m=>m.date===targetDate&&m.copiedFrom===source.id))continue;
+  result.push({...structuredClone(source),id:crypto.randomUUID(),date:targetDate,copiedFrom:source.id,loggedAt:Date.now()});
+ }
+ return result;
+}
+const chineseIndex=new Map(chineseFoods.map(f=>[f.id,f]));
+const localizedFoods=foodData.map(f=>{const zh=chineseIndex.get(f.id);return zh&&zh.expectedOriginal===f.originalName?{...f,name:zh.name,aliases:zh.aliases,nameReviewed:zh.reviewed,flavor:zh.flavor||null}:f;});
+export const catalog=[...recipeCatalog(localizedFoods),...dedupeFoodRecords(localizedFoods)];
 const traditional={'飯':'饭','麵':'面','條':'条','雞':'鸡','蛋':'蛋','魚':'鱼','豬':'猪','餅':'饼','乾':'干','蘋':'苹','蘿':'萝','蔔':'卜','漿':'浆','鹽':'盐','醬':'酱','檸':'柠','檬':'檬','蝦':'虾','餃':'饺','饅':'馒','頭':'头','奶':'奶','樂':'乐','飲':'饮','無':'无'};
 export const normalizeFoodQuery=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/[飯麵條雞蛋魚豬餅乾蘋蘿蔔漿鹽醬檸檬蝦餃饅頭奶樂飲無]/g,c=>traditional[c]).replace(/毫升/g,'ml').replace(/克/g,'g').trim();
 const index=new WeakMap();
 // Search relevance is an editorial name mapping, never a nutrition substitution.
 // A food mentioned as an ingredient/flavour must not outrank the food itself.
 const subjects={
+ '馄饨':/^Soup, wonton$/i,
+ '米饭':/^Rice, (?:white|brown),.*cooked/i,'白米饭':/^Rice, white,.*cooked/i,
  '面条':/^noodles,.*(?:cooked|boiled)/i,'面包':/^bread, (?:white|whole-wheat|wheat),/i,
  '燕麦':/^(?:oats(?: \(|, raw)|cereals, oats,.*plain)/i,'酸奶':/^yogurt, plain,/i,'奶酪':/^cheese,/i,
  '黄豆':/^soybeans, mature seeds,/i,'牛肉':/^beef,.*(?:round|sirloin|ground)/i,'猪肉':/^pork, fresh,/i,'羊肉':/^lamb,.*(?:leg|shoulder|loin)/i,
@@ -16,8 +30,8 @@ const subjects={
  '土豆':/^potatoes,.*(?:raw|boiled|baked)/i,'玉米':/^corn, sweet,/i,'花生':/^peanuts,.*(?:raw|roasted)/i,
  '杏仁':/^nuts, almonds/i,'核桃':/^nuts, walnuts/i,'咖啡':/^beverages, coffee, brewed,/i
 };
-function relevance(item,q){return Number(Boolean(subjects[q]?.test(item.originalName||'')))*100+Number(Boolean(item.preferred))*20+Number(normalizeFoodQuery(item.name)===q)*200;}
-const lexicon=[...new Set(foodData.flatMap(f=>normalizeFoodQuery(f.aliases).split(/\s+/)).filter(t=>/^[\u4e00-\u9fff]{2,}$/.test(t)))].sort((a,b)=>b.length-a.length);
+function relevance(item,q){return Number(Boolean(subjects[q]?.test(item.originalName||'')))*100+Number(Boolean(item.preferred))*120+Number(Boolean(item.nameReviewed))*30+Number(normalizeFoodQuery(item.name)===q)*200;}
+const lexicon=[...new Set(localizedFoods.flatMap(f=>normalizeFoodQuery(f.aliases).split(/\s+/)).filter(t=>/^[\u4e00-\u9fff]{2,}$/.test(t)))].sort((a,b)=>b.length-a.length);
 function queryTokens(q){
  const tokens=[];let rest=q;
  while(rest){rest=rest.trimStart();if(!rest)break;const known=lexicon.find(t=>rest.startsWith(t));
@@ -29,7 +43,7 @@ function queryTokens(q){
 }
 export function searchFood(items,query){
  const q=normalizeFoodQuery(({niunai:'牛奶',mifan:'米饭',jidan:'鸡蛋'})[String(query).trim().toLowerCase()]||query),tokens=queryTokens(q);
- if(/^\d{8,14}$/.test(q))return items.filter(i=>i.barcode&&i.barcode.padStart(14,'0')===q.padStart(14,'0'));
+ if(/^\d{8,14}$/.test(q))return items.filter(i=>i.barcode&&i.barcode.padStart(14,'0')===q.padStart(14,'0')).sort((a,b)=>String(b.sourceUpdated||'').localeCompare(String(a.sourceUpdated||'')));
  return items.map((item,order)=>{let text=index.get(item);if(!text){text=normalizeFoodQuery([item.name,item.originalName,item.aliases,item.brand,item.packageSize,item.market,(item.portion||100)+(item.basis?.unit||'g')].filter(Boolean).join(' '));index.set(item,text);}return {item,order,text};})
  .filter(r=>tokens.every(t=>r.text.includes(t)))
  .sort((a,b)=>relevance(b.item,q)-relevance(a.item,q)||a.order-b.order).map(r=>r.item);

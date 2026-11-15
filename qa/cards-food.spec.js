@@ -8,6 +8,7 @@ test('card surfaces open one existing detail, while expansion, selection and dra
  for(const selector of ['.course-cover','.course-reading-summary','h3 button']){
   await card.locator(selector).click();await expect(page.locator('#editor')).toContainText(name);await click(page,'返回');
  }
+ await card.click({position:{x:8,y:80}});await expect(page.locator('#editor')).toContainText(name);await click(page,'返回');
  await card.locator('summary').click();await expect(card.locator('details')).toHaveAttribute('open','');await expect(page.locator('#editor')).not.toBeVisible();
  await card.locator('summary').click();await expect(card.locator('details')).not.toHaveAttribute('open','');
  await card.locator('.course-cover').dispatchEvent('pointerdown',{pointerId:1,isPrimary:true,button:0,clientX:10,clientY:10});

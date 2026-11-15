@@ -2,7 +2,7 @@ import {catalog,searchFood} from '../public/fuel.js';
 import {writeFile} from 'node:fs/promises';
 const queries=['米饭','米飯','mifan','糙米','面条','面包','馒头','包子','饺子','粥','燕麦','全脂牛奶','牛奶','niunai','酸奶','奶酪','鸡蛋','jidan','水煮蛋','豆腐','老豆腐','豆浆','毛豆','黄豆','鸡胸肉','牛肉','猪肉','羊肉','三文鱼','虾','苹果','香蕉','橙子','草莓','蓝莓','西瓜','芒果','牛油果','西兰花','胡萝卜','黄瓜','西红柿','菠菜','土豆','红薯','玉米','花生','杏仁','核桃','咖啡','奶茶','番茄炒蛋','蛋炒饭','清炒菠菜','可口可乐','桂格','日清','农心','维他奶巧克力250ml','061954000041','00049000000443','00030000010402','070662198018','伊利纯牛奶250ml','蒙牛特仑苏250ml','中国版可口可乐330ml','麦当劳巨无霸中国','星巴克拿铁中国大杯','肯德基香辣鸡腿堡中国','瑞幸生椰拿铁','不存在牌牛奶750ml'];
 const report=queries.map(query=>{const results=searchFood(catalog,query),first=results[0];return {query,result:!first?'未收录':/^\d{8,14}$/.test(query)?'条码命中，核对标示市场':first.matchKind==='brand'?'品牌候选，需核对口味规格':first.matchKind==='recipe'||first.matchKind==='estimate'?'估算':'通用参考／近似',id:first?.id,name:first?.originalName||first?.name,market:first?.market,source:first?.url,count:results.length};});
-await writeFile(new URL('../docs/food-coverage-6837289927.json',import.meta.url),JSON.stringify({date:'2026-11-12',method:'真实官方批量数据本地查询；不是远程API实时返回，也不是虚构fixture',results:report},null,2));
+await writeFile(new URL('../docs/food-coverage-6837289927.json',import.meta.url),JSON.stringify({date:'2026-11-14',method:'真实官方批量数据本地查询；不是远程API实时返回，也不是虚构fixture',results:report},null,2));
 const counts=Object.fromEntries([...new Set(report.map(r=>r.result))].map(k=>[k,report.filter(r=>r.result===k).length]));
 const text=`# 食品覆盖与整卡交互复核 · 6837289927
 
@@ -10,7 +10,7 @@ const text=`# 食品覆盖与整卡交互复核 · 6837289927
 
 ## 实际数据路线
 
-正式库由脚本从USDA SR Legacy、FNDDS 2021–2023及2026-10品牌官方完整下载包重建。中文索引是名称/烹调状态的编辑映射，营养数字全部来自原记录；不是模型生成。保留原始英文完整品名以便核对口味和加工状态。品牌保留真实条码、市场、包装与每份资料；同条码不同名称、口味、明确包装不强行合并。
+正式库由脚本从USDA SR Legacy、FNDDS 2021–2023、2026-10 Foundation与2026-10品牌官方完整下载包重建。中文索引是名称/烹调状态的编辑映射，营养数字全部来自原记录；不是模型生成。保留原始英文完整品名以便核对口味和加工状态。品牌保留真实条码、市场、包装与每份资料；同条码不同名称、口味、明确包装不强行合并。
 
 [官方数据下载](https://fdc.nal.usda.gov/download-datasets/)；[官方API与CC0许可](https://fdc.nal.usda.gov/api-guide/)；[品牌100g/100mL基准说明](https://fdc.nal.usda.gov/docs/GBFPD_Documentation_and_Download_User_Guide_Jan2024.pdf)。来源压缩包SHA256见food-source-manifest.json。私有资料没有写入公共数据。
 
