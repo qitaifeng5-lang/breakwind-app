@@ -1,4 +1,5 @@
 import { visionRoute } from './vision.mjs';
+import {foodArtAssets} from './public/food-art.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 
@@ -47,6 +48,8 @@ const assets = new Map(Object.entries({
 }));
 
 const port = Number(process.env.PORT || 4188);
+assets.set('/food-gallery.js',['food-gallery.js','text/javascript; charset=utf-8']);
+for(const name of foodArtAssets)assets.set('/'+name,[name,name.endsWith('.webp')?'image/webp':'image/png']);
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://localhost').pathname;
   if (path === '/api/food-vision') return visionRoute(request,response);

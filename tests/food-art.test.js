@@ -8,7 +8,9 @@ test('every reviewed common food and recipe has an existing original atlas cell'
  const common=catalog.filter(f=>(f.nameReviewed||f.preferred||f.matchKind==='recipe')&&f.matchKind!=='brand');
  assert.ok(common.length>=90);
  for(const food of common)assert.ok(foodArtwork(food),food.name);
- for(const file of foodArtAssets){const png=await readFile(new URL('../public/'+file,import.meta.url));assert.equal(png.subarray(1,4).toString(),'PNG');
+ for(const file of foodArtAssets){const png=await readFile(new URL('../public/'+file,import.meta.url));
+  if(file.endsWith('.webp')){assert.equal(png.subarray(0,4).toString(),'RIFF');assert.equal(png.subarray(8,12).toString(),'WEBP');continue;}
+  assert.equal(png.subarray(1,4).toString(),'PNG');
   const width=png.readUInt32BE(16),height=png.readUInt32BE(20),art=Object.values(foodArtManifest).find(a=>'food-'+a.sheet+'.png'===file);
   assert.equal(width/art.columns,height/art.rows,'atlas cells must be square: '+file);
  }

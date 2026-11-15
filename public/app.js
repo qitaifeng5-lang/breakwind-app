@@ -1,4 +1,5 @@
 import {foodArtwork} from './food-art.js';
+import {foodGalleryGroups} from './food-gallery.js';
 import {courseMetadata} from './pb-library.js';
 import {restoreSelection,calendarWeek,weekTotals} from './week-plan.js';
 import {recordCompletion,outcomeLabels} from './completion.js';
@@ -838,6 +839,7 @@ const actions = {
   'food-home-pick': ([id])=>{startMeal();pickFood([id]);},
   'food-meal-menu': ()=>{const head=editor.querySelector('.food-search-head');if(!head)return;const open=head.dataset.mealsOpen!=='true';head.dataset.mealsOpen=String(open);editor.querySelector('.food-meal-menu')?.setAttribute('aria-expanded',String(open));},
   'food-kind': ([kind])=>{if(!['all','generic','brand','dish'].includes(kind))return;mealDraft.kind=kind;displayFood();},
+  'food-group': ([group])=>{if(group!=='all'&&!foodGalleryGroups[group])return;mealDraft.browseGroup=group;mealDraft.limit=35;displayFood();},
   'food-info': showFoodInfo,
   'food-info-favorite': ()=>{favoriteFood([selectedFood.id]);const b=editor.querySelector('[data-action=food-info-favorite]');if(b){b.setAttribute('aria-pressed',String(state().favorites.includes(selectedFood.id)));b.textContent=state().favorites.includes(selectedFood.id)?'已收藏':'收藏食物';}},
   'food-code': ()=>{const input=editor.querySelector('#food-query');input.value='';mealDraft.query='';displayFood();input.placeholder='输入包装上的条码数字';input.inputMode='numeric';input.focus();},
@@ -1224,14 +1226,18 @@ function mealTab(tab) {
 }
 function displayFood(matches) {
  const target=editor.querySelector('#food-results');if(!target||!mealDraft)return;
+ const groupScroll=target.querySelector('.food-browse-groups')?.scrollLeft??mealDraft.groupScroll??0;mealDraft.groupScroll=groupScroll;
  const s=state(),items=allFoods(s),recent=[...new Set(desc(s.food).flatMap(m=>(m.components||[]).map(p=>p.foodId)))],tab=mealDraft.tab;
  const emptyQuery=tab==='search'&&!mealDraft.query.trim();
- const found=matches??(tab==='recent'?recent.map(id=>items.find(f=>f.id===id)).filter(Boolean):tab==='favorite'?items.filter(f=>s.favorites.includes(f.id)):emptyQuery?items.filter(f=>f.preferred).slice(0,8):searchFood(items,mealDraft.query));
+ const browseGroup=mealDraft.browseGroup||'all';
+ const browse=()=>items.filter(f=>browseGroup==='all'?(f.preferred||f.nameReviewed||f.matchKind==='recipe'):f.foodGroup===browseGroup).sort((a,b)=>Number(Boolean(b.preferred))-Number(Boolean(a.preferred)));
+ const found=matches??(tab==='recent'?recent.map(id=>items.find(f=>f.id===id)).filter(Boolean):tab==='favorite'?items.filter(f=>s.favorites.includes(f.id)):emptyQuery?browse():searchFood(items,mealDraft.query));
  const kind=mealDraft.kind||'all',foodKind=f=>f.matchKind==='brand'?'brand':['estimate','recipe'].includes(f.matchKind)?'dish':'generic';
  const results=emptyQuery||kind==='all'||tab!=='search'?found:found.filter(f=>foodKind(f)===kind);
  const filters=!emptyQuery&&tab==='search'?'<div class="food-kind-tabs">'+[['all','全部'],['generic','通用'],['brand','品牌'],['dish','菜品']].map(([k,label])=>'<button type="button" data-action="food-kind:'+k+'" aria-pressed="'+(kind===k)+'">'+label+'</button>').join('')+'</div>':'';
- const history=emptyQuery&&foodSearches().length?'<div class="recent-searches"><h3>最近搜索</h3>'+foodSearches().map((q,i)=>btn(q,'food-query:'+i,'','quiet')).join('')+'</div>':'';
+ const history=(emptyQuery&&foodSearches().length?'<div class="recent-searches"><h3>最近搜索</h3>'+foodSearches().map((q,i)=>btn(q,'food-query:'+i,'','quiet')).join('')+'</div>':'')+(emptyQuery?'<div class="food-kind-tabs food-browse-groups" aria-label="食物品类">'+[['all','常用'],...Object.entries(foodGalleryGroups)].map(([id,label])=>'<button type="button" data-action="food-group:'+id+'" aria-pressed="'+(browseGroup===id)+'">'+label+'</button>').join('')+'</div>':'');
  target.innerHTML=filters+history+(emptyQuery?'<h3 class="food-section-title">常用食物</h3>':'<p class="food-result-count">搜索结果 · '+results.length+'</p>')+(results.length?'<ul class="rows food-results">'+results.slice(0,mealDraft.limit||35).map(item=>'<li><button type="button" class="food-pick" data-action="food-pick:'+item.id+'">'+foodMark(item)+'<strong>'+escape(foodDisplayName(item))+'</strong><small>'+escape([item.brand,item.market||'个人库',foodMatchLabel(item)].filter(Boolean).join(' · '))+'</small><span class="food-result-portion">'+escape(item.packageSize||num(item.portion)+' '+(item.basis?.unit||'g'))+' · '+(item.kcal===null?'能量未记录':num(item.kcal)+' kcal / '+(item.basis?.amount||100)+(item.basis?.unit||'g'))+'</span></button><button type="button" class="food-favorite" aria-label="'+(s.favorites.includes(item.id)?'取消收藏 ':'收藏 ')+escape(item.name)+'" aria-pressed="'+s.favorites.includes(item.id)+'" data-action="food-favorite:'+item.id+'">'+icon('star',18)+'</button></li>').join('')+'</ul>'+(results.length>(mealDraft.limit||35)?btn('查看更多（共'+results.length+'项）','food-more','','quiet'):''):'<div class="food-no-match"><h3>'+ (tab==='favorite'?'还没有收藏':tab==='recent'?'暂无近期食物':'未收录这个食品')+'</h3><p>可以按包装营养标签补录，留在你的个人食品库。</p>'+btn('补录食品','food-custom','plus','quiet')+'</div>');
+ if(emptyQuery){const groups=target.querySelector('.food-browse-groups');if(groups)groups.scrollLeft=groupScroll;const title=target.querySelector('.food-section-title');if(title)title.textContent=browseGroup==='all'?'常用食物':foodGalleryGroups[browseGroup];}
 }
 function favoriteFood([id]) {
   if (sample || !allFoods().some(item=>item.id===id)) return;

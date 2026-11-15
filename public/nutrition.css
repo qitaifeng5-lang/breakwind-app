@@ -27,3 +27,24 @@ button.portion-product{width:100%;text-align:left;color:inherit}.portion-product
 .food-art.food-sheet-staples{background-image:url('food-staples.png');background-size:600% 400%}
 .food-art.food-sheet-dishes{background-image:url('food-dishes.png');background-size:600% 400%}
 .food-art.food-sheet-basics{background-image:url('food-basics.png');background-size:600% 400%}
+
+/* Original source-matched food illustrations. */
+.food-art.food-sheet-gallery-fruit{background-image:url("food-gallery-fruit.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-greens{background-image:url("food-gallery-greens.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-vegetables{background-image:url("food-gallery-vegetables.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-grains{background-image:url("food-gallery-grains.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-nuts{background-image:url("food-gallery-nuts.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-meat{background-image:url("food-gallery-meat.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-cured{background-image:url("food-gallery-cured.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-seafood{background-image:url("food-gallery-seafood.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-dairy{background-image:url("food-gallery-dairy.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-bread{background-image:url("food-gallery-bread.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-noodles{background-image:url("food-gallery-noodles.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-asian{background-image:url("food-gallery-asian.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-main{background-image:url("food-gallery-main.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-soups{background-image:url("food-gallery-soups.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-snacks{background-image:url("food-gallery-snacks.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-desserts{background-image:url("food-gallery-desserts.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-breakfast{background-image:url("food-gallery-breakfast.webp");background-size:600% 400%}
+.food-art.food-sheet-gallery-drinks{background-image:url("food-gallery-drinks.webp");background-size:600% 400%}
+.food-browse-groups{justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;max-width:100%}.food-browse-groups button{flex:0 0 auto;white-space:nowrap;min-height:44px}

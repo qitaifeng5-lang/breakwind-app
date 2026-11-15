@@ -1,8 +1,10 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import {foodArtAssets} from '../public/food-art.js';
 
 const target=new URL('../.expo/pages-preview/',import.meta.url);
 const source=new URL('../public/',import.meta.url);
 export const assets=[
+  'food-gallery.js',...foodArtAssets.filter(name=>name.endsWith('.webp')),
   'food-art.js','food-produce.png','food-staples.png','food-dishes.png','food-basics.png','nutrition.css','food-photos.png','food-zh.js','food-data.js','week-plan.js','completion.js','workout-detail.js','page-host.js','training-workbench.js','training-structure.js','index.html','app.js','styles.css','model.js','engine.js','pb-library.js','workout.js','workout-ui.js','program.js','program-ui.js','membership.js','coach-plan.js','coach-ui.js','knowledge.js','running.js','fuel.js',
   'hero.jpg','icon.svg','icon-192.png','icon-512.png','manifest.webmanifest','sw.js'
 ];

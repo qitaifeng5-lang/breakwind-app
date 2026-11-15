@@ -1,4 +1,5 @@
 // Original illustrative photography. This presentation layer never changes nutrition snapshots.
+import {foodGallery,foodGalleryGroups} from './food-gallery.js';
 const sheets={
  photos:['rice','milk','chicken','egg','banana','broccoli','sweet-potato','oats','yogurt'],
  produce:['apple','orange','strawberry','blueberry','watermelon','mango','avocado','cucumber','spinach-raw','spinach','carrot','tomato','potato','corn','peanut','almond','walnut','edamame','tofu','lettuce','pear','grape','kiwi','pineapple'],
@@ -6,8 +7,9 @@ const sheets={
  dishes:['tomato-egg','fried-rice','mantou','dumpling','potsticker','steamed-dumpling','bao','lo-mein','congee','vegetable-congee','egg-congee','meat-congee','hot-sour-soup','egg-soup','wonton-soup','kung-pao','sweet-sour-pork','beef-rice','chicken-rice','spring-roll','sweet-sour-rice','shrimp-rice','chicken-fried-rice','shrimp-noodles'],
  basics:['beef-raw','pork-raw','lamb-raw','chicken-raw','salmon-raw','egg-raw','potato-cooked','corn-kernels','flour','oil','butter','sugar','salt','honey','chocolate','water','orange-juice','cola','mushroom','eggplant','bok-choy','cabbage','pumpkin','peach']
 };
-export const foodArtAssets=Object.keys(sheets).map(name=>'food-'+name+'.png');
-export const foodArtManifest=Object.fromEntries(Object.entries(sheets).flatMap(([sheet,keys])=>keys.map((key,index)=>[key,{key,sheet,index,columns:sheet==='photos'?3:6,rows:sheet==='photos'?3:4,kind:'illustration'}])));
+export const foodArtAssets=[...Object.keys(sheets).map(name=>'food-'+name+'.png'),...Object.keys(foodGalleryGroups).map(name=>'food-gallery-'+name+'.webp')];
+export const foodArtManifest=Object.fromEntries([...Object.entries(sheets).flatMap(([sheet,keys])=>keys.map((key,index)=>[key,{key,sheet,index,columns:sheet==='photos'?3:6,rows:sheet==='photos'?3:4,kind:'illustration'}])),...foodGallery.map(f=>[f.id,{key:f.id,sheet:f.sheet,index:f.cell,columns:6,rows:4,kind:'illustration'}])]);
+const galleryIndex=new Map(foodGallery.map(f=>[f.id,f]));
 
 // Pinned mappings for the reviewed Chinese catalog and recipes. Variants share a food-type
 // illustration, never a package photo or a claim about ingredients/portion/cooking method.
@@ -41,6 +43,8 @@ export function foodArtwork(record){
  const food=typeof record==='string'?{name:record}:record?.foodSnapshot||record||{};
  // No generated type image may impersonate the packaging of a specific SKU.
  if(food.matchKind==='brand'||food.brand||food.barcode)return null;
+ const gallery=galleryIndex.get(food.id||record?.foodId);
+ if(gallery&&gallery.expectedOriginal===food.originalName)return foodArtManifest[gallery.id];
  const id=String(food.id||record?.foodId||'').replace(/^fdc-/,''),pinnedKey=pinned[id];
  if(pinnedKey)return foodArtManifest[pinnedKey];
  const original=food.originalName||'',plainName=String(food.name||'').split(/[（(]/)[0].trim();

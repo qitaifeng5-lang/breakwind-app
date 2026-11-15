@@ -1,5 +1,6 @@
 import {foodData} from './food-data.js';
 import {chineseFoods} from './food-zh.js';
+import {foodGallery} from './food-gallery.js';
 export const nutrients=['kcal','protein','carbs','fat'];
 // Copy the recorded snapshot, never today's catalog values. Repeating a copy is idempotent.
 export function copyMealSnapshots(records,ids,targetDate){
@@ -10,8 +11,8 @@ export function copyMealSnapshots(records,ids,targetDate){
  }
  return result;
 }
-const chineseIndex=new Map(chineseFoods.map(f=>[f.id,f]));
-const localizedFoods=foodData.map(f=>{const zh=chineseIndex.get(f.id);return zh&&zh.expectedOriginal===f.originalName?{...f,name:zh.name,aliases:zh.aliases,nameReviewed:zh.reviewed,flavor:zh.flavor||null}:f;});
+const chineseIndex=new Map([...foodGallery,...chineseFoods].map(f=>[f.id,f]));
+const localizedFoods=foodData.map(f=>{const zh=chineseIndex.get(f.id);return zh&&zh.expectedOriginal===f.originalName?{...f,name:zh.name,aliases:zh.aliases,nameReviewed:zh.reviewed,foodGroup:zh.group||null,flavor:zh.flavor||null}:f;});
 export const catalog=[...recipeCatalog(localizedFoods),...dedupeFoodRecords(localizedFoods)];
 const traditional={'飯':'饭','麵':'面','條':'条','雞':'鸡','蛋':'蛋','魚':'鱼','豬':'猪','餅':'饼','乾':'干','蘋':'苹','蘿':'萝','蔔':'卜','漿':'浆','鹽':'盐','醬':'酱','檸':'柠','檬':'檬','蝦':'虾','餃':'饺','饅':'馒','頭':'头','奶':'奶','樂':'乐','飲':'饮','無':'无'};
 export const normalizeFoodQuery=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/[飯麵條雞蛋魚豬餅乾蘋蘿蔔漿鹽醬檸檬蝦餃饅頭奶樂飲無]/g,c=>traditional[c]).replace(/毫升/g,'ml').replace(/克/g,'g').trim();
