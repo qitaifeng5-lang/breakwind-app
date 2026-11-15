@@ -19,3 +19,7 @@ test('keyboard-sized viewport keeps search and portion save usable without neste
  await page.goto('/#food');await click(page,'添加午餐');const original=page.viewportSize();await page.setViewportSize({width:original.width,height:430});await page.getByRole('searchbox').fill('米饭');await page.getByRole('button',{name:/^白米饭（熟）/}).click();await page.locator('[name=grams]').fill('150');
  const save=page.getByRole('button',{name:'保存到午餐',exact:true});const box=await save.boundingBox();expect(box.y+box.height).toBeLessThanOrEqual(431);await save.click();expect((await state(page)).food[0].kcal).toBe(195);await page.setViewportSize(original);
 });
+
+test('portion controls show live nutrients without opening source disclosure',async({page})=>{
+ await page.goto('/#food');await click(page,'添加午餐');await page.getByRole('searchbox').fill('米饭');await page.getByRole('button',{name:/^白米饭（熟）/}).click();await expect(page.locator('#portion-energy')).toBeVisible();await expect(page.locator('#portion-energy')).toContainText('195');await click(page,'增加份量');await expect(page.locator('[name=grams]')).toHaveValue('175');await click(page,'减少份量');await expect(page.locator('[name=grams]')).toHaveValue('150');await expect(page.getByRole('button',{name:'150 g',exact:true})).toHaveAttribute('aria-pressed','true');await click(page,'保存到午餐');await expect(page.locator('.meal-entry-copy')).toContainText('150 g');
+});
