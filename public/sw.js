@@ -1,9 +1,11 @@
-const cacheName = 'breakwind-shell-v11';
+const cacheName = 'breakwind-shell-v40';
 const cacheNamespace = cacheName.startsWith('breakwind-preview-') ? 'breakwind-preview-' : 'breakwind-shell-';
-const shell = ['./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
+const shell = ["./food-gallery.js","./food-gallery-fruit.webp","./food-gallery-greens.webp","./food-gallery-vegetables.webp","./food-gallery-grains.webp","./food-gallery-nuts.webp","./food-gallery-meat.webp","./food-gallery-cured.webp","./food-gallery-seafood.webp","./food-gallery-dairy.webp","./food-gallery-bread.webp","./food-gallery-noodles.webp","./food-gallery-asian.webp","./food-gallery-main.webp","./food-gallery-soups.webp","./food-gallery-snacks.webp","./food-gallery-desserts.webp","./food-gallery-breakfast.webp","./food-gallery-drinks.webp",'./food-art.js','./food-produce.png','./food-staples.png','./food-dishes.png','./food-basics.png','./nutrition.css','./food-photos.png','./food-zh.js','./food-data.js','./week-plan.js','./completion.js','./workout-detail.js','./page-host.js','./training-workbench.js','./training-structure.js','./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./program.js','./program-ui.js','./membership.js','./coach-plan.js','./coach-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
+shell.push('./event-courses.js','./training-policy.js','./food-portions.js');
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(shell)).then(() => self.skipWaiting()));
+  const requests=cacheNamespace==='breakwind-preview-'?shell.map(path=>new Request(new URL(path,self.registration.scope),{cache:'reload'})):shell;
+  event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(requests)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(Promise.all([
@@ -18,7 +20,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(caches.open(cacheName).then(async cache => {
     if (event.request.mode === 'navigate' && cacheNamespace === 'breakwind-preview-') {
       try {
-        const online=await fetch(event.request);
+        const online=await fetch(event.request,{cache:'no-store'});
         if (online.ok) return online;
       } catch { /* Read the installed shell when offline. */ }
     }
@@ -26,3 +28,4 @@ self.addEventListener('fetch', event => {
     return cached || fetch(event.request);
   }));
 });
+

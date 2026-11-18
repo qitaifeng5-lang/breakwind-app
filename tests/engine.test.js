@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fresh, offset, readData } from '../public/model.js';
-import { draftCycle, reviewCycle, specialties, cycleVersion, templateDetails, groupWeek, parseGroupPB } from '../public/engine.js';
+import { draftCycle, reviewCycle, specialties, cycleVersion, templateDetails, groupWeek, parseGroupPB, courseReadiness } from '../public/engine.js';
+import { pbCourses } from '../public/pb-library.js';
 import { evidence } from '../public/knowledge.js';
 
 const today = '2026-11-07';
@@ -18,27 +19,54 @@ test('PB parser applies the event format and accepts track hundredths',()=>{
   assert.equal(parseGroupPB('半程马拉松','1:75:00'),null);
 });
 
-test('competitive group previews a week from just PB, preserving its structure at lower intensity',()=>{
+test('competitive group without logs browses complete courses, not a 15 minute fallback',()=>{
   const settings={event:'1500 m',group:'competitive',pb:'4:20',start:today};
   const week=groupWeek(fresh(),today,settings);
   assert.equal(week.length,7);
-  assert.equal(week[0].name,'轻松跑＋动作练习');
-  assert.ok(week.every(plan=>!plan.quality && !plan.pace && !plan.name.includes('走跑')));
-  assert.equal(groupWeek(fresh(),today,{...settings,group:'novice'})[0].name,'轻松走跑');
+  assert.ok(week.every(plan=>!plan.isPlanningSlot));
+  assert.ok(week.filter(plan=>plan.courseId!=='rest').every(plan=>plan.selectedGroup==='competitive'&&plan.segments?.length));
+  assert.ok(pbCourses('1500 m','4:20').some(c=>c.executionEligible && c.segments.length));
+  assert.ok(week.every(plan=>plan.previewOnly && plan.minutes===null && !plan.name.includes('走跑')));
+  assert.ok(week.every(plan=>!plan.readiness.canStart));
   assert.equal(groupWeek(fresh(),offset(today,7),settings)[0].date,offset(today,7));
 });
 
-test('group load uses known pace and recent volume, respects existing plans and stops for pain',()=>{
+test('course structure is independent of app history; saved plans and pain remain respected',()=>{
   const data=experienced('1500 m');
   const settings={event:'1500 m',group:'competitive',pb:'4:20',start:today};
   const week=groupWeek(data,today,settings);
-  assert.match(week[0].pace,/\/km 或更慢/);
-  assert.equal(week[2].quality,true);
-  assert.match(week[2].note,/3 × 2 分钟/);
+  assert.deepEqual(week.map(p=>p.segments),groupWeek(fresh(),today,settings).map(p=>p.segments));
   data.plans.push({id:'existing',date:today,type:'轻松跑',minutes:20});
   assert.equal(groupWeek(data,today,settings)[0].id,'existing');
   data.recovery.push({date:today,pain:true});
-  assert.ok(groupWeek(data,today,settings).every(plan=>plan.name==='暂缓训练' && !plan.minutes));
+  data.plans=[];
+  assert.ok(groupWeek(data,today,settings).every(plan=>plan.readiness.status==='paused'));
+  assert.ok(groupWeek(data,today,settings).every(plan=>!plan.isPlanningSlot));
+});
+
+test('execution gates known pain, recovery and youth intensity without hiding the library',()=>{
+  const data=fresh(),course=pbCourses('800 m','2:20')[0];
+  assert.equal(courseReadiness(data,course,today).canSchedule,true);
+  assert.equal(courseReadiness(data,course,today).canStart,false);
+  data.cycleProfile={background:'recovering',returnCleared:false};
+  assert.equal(courseReadiness(data,course,today).status,'paused');
+  data.cycleProfile={age:'未满18岁'};
+  assert.equal(courseReadiness(data,course,today).status,'coach');
+  const youth=pbCourses('800 m','2:20',{youth:true});
+  assert.ok(youth.length>=14);
+  assert.equal(courseReadiness(data,youth.find(c=>c.id==='speed-drills'),today).canSchedule,true);
+  data.recovery=[{date:offset(today,-20),pain:true}];
+  assert.equal(courseReadiness(data,youth[3],today).status,'paused');
+});
+
+test('quality course spacing uses external/manual logs and allows inspecting a saved course',()=>{
+  const data=fresh(),course=pbCourses('1500 m','4:20')[0];
+  data.runs.push({date:today,effort:8});
+  assert.equal(courseReadiness(data,course,offset(today,1),today).status,'spacing');
+  assert.equal(courseReadiness(data,course,offset(today,3),today).canSchedule,true);
+  data.runs=[];
+  data.plans.push({id:'saved',date:today,quality:true});
+  assert.equal(courseReadiness(data,{...course,planId:'saved'},today).canSchedule,true);
 });
 test('competitive 800 m history without device imports never falls back to beginner walk/run', () => {
   const draft = generate(fresh(),{event:'800 m',level:'regular',background:'competitive',years:6,weeklyDays:4,recentKm:28,recentLongest:9,raceStarts:8,readiness:'ready'});

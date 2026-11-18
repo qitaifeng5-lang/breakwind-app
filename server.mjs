@@ -1,17 +1,43 @@
 import { visionRoute } from './vision.mjs';
+import {foodArtAssets} from './public/food-art.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 
 const assets = new Map(Object.entries({
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/index.html': ['index.html', 'text/html; charset=utf-8'],
+  '/week-plan.js': ['week-plan.js','text/javascript; charset=utf-8'],
+  '/completion.js': ['completion.js','text/javascript; charset=utf-8'],
+  '/workout-detail.js': ['workout-detail.js', 'text/javascript; charset=utf-8'],
+  '/page-host.js': ['page-host.js', 'text/javascript; charset=utf-8'],
+  '/training-workbench.js': ['training-workbench.js', 'text/javascript; charset=utf-8'],
+  '/training-structure.js': ['training-structure.js', 'text/javascript; charset=utf-8'],
   '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
   '/knowledge.js': ['knowledge.js', 'text/javascript; charset=utf-8'],
   '/engine.js': ['engine.js', 'text/javascript; charset=utf-8'],
+  '/event-courses.js': ['event-courses.js', 'text/javascript; charset=utf-8'],
+  '/training-policy.js': ['training-policy.js', 'text/javascript; charset=utf-8'],
+  '/workout.js': ['workout.js', 'text/javascript; charset=utf-8'],
+  '/program.js': ['program.js', 'text/javascript; charset=utf-8'],
+  '/program-ui.js': ['program-ui.js', 'text/javascript; charset=utf-8'],
+  '/membership.js': ['membership.js', 'text/javascript; charset=utf-8'],
+  '/coach-plan.js': ['coach-plan.js', 'text/javascript; charset=utf-8'],
+  '/coach-ui.js': ['coach-ui.js', 'text/javascript; charset=utf-8'],
+  '/workout-ui.js': ['workout-ui.js', 'text/javascript; charset=utf-8'],
   '/pb-library.js': ['pb-library.js', 'text/javascript; charset=utf-8'],
   '/running.js': ['running.js', 'text/javascript; charset=utf-8'],
+  '/food-zh.js': ['food-zh.js', 'text/javascript; charset=utf-8'],
+  '/food-data.js': ['food-data.js', 'text/javascript; charset=utf-8'],
   '/fuel.js': ['fuel.js', 'text/javascript; charset=utf-8'],
+  '/food-portions.js': ['food-portions.js', 'text/javascript; charset=utf-8'],
   '/model.js': ['model.js', 'text/javascript; charset=utf-8'],
+  '/nutrition.css': ['nutrition.css','text/css; charset=utf-8'],
+  '/food-art.js': ['food-art.js', 'text/javascript; charset=utf-8'],
+  '/food-produce.png': ['food-produce.png', 'image/png'],
+  '/food-staples.png': ['food-staples.png', 'image/png'],
+  '/food-dishes.png': ['food-dishes.png', 'image/png'],
+  '/food-basics.png': ['food-basics.png', 'image/png'],
+  '/food-photos.png': ['food-photos.png','image/png'],
   '/styles.css': ['styles.css', 'text/css; charset=utf-8'],
   '/design-lab.html': ['design-lab.html', 'text/html; charset=utf-8'],
   '/design-lab.css': ['design-lab.css', 'text/css; charset=utf-8'],
@@ -25,6 +51,8 @@ const assets = new Map(Object.entries({
 }));
 
 const port = Number(process.env.PORT || 4188);
+assets.set('/food-gallery.js',['food-gallery.js','text/javascript; charset=utf-8']);
+for(const name of foodArtAssets)assets.set('/'+name,[name,name.endsWith('.webp')?'image/webp':'image/png']);
 createServer(async (request, response) => {
   const path = new URL(request.url, 'http://localhost').pathname;
   if (path === '/api/food-vision') return visionRoute(request,response);

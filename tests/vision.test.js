@@ -17,7 +17,7 @@ test('vision leaves unknown food and invalid ranges unresolved',()=>{
 });
 test('Chinese aliases resolve verified entries with stable USDA identifiers',()=>{
   assert.equal(searchFood(catalog,'番薯')[0].id,'fdc-168483');
-  assert.equal(searchFood(catalog,'老豆腐')[0].protein,17.3);
+  assert.equal(searchFood(catalog,'老豆腐')[0].protein,17.27);
   assert.equal(searchFood(catalog,'毛豆')[0].kcal,141);
 });
 test('vision endpoint restricts origin, checks the installed model and sanitizes local output',async()=>{
