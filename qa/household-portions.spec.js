@@ -128,6 +128,6 @@ test('empty, zero, negative and excessive quantities cannot create a meal',async
   await page.getByLabel('食用数量').fill(value);await click(page,'保存到午餐');
   await expect(page.locator('#portion-form')).toBeVisible();expect((await state(page)).food).toHaveLength(0);
  }
- await page.getByLabel('食用数量').fill('0.5');await click(page,'保存到午餐');
+ await page.getByLabel('食用数量').fill('');await page.getByLabel('食用数量').pressSequentially('0.5');await expect(page.getByLabel('食用数量')).toHaveValue('0.5');await click(page,'保存到午餐');
  const saved=(await state(page)).food;expect(saved).toHaveLength(1);expect(saved[0].components[0].amount).toBe(75);
 });

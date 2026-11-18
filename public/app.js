@@ -1289,16 +1289,17 @@ function currentHousehold(){
  if(portionState?.mode!=='household')return null;
  return {...structuredClone(portionState.options[portionState.index]),quantity:Number(portionState.quantity)};
 }
-function syncPortionControls(){
+function syncPortionControls(editing=null){
  const form=editor.querySelector('#portion-form');if(!form||!portionState)return;
  const household=portionState.mode==='household',option=portionState.options[portionState.index],amount=readPortionAmount();
  editor.querySelector('#household-controls').hidden=!household;
  editor.querySelector('#exact-portion-controls').hidden=household;
  form.elements.quantity.disabled=!household;form.elements.grams.disabled=household;
- form.elements.quantity.value=portionState.quantity;
+ // Do not replace a focused number input while the user is typing “0.”.
+ if(editing!==form.elements.quantity)form.elements.quantity.value=portionState.quantity;
  if(option)form.elements.quantity.max=String(Math.floor(5000/option.amount*100)/100);
  if(household)portionState.amount=Number.isFinite(amount)?amount:'';
- form.elements.grams.value=portionState.amount;
+ if(editing!==form.elements.grams)form.elements.grams.value=portionState.amount;
  editor.querySelectorAll('[data-action^="food-mode:"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.action.endsWith(portionState.mode))));
  editor.querySelectorAll('[data-action^="food-unit:"]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.action.split(':')[1])===portionState.index)));
  const unitLabel=option?.label.match(/[碗份个根片块杯瓶包袋盒罐盘]/)?.[0]||'份';
@@ -1369,7 +1370,7 @@ function showMeal([id]) {
 editor.addEventListener('input',event=>{
   if (event.target.id==='food-query') {mealDraft.query=event.target.value;mealDraft.limit=35;mealDraft.searchScroll=0;displayFood();}
   if(selectedFood?.recipe&&(event.target.name?.startsWith('ingredient-')||event.target.name==='recipeYield')){const form=event.target.form;try{selectedFood=calculateRecipe(selectedFood,selectedFood.recipe.ingredients.map((p,i)=>Number(form.elements['ingredient-'+i].value)),Number(form.elements.recipeYield.value));const current=householdPortions(selectedFood);portionState.options=portionState.options.map(p=>current.find(n=>n.id===p.id)||p);editor.querySelectorAll('[data-action^="food-unit:"]').forEach(b=>{const p=portionState.options[Number(b.dataset.action.split(':')[1])];b.querySelector('small').textContent=(p.estimated?'约 ':'')+num(p.amount)+' '+p.unit;});syncPortionControls();}catch{}}
-  if (event.target.form?.id==='portion-form' && ['grams','quantity'].includes(event.target.name)) {portionState[event.target.name==='grams'?'amount':'quantity']=event.target.value;syncPortionControls();}
+  if (event.target.form?.id==='portion-form' && ['grams','quantity'].includes(event.target.name)) {portionState[event.target.name==='grams'?'amount':'quantity']=event.target.value;syncPortionControls(event.target);}
 });
 editor.addEventListener('change',async event=>{
   if (!['barcode-file','food-photo'].includes(event.target.id)) return;
