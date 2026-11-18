@@ -86,3 +86,8 @@ test('recipe portion uses its current estimated yield and never labels it measur
  assert.equal(changed[0].amount,320);
  assert.match(changed[0].source,/编辑估算/);
 });
+
+test('unusable provider weights do not become one-can household shortcuts',()=>{
+ const food={matchKind:'brand',basis:{unit:'ml'},portions:[{label:'1 can',amount:8640,unit:'ml',source:'invalid provider fixture'}]};
+ assert.deepEqual(householdPortions(food),[]);
+});

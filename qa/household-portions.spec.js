@@ -13,7 +13,7 @@ const editCurrentRice=async page=>{
  await click(page,'调整份量');
 };
 
-test('half a rice bowl saves without weighing and retains its unit after reload',async({page})=>{
+test('half a rice bowl saves without weighing and retains its unit after reload',async({page},info)=>{
  await page.goto('/#food');await openRice(page);
  await expect(page.getByLabel('食用数量')).toBeVisible();
  await expect(page.getByLabel('食用重量（g）')).not.toBeVisible();
@@ -21,6 +21,7 @@ test('half a rice bowl saves without weighing and retains its unit after reload'
  await page.locator('[data-action="food-quantity:0.5"]').click();
  await expect(page.locator('#portion-equivalent')).toHaveText('0.5 碗（中碗） · 约 75 g');
  await expect(page.locator('#household-note')).toContainText('估算');
+ await page.locator('.dialog-body').evaluate(e=>{e.scrollTop=0;});await page.screenshot({path:info.outputPath('household-rice.png')});
  await click(page,'保存到午餐');
  const saved=(await state(page)).food[0];
  expect(saved.components[0]).toMatchObject({amount:75,unit:'g',grams:75,household:{label:'中碗',quantity:0.5,amount:150,unit:'g',estimated:true}});
@@ -63,13 +64,13 @@ test('food information and favorite controls preserve a half bowl and chosen mea
  expect(saved.favorites).toContain('fdc-168878');
 });
 
-test('half a 250 ml carton stays volume-based and saves offline',async({page,context})=>{
+test('half a 250 ml carton stays volume-based and saves offline',async({page,context},info)=>{
  await page.goto('/#food');await click(page,'添加午餐');
  await page.getByRole('searchbox').fill('061954000041');await expect(page.locator('.food-pick')).toHaveCount(1);
  await page.locator('.food-pick').click();
  await expect(page.locator('[data-action="food-unit:0"]')).toContainText('盒');
  await expect(page.locator('[data-action="food-unit:0"]')).toContainText('250 ml');
- await context.setOffline(true);await page.locator('[data-action="food-quantity:0.5"]').click();await click(page,'保存到午餐');
+ await context.setOffline(true);await page.locator('[data-action="food-quantity:0.5"]').click();await page.locator('.dialog-body').evaluate(e=>{e.scrollTop=0;});await page.screenshot({path:info.outputPath('household-carton.png')});await click(page,'保存到午餐');
  const saved=(await state(page)).food[0],part=saved.components[0];
  expect(saved.grams).toBeNull();expect(part.grams).toBeNull();
  expect(part).toMatchObject({amount:125,unit:'ml',household:{label:'盒',quantity:0.5,amount:250,unit:'ml'}});

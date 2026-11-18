@@ -1256,11 +1256,12 @@ function pickFood([id],fromVision=false,savedPart=null) {
   selectedFood=savedPart?.foodSnapshot||allFoods().find(item=>item.id===id);
   if(savedPart&&!savedPart.foodSnapshot){selectedFood={id:savedPart.foodId,name:savedPart.name,source:savedPart.source,portion:savedPart.grams,basis:{amount:savedPart.grams,unit:'g'},...Object.fromEntries(Object.keys(foodNames).map(k=>[k,savedPart[k]]))};}
   if (!selectedFood) return;
-  const unit=selectedFood.basis?.unit||'g',options=householdPortions(selectedFood),initial=savedPart?.amount??savedPart?.grams??selectedFood.portion;
+  const defaultAmount=selectedFood.portion>=0.1&&selectedFood.portion<=5000?selectedFood.portion:100;
+  const unit=selectedFood.basis?.unit||'g',options=householdPortions(selectedFood),initial=savedPart?.amount??savedPart?.grams??defaultAmount;
   let selected=0;
   if(savedPart?.household){const old=savedPart.household;selected=options.findIndex(p=>p.id===old.id);if(selected<0){options.unshift(structuredClone(old));selected=0;}else options[selected]=structuredClone(old);}
   portionState=savedPart?.portionState?structuredClone(savedPart.portionState):{options,index:selected,mode:!fromVision&&options.length&&(!savedPart||savedPart.household)?'household':'exact',quantity:savedPart?.household?.quantity??1,amount:fromVision?'':initial};
-  const amounts=[0.5,1,1.5,2].map(multiplier=>Math.round(selectedFood.portion*multiplier*10)/10).filter(amount=>amount>=0.1&&amount<=5000);
+  const amounts=[0.5,1,1.5,2].map(multiplier=>Math.round(defaultAmount*multiplier*10)/10).filter(amount=>amount>=0.1&&amount<=5000);
   const choice=(p,i)=>'<button type="button" data-action="food-unit:'+i+'" aria-pressed="false"><strong>'+escape(p.label)+'</strong><small>'+(p.estimated?'约 ':'')+num(p.amount)+' '+escape(p.unit)+'</small></button>';
   const opts=portionState.options;
   foodPage('调整份量','<button type="button" class="portion-product" data-action="food-info" aria-label="查看食物详情">'+foodMark(selectedFood)+'<div><h3 class="food-portion-title">'+escape(selectedFood.name)+'</h3><small>'+escape(foodMatchLabel(selectedFood))+'</small><p>'+escape((selectedFood.packageSize?selectedFood.packageSize+' · ':'')+(Number.isFinite(selectedFood.kcal)?num(selectedFood.kcal)+' kcal / '+(selectedFood.basis?.amount||100)+' '+unit:'能量未记录'))+'</p></div>'+icon('right',18)+'</button>'+
@@ -1305,7 +1306,7 @@ function syncPortionControls(editing=null){
  const unitLabel=option?.label.match(/[碗份个根片块杯瓶包袋盒罐盘]/)?.[0]||'份';
  editor.querySelectorAll('[data-action^="food-quantity:"]').forEach(b=>{const q=Number(b.dataset.action.split(':')[1]);b.textContent=(q===0.5?'半':q)+unitLabel;b.setAttribute('aria-pressed',String(q===Number(portionState.quantity)));});
  editor.querySelector('#portion-equivalent').textContent=household&&Number.isFinite(amount)&&amount>0?foodPortionText({amount,unit:option.unit,household:currentHousehold()}):'请填写食用数量';
- editor.querySelector('#household-note').textContent=option?.estimated?'碗、份按常用大小估算，实际装量会有差异。':option?.label.startsWith('杯')?'“杯”是来源中的量杯，大小以来源说明为准。':'按所选食物的可食部分或包装规格记录。';
+ editor.querySelector('#household-note').textContent=option?.note?.split('来源份量：')[0].trim().replaceAll('编辑估算','份量估算')||'按所选食物的可食部分或包装规格记录。';
  editor.querySelector('#household-source').textContent=household?'份量来源：'+option.source+'。'+option.note:'本次直接按 '+(selectedFood.basis?.unit||'g')+' 记录。';
  showPortionEnergy(amount);
 }

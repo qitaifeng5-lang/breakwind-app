@@ -93,7 +93,9 @@ function sourcePortions(food,unit){
   const display=sourceLabel(parsed.description,food);
   if(!display)continue;
   const amount=round(portion.amount/parsed.count);
-  if(!positive(amount))continue;
+  // Counts outside the entry form's mass/volume range are not usable defaults.
+  // In particular, do not surface a provider's malformed multi-litre "one can".
+  if(!positive(amount)||amount<0.1||amount>5000)continue;
   const source=portion.source||food.source||'该食物的份量记录';
   result.push({
    id:stableId([portion.label,portion.amount,unit,source].join('|')),
