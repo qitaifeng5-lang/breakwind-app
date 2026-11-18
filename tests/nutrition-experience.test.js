@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {copyMealSnapshots,mealTotals,catalog,searchFood} from '../public/fuel.js';
+import {copyMealSnapshots,mealTotals,catalog,searchFood,foodSnapshot,resizeFoodSnapshot,foodPortionText,recentFoodSnapshots} from '../public/fuel.js';
 import {fresh,readData,mergeBackup} from '../public/model.js';
 import {chineseFoods} from '../public/food-zh.js';
 import {foodData} from '../public/food-data.js';
@@ -21,4 +21,27 @@ test('saved meal combinations survive reload and backup merge without replacing 
 test('Foundation data keep published nutrient provenance and unknown values rather than calculated guesses',()=>{
  const foundation=foodData.filter(f=>f.source.includes('Foundation 2026-10'));assert.equal(foundation.length,424);
  for(const f of foundation){if(f.kcal!==null){assert.ok([1008,2048,2047].includes(f.sourceNutrients.kcal.id));assert.equal(f.sourceNutrients.kcal.unit.toLowerCase(),'kcal');}for(const key of ['protein','carbs','fat'])if(f[key]!==null)assert.equal(f.sourceNutrients[key].unit.toLowerCase(),'g');}
+});
+
+test('household amounts preserve historical mapping and units while exact edits clear stale labels',()=>{
+ const food={id:'snapshot-fixture',name:'测试饮品',basis:{amount:100,unit:'ml'},kcal:40,protein:null,carbs:5,fat:1};
+ const unit={id:'carton-v1',label:'盒',amount:250,unit:'ml',quantity:0.5,estimated:false,source:'测试标签'};
+ const part=foodSnapshot(food,125,'ml',unit);food.kcal=999;unit.amount=500;
+ assert.equal(part.kcal,50);assert.equal(part.grams,null);assert.equal(part.household.amount,250);assert.match(foodPortionText(part),/0.5 盒/);
+ const resized=resizeFoodSnapshot(part,500);assert.equal(resized.household.quantity,2);assert.equal(resized.kcal,200);assert.equal(resized.protein,null);
+ const exact=resizeFoodSnapshot(part,173,null);assert.equal(exact.household,undefined);assert.equal(foodPortionText(exact),'173 ml');assert.equal(part.amount,125);
+ assert.throws(()=>foodSnapshot(food,125,'ml',{...part.household,unit:'g'}),/份量/);
+ assert.throws(()=>foodSnapshot(food,250,'ml',part.household),/份量/);
+});
+test('recent food keeps the latest same-day serving, with deterministic legacy ordering',()=>{
+ const records=[{id:'old',date:'2026-11-17',loggedAt:900,components:[{foodId:'rice',amount:400}]},{id:'first',date:'2026-11-18',loggedAt:1,components:[{foodId:'rice',amount:75}]},{id:'last',date:'2026-11-18',loggedAt:2,components:[{foodId:'rice',amount:300}]}];
+ assert.equal(recentFoodSnapshots(records)[0].amount,300);assert.equal(recentFoodSnapshots(records).length,1);
+ const legacy=records.slice(1).map(({id,date,components})=>({id,date,components}));assert.equal(recentFoodSnapshots(legacy)[0].amount,300);assert.equal(records[1].components[0].amount,75);
+});
+test('copied household snapshots survive reload and combos without new source lookups',()=>{
+ const p=foodSnapshot(catalog.find(f=>f.id==='fdc-168878'),75,'g',{id:'rice-bowl-v1',label:'中碗',amount:150,unit:'g',quantity:0.5,estimated:true,source:'测试编辑估算'});
+ const meal={id:'rice',date:'2026-11-17',meal:'午餐',components:[p],...mealTotals([p])};
+ const copy=copyMealSnapshots([meal],['rice'],'2026-11-18')[0];const s=fresh();s.food=[meal,copy];s.foodCombos=[{id:'combo',name:'半碗饭',components:structuredClone(copy.components)}];
+ const restored=readData(JSON.stringify(s));assert.deepEqual(restored.food[1].components[0],p);assert.deepEqual(restored.foodCombos[0].components[0].household,p.household);
+ copy.components[0].household.amount=300;assert.equal(meal.components[0].household.amount,150);
 });

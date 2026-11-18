@@ -29,6 +29,7 @@ const assets = new Map(Object.entries({
   '/food-zh.js': ['food-zh.js', 'text/javascript; charset=utf-8'],
   '/food-data.js': ['food-data.js', 'text/javascript; charset=utf-8'],
   '/fuel.js': ['fuel.js', 'text/javascript; charset=utf-8'],
+  '/food-portions.js': ['food-portions.js', 'text/javascript; charset=utf-8'],
   '/model.js': ['model.js', 'text/javascript; charset=utf-8'],
   '/nutrition.css': ['nutrition.css','text/css; charset=utf-8'],
   '/food-art.js': ['food-art.js', 'text/javascript; charset=utf-8'],

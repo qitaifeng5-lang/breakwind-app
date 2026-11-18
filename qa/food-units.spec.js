@@ -5,8 +5,8 @@ test('real barcode, carton volume and favorites work offline without invented gr
  await page.goto('/#food');await click(page,'添加午餐');await page.getByRole('searchbox').fill('061954000041');
  await expect(page.locator('.food-pick')).toHaveCount(1);await expect(page.locator('.food-pick')).toContainText('United States');
  await page.locator('.food-results button[aria-label^="收藏 "]').click();
- await context.setOffline(true);await page.locator('.food-pick').click();await expect(page.getByLabel('食用容量（mL）')).toHaveValue('250');
- await page.getByRole('button',{name:/1 盒（250 ml）/}).click();await click(page,'保存到午餐');
+ await context.setOffline(true);await page.locator('.food-pick').click();await click(page,'按毫升输入');await expect(page.getByLabel('食用容量（mL）')).toHaveValue('250');
+ await click(page,'日常份量');const carton=page.locator('[data-action="food-unit:0"]');await expect(carton).toContainText('盒');await expect(carton).toContainText('250 ml');await carton.click();await expect(page.getByLabel('食用数量',{exact:true})).toHaveValue('1');await click(page,'保存到午餐');
  const record=await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));
  expect(record.food[0].grams).toBeNull();expect(record.food[0].components[0].unit).toBe('ml');expect(record.food[0].components[0].amount).toBe(250);
  expect(record.food[0].components[0].foodSnapshot.barcode).toBe('061954000041');expect(record.foodLibrary).toHaveLength(1);

@@ -59,13 +59,37 @@ export function foodPortions(item){
  const unit=item.basis?.unit||'g',translate=label=>String(label).replace(/cups?/gi,'杯').replace(/bottles?/gi,'瓶').replace(/packages?|packets?/gi,'包').replace(/containers?|cartons?/gi,'盒').replace(/cans?/gi,'罐').replace(/pouches?/gi,'袋').replace(/pieces?/gi,'个').replace(/slices?/gi,'片').replace(/servings?/gi,'份').replace(/large/gi,'大').replace(/medium/gi,'中').replace(/small/gi,'小');
  return [{label:(item.portion||100)+' '+unit,amount:item.portion||100,unit},...(item.portions||[]).filter(p=>p.unit===unit&&p.amount>0).map(p=>({...p,label:translate(p.label)+'（'+p.amount+' '+p.unit+'）'}))];
 }
-export function foodSnapshot(item,amount,unit=item.basis?.unit||'g'){
- return {foodId:item.id,name:item.name,source:item.source,amount,unit,grams:unit==='g'?amount:null,foodSnapshot:structuredClone(item),...portionValues(item,amount,unit)};
+function householdSnapshot(household,amount,unit){
+ if(!household)return null;
+ if(household.unit!==unit||!Number.isFinite(household.amount)||household.amount<=0||!Number.isFinite(household.quantity)||household.quantity<=0||Math.abs(household.amount*household.quantity-amount)>0.001)throw Error('日常份量与记录数量不一致');
+ return structuredClone(household);
 }
-export function resizeFoodSnapshot(part,amount){
- if(part.foodSnapshot)return foodSnapshot(part.foodSnapshot,amount,part.unit||'g');
+export function foodSnapshot(item,amount,unit=item.basis?.unit||'g',household=null){
+ const saved=householdSnapshot(household,amount,unit);
+ return {foodId:item.id,name:item.name,source:item.source,amount,unit,grams:unit==='g'?amount:null,foodSnapshot:structuredClone(item),...(saved?{household:saved}:{}),...portionValues(item,amount,unit)};
+}
+export function resizeFoodSnapshot(part,amount,household=undefined){
+ const nextHousehold=household===undefined?(part.household?{...part.household,quantity:amount/part.household.amount}:null):household;
+ if(part.foodSnapshot)return foodSnapshot(part.foodSnapshot,amount,part.unit||'g',nextHousehold);
  if(!(part.grams>0))throw Error('旧记录缺少重量，不能推算新份量');
- return {...structuredClone(part),grams:amount,amount,unit:'g',...Object.fromEntries(nutrients.map(k=>[k,Number.isFinite(part[k])?part[k]*amount/part.grams:null]))};
+ const next={...structuredClone(part),grams:amount,amount,unit:'g',...Object.fromEntries(nutrients.map(k=>[k,Number.isFinite(part[k])?part[k]*amount/part.grams:null]))};
+ delete next.household;
+ const saved=householdSnapshot(nextHousehold,amount,'g');if(saved)next.household=saved;
+ return next;
+}
+export function foodPortionText(part){
+ const amount=part.amount??part.grams,unit=part.unit||'g',number=value=>String(Math.round(value*100)/100);
+ if(!Number.isFinite(amount))return '份量未记录';
+ const h=part.household;
+ if(!h||h.unit!==unit||!(h.amount>0)||!(h.quantity>0)||Math.abs(h.amount*h.quantity-amount)>0.001)return number(amount)+' '+unit;
+ const label=String(h.label).replace(/^([小中大])碗$/,'碗（$1碗）');
+ return number(h.quantity)+' '+label+' · '+(h.estimated?'约 ':'')+number(amount)+' '+unit;
+}
+export function recentFoodSnapshots(records){
+ const latest=new Map();
+ const ordered=records.map((record,index)=>({record,index})).sort((a,b)=>String(b.record.date).localeCompare(String(a.record.date))||(Number(b.record.loggedAt)||0)-(Number(a.record.loggedAt)||0)||b.index-a.index);
+ for(const {record} of ordered)for(const part of [...(record.components||[])].reverse())if(part.foodId&&!latest.has(part.foodId))latest.set(part.foodId,part);
+ return [...latest.values()];
 }
 export const foodMatchLabel=item=>item.matchKind==='personal'||item.source?.startsWith('自定义')?'个人标签记录':item.matchKind==='brand'?'品牌商品 · 请核对地区与规格':item.matchKind==='estimate'?'配方／调查估算':item.matchKind==='recipe'?'配方估算':'通用食物参考';
 export function mealTotals(items) {

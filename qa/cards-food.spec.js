@@ -19,13 +19,13 @@ test('card surfaces open one existing detail, while expansion, selection and dra
  await page.evaluate(()=>getSelection().removeAllRanges());await card.locator('h3 button').focus();await page.keyboard.press('Enter');await expect(page.locator('#editor')).toContainText(name);
 });
 test('Chinese food search, measured portion, meal edit/delete and immutable nutrition snapshots work',async({page})=>{
- await page.goto('/#food');await click(page,'添加午餐');await page.getByRole('searchbox').fill('米饭');await page.getByRole('button',{name:/^白米饭（熟）/}).click();await click(page,'150 g');await click(page,'保存到午餐');
+ await page.goto('/#food');await click(page,'添加午餐');await page.getByRole('searchbox').fill('米饭');await page.getByRole('button',{name:/^白米饭（熟）/}).click();await click(page,'按克输入');await click(page,'150 g');await click(page,'保存到午餐');
  const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')));
  let s=await read();expect(s.food[0].kcal).toBe(195);expect(s.food[0].components[0].foodSnapshot.providerId).toBe('168878');
- await page.locator('[data-action^="meal-detail:"]').first().click();await click(page,'修改食物与份量');await click(page,'调整份量');await page.locator('#portion-form [name=grams]').fill('100');await click(page,'保存到午餐');
+ await page.locator('[data-action^="meal-detail:"]').first().click();await click(page,'修改食物与份量');await click(page,'调整份量');await click(page,'按克输入');await page.locator('#portion-form [name=grams]').fill('100');await click(page,'保存到午餐');
  s=await read();expect(s.food).toHaveLength(1);expect(s.food[0].kcal).toBe(130);expect(s.food[0].components[0].amount).toBe(100);
  await page.locator('[data-action^="meal-detail:"]').first().click();await click(page,'删除这顿记录');expect((await read()).food).toHaveLength(0);
  await click(page,'添加午餐');await page.getByRole('searchbox').fill('番茄炒蛋');await page.getByRole('button',{name:/^番茄炒蛋（可改配方估算）/}).click();await expect(page.locator('#editor')).toContainText('配方估算');
- await page.getByText('调整配方食材与成品重量',{exact:true}).click();await page.locator('[name=ingredient-2]').fill('4');await click(page,'保存到午餐');
+ await page.getByText('调整配方（可选）',{exact:true}).click();await page.locator('[name=ingredient-2]').fill('4');await click(page,'保存到午餐');
  s=await read();expect(s.food[0].components[0].foodSnapshot.recipe.ingredients[2].amount).toBe(4);
 });

@@ -15,7 +15,8 @@ import {createWorkoutPlayer,courseReading,courseMainHTML} from './workout-ui.js'
 import {supportsWorkout,courseIdentity} from './workout.js';
 import { runModes, sourceNames, analyzeTrack, likelyDuplicate, energyEstimate, importRun, coordinate, heartSegment, heartZones } from './running.js';
 import { pbDistances, pbDistanceLabel, pbOptions, pbSeconds, formatPB, pbCourses, pbWeek,weekContentStatus, courseCategories, coursePhases,contentGroups } from './pb-library.js';
-import { catalog, searchFood, portionValues, mealTotals, validBarcode, foodPortions, foodSnapshot, resizeFoodSnapshot, foodMatchLabel, calculateRecipe, copyMealSnapshots } from './fuel.js';
+import { catalog, searchFood, portionValues, mealTotals, validBarcode, foodSnapshot, resizeFoodSnapshot, foodMatchLabel, calculateRecipe, copyMealSnapshots, foodPortionText, recentFoodSnapshots } from './fuel.js';
+import {householdPortions} from './food-portions.js';
 import { athleteTiers, cycleVersion, courseReadiness, groupEvents, groupWeek, phases, recentPain, reviewCycle, specialties, templateDetails } from './engine.js';
 import { evidence, evidenceLevels } from './knowledge.js';
 import { types, meals, distances, fresh, dateKey, offset, weekStart, pace, duration, sum, conflicts, readData, mergeBackup, demo } from './model.js';
@@ -415,13 +416,13 @@ function schedule(s) {
   panel('当天安排', selected.length ? '<ul class="rows">' + selected.map(item => '<li><span class="tile">' + icon(item.collection === 'plans' ? 'run' : 'calendar') + '</span><div class="row-text"><strong>' + escape(item.name) + '</strong><small>' + escape(item.start ? item.start + (item.end ? '–' + item.end : '') : '未指定时间') + ' · ' + escape(item.category||item.course?.category||item.type) + '</small></div>' + (conflicts(item,selected).length ? tag('时间冲突','red') : '') + (item.recurring?btn('固定时段','coach-settings','','quiet'):item.collection==='plans'?btn('课次详情','open-plan:'+item.id,'','quiet'):btn(sample ? '查看' : '编辑','edit:' + item.collection + ':' + item.id,'','quiet')) + '</li>').join('') + '</ul>' : empty('calendar','这天没有安排','为训练或日常事项留出时间。'),btn('回到今天','date:' + day,'','quiet')) + '</div>';
 }
 function nutrition(s) {
- const items=byDate(s.food,foodDate),recent=[...new Map(desc(s.food).flatMap(m=>(m.components||[])).map(p=>[p.foodId,p])).values()].slice(0,10),favorites=allFoods(s).filter(f=>s.favorites.includes(f.id)).slice(0,10);
+ const items=byDate(s.food,foodDate),recent=recentFoodSnapshots(s.food).slice(0,10),favorites=allFoods(s).filter(f=>s.favorites.includes(f.id)).slice(0,10);
  const shelf=foodShelf==='favorite'?favorites.map(f=>({foodSnapshot:f,foodId:f.id,name:f.name,amount:f.portion,unit:f.basis?.unit||'g',kcal:portionValues(f,f.portion).kcal})):recent;
  return '<div class="quick-page quick-food nutrition-home">'+nutritionDateNav()+foodOverview(items)+
  '<div class="meal-list">'+meals.map((meal,i)=>{const entries=items.filter(x=>x.meal===meal).reverse(),totals=mealTotals(entries);
- return '<section class="meal-group meal-'+i+'" id="meal-'+i+'"><button class="meal-heading" data-action="food-start:'+meal+'" aria-label="添加'+meal+'"><span class="meal-symbol">'+icon(['sun','sun','moon','heart'][i])+'</span><strong>'+meal+'</strong><span class="meal-total">'+(Number.isFinite(totals.kcal)?num(totals.kcal)+' kcal':'未记录')+'</span><span class="meal-macro-summary">'+[['P','protein'],['C','carbs'],['F','fat']].map(([label,k])=>label+' '+(Number.isFinite(totals[k])?num(totals[k]):'—')).join('　')+'</span>'+icon('plus',17)+'</button>'+entries.map(item=>'<div class="meal-record">'+(item.components?.length?item.components:[item]).map(part=>'<button class="meal-entry" data-action="'+(item.components?'meal-detail:':'edit:food:')+item.id+'">'+foodMark(part)+'<span class="meal-entry-copy"><strong>'+escape(part.name)+'</strong><small>'+escape(Number.isFinite(part.amount??part.grams)?num(part.amount??part.grams)+' '+(part.unit||'g'):'份量未记录')+'</small></span><small>'+escape(Number.isFinite(part.kcal)?num(part.kcal)+' kcal':'未记录')+'</small>'+icon('more',16)+'</button>').join('')+'</div>').join('')+'</section>';}).join('')+'</div>'+
+ return '<section class="meal-group meal-'+i+'" id="meal-'+i+'"><button class="meal-heading" data-action="food-start:'+meal+'" aria-label="添加'+meal+'"><span class="meal-symbol">'+icon(['sun','sun','moon','heart'][i])+'</span><strong>'+meal+'</strong><span class="meal-total">'+(Number.isFinite(totals.kcal)?num(totals.kcal)+' kcal':'未记录')+'</span><span class="meal-macro-summary">'+[['P','protein'],['C','carbs'],['F','fat']].map(([label,k])=>label+' '+(Number.isFinite(totals[k])?num(totals[k]):'—')).join('　')+'</span>'+icon('plus',17)+'</button>'+entries.map(item=>'<div class="meal-record">'+(item.components?.length?item.components:[item]).map(part=>'<button class="meal-entry" data-action="'+(item.components?'meal-detail:':'edit:food:')+item.id+'">'+foodMark(part)+'<span class="meal-entry-copy"><strong>'+escape(part.name)+'</strong><small>'+escape(foodPortionText(part))+'</small></span><small>'+escape(Number.isFinite(part.kcal)?num(part.kcal)+' kcal':'未记录')+'</small>'+icon('more',16)+'</button>').join('')+'</div>').join('')+'</section>';}).join('')+'</div>'+
  '<div class="nutrition-actions">'+btn('添加食物','food-start','plus','primary nutrition-add')+btn('自定义食物','food-home-custom','edit','quiet')+btn('复制昨日','meal-copy','calendar','quiet')+'</div>'+
- '<section class="food-familiar"><div class="food-shelf-tabs" aria-label="常用食品">'+[['recent','最近吃过'],['favorite','我的收藏'],['combo','常用组合']].map(([key,label])=>'<button data-action="food-shelf:'+key+'" aria-pressed="'+(foodShelf===key)+'">'+label+'</button>').join('')+'</div><div class="food-recent-rail">'+(foodShelf==='combo'?(s.foodCombos?.length?s.foodCombos.map(c=>'<button data-action="food-combo:'+c.id+'">'+foodMark(c.components[0])+'<strong>'+escape(c.name)+'</strong><small>'+c.components.length+' 种食物</small></button>').join(''):'<p class="food-empty-inline">保存餐食为组合，下次直接选用。</p>'):shelf.length?shelf.map(p=>'<button data-action="'+(foodShelf==='favorite'?'food-home-pick:':'food-repeat:')+escape(p.foodId)+'">'+foodMark(p)+'<strong>'+escape(p.name)+'</strong><small>'+num(p.amount)+' '+escape(p.unit)+'</small><small>'+(Number.isFinite(p.kcal)?num(p.kcal)+' kcal':'能量未记录')+'</small></button>').join(''):'<p class="food-empty-inline">'+(foodShelf==='favorite'?'收藏喜欢的食物，方便下次添加。':'记录餐食后，常吃的食物会出现在这里。')+'</p>')+'</div></section>'+
+ '<section class="food-familiar"><div class="food-shelf-tabs" aria-label="常用食品">'+[['recent','最近吃过'],['favorite','我的收藏'],['combo','常用组合']].map(([key,label])=>'<button data-action="food-shelf:'+key+'" aria-pressed="'+(foodShelf===key)+'">'+label+'</button>').join('')+'</div><div class="food-recent-rail">'+(foodShelf==='combo'?(s.foodCombos?.length?s.foodCombos.map(c=>'<button data-action="food-combo:'+c.id+'">'+foodMark(c.components[0])+'<strong>'+escape(c.name)+'</strong><small>'+c.components.length+' 种食物</small></button>').join(''):'<p class="food-empty-inline">保存餐食为组合，下次直接选用。</p>'):shelf.length?shelf.map(p=>'<button data-action="'+(foodShelf==='favorite'?'food-home-pick:':'food-repeat:')+escape(p.foodId)+'">'+foodMark(p)+'<strong>'+escape(p.name)+'</strong><small>'+escape(foodPortionText(p))+'</small><small>'+(Number.isFinite(p.kcal)?num(p.kcal)+' kcal':'能量未记录')+'</small></button>').join(''):'<p class="food-empty-inline">'+(foodShelf==='favorite'?'收藏喜欢的食物，方便下次添加。':'记录餐食后，常吃的食物会出现在这里。')+'</p>')+'</div></section>'+
  '<details class="quick-secondary food-history"><summary>饮食历史</summary>'+btn('营养趋势','metric-detail:meals','','quiet')+rows(desc(s.food.filter(x=>x.date!==foodDate)),'food',x=>[x.name,x.date+' · '+x.meal,x.timing],'food','暂无往日餐食','')+'</details></div>';
 }
 function recoveryPage(s) {
@@ -851,7 +852,7 @@ const actions = {
   'food-back': foodBack,
   'food-meal': ([meal])=>{keepMealFields();mealDraft.meal=meal;const field=editor.querySelector('#meal-form [name=meal]');if(field)field.value=meal;mealTab(mealDraft.tab);},
   'food-query': ([i])=>{mealDraft.query=foodSearches()[Number(i)]||'';mealDraft.searchScroll=0;mealTab('search');},
-  'food-repeat': ([id])=>{startMeal();pickFood([id]);},
+  'food-repeat': ([id])=>{const part=recentFoodSnapshots(state().food).find(p=>p.foodId===id);startMeal();pickFood([id],false,part);},
   'food-combo': ([id])=>{const c=state().foodCombos.find(c=>c.id===id);if(!c)return;startMeal();mealDraft.items=structuredClone(c.components);mealDraft.name=c.name;mealTab('search');},
   'meal-combo-save': ([id])=>{const m=state().food.find(m=>m.id===id);if(!m?.components)return;if(commit(s=>{if(!s.foodCombos.some(c=>c.originId===id))s.foodCombos.push({id:crypto.randomUUID(),originId:id,name:m.name,components:structuredClone(m.components)});})){render();notify('已保存为常用组合');}},
   'meal-copy': showCopyMeals,
@@ -864,12 +865,13 @@ const actions = {
   },
   'food-pick': pickFood,
   'food-more': ()=>{mealDraft.limit=(mealDraft.limit||35)+35;displayFood();},
-  'food-step': ([direction]) => {const input=editor.querySelector('#portion-form')?.elements.grams;if(!input)return;input.value=Math.max(0.1,Math.min(5000,(Number(input.value)||0)+Number(direction)*25));showPortionEnergy(Number(input.value));},
+  'food-mode': ([mode])=>{if(mode==='household'&&!portionState?.options.length)return;portionState.mode=mode==='household'?'household':'exact';syncPortionControls();},
+  'food-unit': ([index])=>{if(!portionState?.options[Number(index)])return;portionState.index=Number(index);portionState.mode='household';syncPortionControls();},
+  'food-quantity': ([quantity])=>{portionState.quantity=Number(quantity);syncPortionControls();},
+  'food-step': ([direction]) => {if(!portionState)return;const household=portionState.mode==='household',key=household?'quantity':'amount',step=household?0.5:25;portionState[key]=Math.max(household?0.01:0.1,Math.min(household?Math.floor(5000/portionState.options[portionState.index].amount*100)/100:5000,(Number(portionState[key])||0)+Number(direction)*step));syncPortionControls();},
   'food-grams': ([amount]) => {
-    const grams=editor.querySelector('#portion-form')?.elements.grams;
-    if (!grams) return;
-    grams.value=amount;
-    showPortionEnergy(Number(amount));
+    if(!portionState)return;
+    portionState.amount=Number(amount);portionState.mode='exact';syncPortionControls();
   },
   'food-favorite': favoriteFood,
   'meal-edit': editMeal,
@@ -1192,7 +1194,7 @@ function showRun([id]) {
   });
 }
 const foodNames = {kcal:'能量',protein:'蛋白质',carbs:'碳水',fat:'脂肪'};
-let mealDraft, selectedFood;
+let mealDraft, selectedFood, portionState;
 function allFoods(s=state()) {
   return [...new Map([...s.food.flatMap(f=>(f.components||[]).map(p=>p.foodSnapshot).filter(Boolean)),...s.foodLibrary,...catalog].map(f=>[f.id,f])).values()];
 }
@@ -1214,14 +1216,14 @@ function foodPage(title,body,back='food-exit'){
  editor.querySelector('.dialog-head [data-action=close]').dataset.action='food-back';
  editor.querySelector('.dialog-body').scrollTop=0;
 }
-function foodBack(){const back=editor.dataset.foodBack||'food-exit';if(back==='food-portion'){pickFood([selectedFood.id],false,{foodSnapshot:selectedFood,amount:mealDraft.portionAmount});return;}if(back==='food-exit'){editor.close();return;}mealTab(mealDraft.tab);}
+function foodBack(){const back=editor.dataset.foodBack||'food-exit';if(back==='food-portion'){pickFood([selectedFood.id],false,{foodSnapshot:selectedFood,portionState:mealDraft.portionState});return;}if(back==='food-exit'){editor.close();return;}mealTab(mealDraft.tab);}
 function foodSearches(){try{return JSON.parse(localStorage.getItem(storagePrefix+'.food-searches')||'[]').filter(q=>typeof q==='string').slice(0,8);}catch{return [];}}
 function rememberFoodSearch(){const q=mealDraft?.query.trim();if(!q)return;try{localStorage.setItem(storagePrefix+'.food-searches',JSON.stringify([q,...foodSearches().filter(v=>v!==q)].slice(0,8)));}catch{}}
 function mealTab(tab) {
  if(!mealDraft||sample)return;keepMealFields();mealDraft.tab=tab;
  const tabs=[['search','搜索'],['recent','最近吃过'],['favorite','收藏']];
  foodPage('添加食物','<div class="food-search-head"><div class="meal-switch" aria-label="餐次">'+meals.map(m=>'<button type="button" data-action="food-meal:'+m+'" aria-pressed="'+(mealDraft.meal===m)+'">'+m+'</button>').join('')+'</div><label class="food-search">'+icon('search')+'<span class="visually-hidden">搜索食物</span><input type="search" id="food-query" placeholder="食物、品牌或条码" maxlength="80" autocomplete="off" enterkeyhint="search" value="'+escape(mealDraft.query)+'"></label><div class="food-tabs segmented">'+tabs.map(([id,title])=>'<button type="button" data-action="food-tab:'+id+'" aria-pressed="'+(id===tab)+'">'+title+'</button>').join('')+'</div></div>'+
- '<form id="meal-form"><input type="hidden" name="meal" value="'+mealDraft.meal+'">'+(mealDraft.items.length?'<div class="meal-basket"><h3>本次餐食</h3>'+mealDraft.items.map((item,i)=>'<div><span>'+escape(item.name)+'<small>'+num(item.amount??item.grams)+' '+escape(item.unit||'g')+'</small></span>'+btn('调整份量','meal-part:'+i,'','quiet')+btn('移除','food-remove:'+i,'close','quiet')+'</div>').join('')+'<button class="btn primary" type="submit">保存组合</button></div>':'')+
+ '<form id="meal-form"><input type="hidden" name="meal" value="'+mealDraft.meal+'">'+(mealDraft.items.length?'<div class="meal-basket"><h3>本次餐食</h3>'+mealDraft.items.map((item,i)=>'<div><span>'+escape(item.name)+'<small>'+escape(foodPortionText(item))+'</small></span>'+btn('调整份量','meal-part:'+i,'','quiet')+btn('移除','food-remove:'+i,'close','quiet')+'</div>').join('')+'<button class="btn primary" type="submit">保存组合</button></div>':'')+
  '<div class="search-quick-actions">'+btn('自定义食物','food-custom','edit','quiet')+btn('输入条码','food-code','search','quiet')+'</div><div id="food-results"></div><details class="quick-secondary"><summary>更多餐食选项</summary><div class="fields">'+field(dateField,mealDraft)+field(selectField('timing','补给时机',['日常','训练前','训练中','训练后']),mealDraft)+field(textField('name','组合餐食名称（可选）'),mealDraft)+'</div><div class="meal-tools">'+btn('单项手动记录','food-manual','','quiet')+'</div></details></form>');
  editor.querySelector('.dialog-head h2').innerHTML='<button class="food-meal-menu" data-action="food-meal-menu" aria-expanded="false">添加食物 · '+mealDraft.meal+'⌄</button>';
  displayFood();editor.querySelector('.dialog-body').scrollTop=mealDraft.searchScroll||0;
@@ -1229,7 +1231,7 @@ function mealTab(tab) {
 function displayFood(matches) {
  const target=editor.querySelector('#food-results');if(!target||!mealDraft)return;
  const groupScroll=target.querySelector('.food-browse-groups')?.scrollLeft??mealDraft.groupScroll??0;mealDraft.groupScroll=groupScroll;
- const s=state(),items=allFoods(s),recent=[...new Set(desc(s.food).flatMap(m=>(m.components||[]).map(p=>p.foodId)))],tab=mealDraft.tab;
+ const s=state(),items=allFoods(s),recent=recentFoodSnapshots(s.food).map(p=>p.foodId),tab=mealDraft.tab;
  const emptyQuery=tab==='search'&&!mealDraft.query.trim();
  const browseGroup=mealDraft.browseGroup||'all';
  const browse=()=>items.filter(f=>browseGroup==='all'?(f.preferred||f.nameReviewed||f.matchKind==='recipe'):f.foodGroup===browseGroup).sort((a,b)=>Number(Boolean(b.preferred))-Number(Boolean(a.preferred)));
@@ -1250,25 +1252,64 @@ function favoriteFood([id]) {
 function pickFood([id],fromVision=false,savedPart=null) {
   keepMealFields();
   if(editor.querySelector('#food-query'))mealDraft.searchScroll=editor.querySelector('.dialog-body').scrollTop;rememberFoodSearch();
-  if(!savedPart)mealDraft.editIndex=undefined;
+  if(!savedPart){mealDraft.editIndex=undefined;if(!fromVision&&mealDraft.tab==='recent')savedPart=recentFoodSnapshots(state().food).find(p=>p.foodId===id)||null;}
   selectedFood=savedPart?.foodSnapshot||allFoods().find(item=>item.id===id);
   if(savedPart&&!savedPart.foodSnapshot){selectedFood={id:savedPart.foodId,name:savedPart.name,source:savedPart.source,portion:savedPart.grams,basis:{amount:savedPart.grams,unit:'g'},...Object.fromEntries(Object.keys(foodNames).map(k=>[k,savedPart[k]]))};}
   if (!selectedFood) return;
-  const unit=selectedFood.basis?.unit||'g',initial=savedPart?.amount||savedPart?.grams||selectedFood.portion;
+  const unit=selectedFood.basis?.unit||'g',options=householdPortions(selectedFood),initial=savedPart?.amount??savedPart?.grams??selectedFood.portion;
+  let selected=0;
+  if(savedPart?.household){const old=savedPart.household;selected=options.findIndex(p=>p.id===old.id);if(selected<0){options.unshift(structuredClone(old));selected=0;}else options[selected]=structuredClone(old);}
+  portionState=savedPart?.portionState?structuredClone(savedPart.portionState):{options,index:selected,mode:!fromVision&&options.length&&(!savedPart||savedPart.household)?'household':'exact',quantity:savedPart?.household?.quantity??1,amount:fromVision?'':initial};
   const amounts=[0.5,1,1.5,2].map(multiplier=>Math.round(selectedFood.portion*multiplier*10)/10).filter(amount=>amount>=0.1&&amount<=5000);
-  const sourcePortions=foodPortions(selectedFood).slice(1),commonPortions=sourcePortions.filter(p=>/[杯瓶盒包个根片袋罐]/.test(p.label)).slice(0,4),otherPortions=sourcePortions.filter(p=>!commonPortions.includes(p));
+  const choice=(p,i)=>'<button type="button" data-action="food-unit:'+i+'" aria-pressed="false"><strong>'+escape(p.label)+'</strong><small>'+(p.estimated?'约 ':'')+num(p.amount)+' '+escape(p.unit)+'</small></button>';
+  const opts=portionState.options;
   foodPage('调整份量','<button type="button" class="portion-product" data-action="food-info" aria-label="查看食物详情">'+foodMark(selectedFood)+'<div><h3 class="food-portion-title">'+escape(selectedFood.name)+'</h3><small>'+escape(foodMatchLabel(selectedFood))+'</small><p>'+escape((selectedFood.packageSize?selectedFood.packageSize+' · ':'')+(Number.isFinite(selectedFood.kcal)?num(selectedFood.kcal)+' kcal / '+(selectedFood.basis?.amount||100)+' '+unit:'能量未记录'))+'</p></div>'+icon('right',18)+'</button>'+
-    '<form id="portion-form"><h3 class="portion-section-title">选择食用量</h3><div class="portion-unit-label">'+(unit==='ml'?'毫升（mL）':'克（g）')+'</div>'+(selectedFood.recipe?'<details><summary>调整配方食材与成品重量</summary><p>'+escape(selectedFood.recipe.yieldStatus)+'</p>'+selectedFood.recipe.ingredients.map((p,i)=>'<label>'+escape(p.food.name)+'（g）<input type="number" min="0" max="10000" step="0.1" name="ingredient-'+i+'" value="'+p.amount+'"></label>').join('')+'<label>成品重量（g，估计可修改）<input type="number" name="recipeYield" min="1" max="20000" value="'+selectedFood.recipe.yieldAmount+'"></label></details>':'')+'<div class="portion-stepper">'+'<button type="button" aria-label="减少份量" data-action="food-step:-1">−</button>'+field(numberField('grams',unit==='ml'?'食用容量（mL）':'食用重量（g）',0.1,5000,0.1,true),{grams:fromVision?null:initial})+'<button type="button" aria-label="增加份量" data-action="food-step:1">＋</button>'+'</div>'+
-    '<div class="portion-choices">'+[...new Set(amounts)].map(amount=>btn(amount+' '+unit,'food-grams:'+amount,'','quiet')).join('')+commonPortions.map(p=>btn(p.label,'food-grams:'+p.amount,'','quiet')).join('')+'</div>'+(otherPortions.length?'<details class="portion-other"><summary>更多份量</summary><div class="portion-choices">'+otherPortions.map(p=>btn(p.label,'food-grams:'+p.amount,'','quiet')).join('')+'</div></details>':'')+
-    '<p class="help-copy product-source-summary">'+escape(foodMatchLabel(selectedFood)+' · '+(selectedFood.market||'个人记录'))+'</p>'+((selectedFood.brand||selectedFood.packageSize||selectedFood.flavor)?'<p class="food-product-identity">'+escape([selectedFood.brand,selectedFood.flavor,selectedFood.packageSize].filter(Boolean).join(' · '))+'</p>':'')+
-    '<section class="portion-nutrition"><h3>本次添加的营养</h3><div id="portion-energy" role="status"></div></section><section class="portion-meals"><h3>添加到</h3>'+meals.map((meal,i)=>'<button type="button" data-action="portion-meal:'+meal+'" aria-pressed="'+(mealDraft.meal===meal)+'">'+icon(['sun','sun','moon','heart'][i],22)+'<span>'+meal+'</span><small>'+(()=>{const v=mealTotals(byDate(state().food,mealDraft.date).filter(m=>m.meal===meal)).kcal;return Number.isFinite(v)?'已记录 '+num(v)+' kcal':'尚未记录';})()+'</small><i></i></button>').join('')+'</section><details class="quick-secondary food-source-card"><summary>营养与来源</summary><h3>每 '+(selectedFood.basis?.amount||100)+' '+unit+'</h3><div class="food-base-nutrients">'+nutrientCells(selectedFood)+'</div>'+foodIdentity(selectedFood)+'<p>'+escape(selectedFood.originalName||selectedFood.name)+'</p><p>'+escape(selectedFood.source)+'</p><p>'+escape(selectedFood.matchKind==='personal'?'个人标签补录，未独立核验':'来源记录可追溯，未逐件核对当前商品标签')+'</p><p>'+escape((selectedFood.sourceUpdated?'来源日期 '+selectedFood.sourceUpdated+' · ':'')+(selectedFood.license||'个人填写')+' · '+(selectedFood.servingText||''))+'</p>'+
+    '<form id="portion-form"><h3 class="portion-section-title">这次吃了多少</h3>'+
+    (opts.length?'<div class="portion-mode" aria-label="记录方式"><button type="button" data-action="food-mode:household" aria-pressed="true">日常份量</button><button type="button" data-action="food-mode:exact" aria-pressed="false">'+(unit==='ml'?'按毫升输入':'按克输入')+'</button></div>':'<p class="portion-hint">这款食物暂无可用的日常份量，可按重量或包装标注记录。</p>')+
+    '<div id="household-controls"'+(!opts.length?' hidden':'')+'><div class="household-units" aria-label="选择份量单位">'+opts.slice(0,3).map(choice).join('')+'</div>'+(opts.length>3?'<details class="portion-other"><summary>更多单位</summary><div class="household-units">'+opts.slice(3).map((p,i)=>choice(p,i+3)).join('')+'</div></details>':'')+
+    '<div class="portion-stepper"><button type="button" aria-label="减少份量" data-action="food-step:-1">−</button><label><span>食用数量</span><input type="number" name="quantity" inputmode="decimal" min="0.01" step="any" required value="1" aria-describedby="portion-equivalent"></label><button type="button" aria-label="增加份量" data-action="food-step:1">＋</button></div>'+
+    '<div class="portion-choices quantity-presets" aria-label="快捷数量">'+[0.5,1,1.5,2].map(q=>'<button type="button" data-action="food-quantity:'+q+'" aria-pressed="false">'+q+'</button>').join('')+'</div><p id="portion-equivalent" class="portion-equivalent" aria-live="polite"></p><p id="household-note" class="portion-hint"></p></div>'+
+    '<div id="exact-portion-controls"><div class="portion-stepper"><button type="button" aria-label="减少份量" data-action="food-step:-1">−</button>'+field(numberField('grams',unit==='ml'?'食用容量（mL）':'食用重量（g）',0.1,5000,0.1,true),{grams:initial})+'<button type="button" aria-label="增加份量" data-action="food-step:1">＋</button></div><div class="portion-choices">'+[...new Set(amounts)].map(amount=>btn(amount+' '+unit,'food-grams:'+amount,'','quiet')).join('')+'</div></div>'+
+    '<section class="portion-nutrition"><h3>本次添加的营养</h3><div id="portion-energy" role="status"></div></section><section class="portion-meals"><h3>添加到</h3>'+meals.map((meal,i)=>'<button type="button" data-action="portion-meal:'+meal+'" aria-pressed="'+(mealDraft.meal===meal)+'">'+icon(['sun','sun','moon','heart'][i],22)+'<span>'+meal+'</span><small>'+(()=>{const v=mealTotals(byDate(state().food,mealDraft.date).filter(m=>m.meal===meal)).kcal;return Number.isFinite(v)?'已记录 '+num(v)+' kcal':'尚未记录';})()+'</small><i></i></button>').join('')+'</section>'+
+    (selectedFood.recipe?'<details class="quick-secondary"><summary>调整配方（可选）</summary><p>'+escape(selectedFood.recipe.yieldStatus)+'</p>'+selectedFood.recipe.ingredients.map((p,i)=>'<label>'+escape(p.food.name)+'（g）<input type="number" min="0" max="10000" step="0.1" name="ingredient-'+i+'" value="'+p.amount+'"></label>').join('')+'<label>成品重量（g，估计可修改）<input type="number" name="recipeYield" min="1" max="20000" value="'+selectedFood.recipe.yieldAmount+'"></label></details>':'')+
+    '<details class="quick-secondary food-source-card"><summary>营养与份量来源</summary><p id="household-source"></p><h3>每 '+(selectedFood.basis?.amount||100)+' '+unit+'</h3><div class="food-base-nutrients">'+nutrientCells(selectedFood)+'</div>'+foodIdentity(selectedFood)+'<p>'+escape(selectedFood.originalName||selectedFood.name)+'</p><p>'+escape(selectedFood.source)+'</p><p>'+escape(selectedFood.matchKind==='personal'?'个人标签补录，未独立核验':'来源记录可追溯，未逐件核对当前商品标签')+'</p><p>'+escape((selectedFood.sourceUpdated?'来源日期 '+selectedFood.sourceUpdated+' · ':'')+(selectedFood.license||'个人填写')+' · '+(selectedFood.servingText||''))+'</p>'+
     (selectedFood.url?'<p><a class="text-link" href="'+escape(selectedFood.url)+'" target="_blank" rel="noopener">查看来源</a></p>':'')+'</details>'+
     '<div class="page-primary"><button class="btn primary" type="submit" value="save">保存到'+mealDraft.meal+'</button></div>'+
     '<details class="quick-secondary"><summary>组合餐食</summary><button class="btn quiet" type="submit" value="add">加入组合，继续添加</button></details></form>','food-search');
-  showPortionEnergy(fromVision?0:initial);
+  syncPortionControls();
+}
+function readPortionAmount(){
+ if(!portionState)return NaN;
+ const raw=portionState.mode==='household'?portionState.quantity:portionState.amount;
+ if(String(raw).trim()==='')return NaN;
+ const amount=Number(raw)*(portionState.mode==='household'?portionState.options[portionState.index]?.amount:1);
+ return Math.round(amount*1000)/1000;
+}
+function currentHousehold(){
+ if(portionState?.mode!=='household')return null;
+ return {...structuredClone(portionState.options[portionState.index]),quantity:Number(portionState.quantity)};
+}
+function syncPortionControls(){
+ const form=editor.querySelector('#portion-form');if(!form||!portionState)return;
+ const household=portionState.mode==='household',option=portionState.options[portionState.index],amount=readPortionAmount();
+ editor.querySelector('#household-controls').hidden=!household;
+ editor.querySelector('#exact-portion-controls').hidden=household;
+ form.elements.quantity.disabled=!household;form.elements.grams.disabled=household;
+ form.elements.quantity.value=portionState.quantity;
+ if(option)form.elements.quantity.max=String(Math.floor(5000/option.amount*100)/100);
+ if(household)portionState.amount=Number.isFinite(amount)?amount:'';
+ form.elements.grams.value=portionState.amount;
+ editor.querySelectorAll('[data-action^="food-mode:"]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.action.endsWith(portionState.mode))));
+ editor.querySelectorAll('[data-action^="food-unit:"]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.action.split(':')[1])===portionState.index)));
+ const unitLabel=option?.label.match(/[碗份个根片块杯瓶包袋盒罐盘]/)?.[0]||'份';
+ editor.querySelectorAll('[data-action^="food-quantity:"]').forEach(b=>{const q=Number(b.dataset.action.split(':')[1]);b.textContent=(q===0.5?'半':q)+unitLabel;b.setAttribute('aria-pressed',String(q===Number(portionState.quantity)));});
+ editor.querySelector('#portion-equivalent').textContent=household&&Number.isFinite(amount)&&amount>0?foodPortionText({amount,unit:option.unit,household:currentHousehold()}):'请填写食用数量';
+ editor.querySelector('#household-note').textContent=option?.estimated?'碗、份按常用大小估算，实际装量会有差异。':option?.label.startsWith('杯')?'“杯”是来源中的量杯，大小以来源说明为准。':'按所选食物的可食部分或包装规格记录。';
+ editor.querySelector('#household-source').textContent=household?'份量来源：'+option.source+'。'+option.note:'本次直接按 '+(selectedFood.basis?.unit||'g')+' 记录。';
+ showPortionEnergy(amount);
 }
 function showFoodInfo(){
- mealDraft.portionAmount=Number(editor.querySelector('#portion-form [name=grams]')?.value)||selectedFood.portion;
+ mealDraft.portionState=structuredClone(portionState);
  const food=selectedFood,unit=food.basis?.unit||'g';
  foodPage('食物详情','<div class="food-detail-hero">'+foodMark(food)+'<div><h2>'+escape(foodDisplayName(food))+'</h2><p>'+escape(food.packageSize||'每 '+(food.basis?.amount||100)+' '+unit)+'</p><span>'+escape(foodMatchLabel(food))+'</span></div></div><section class="food-detail-card"><h3>每 '+(food.basis?.amount||100)+' '+unit+' 营养成分</h3><div class="food-base-nutrients">'+nutrientCells(food)+'</div></section><section class="food-detail-card"><h3>食品信息</h3>'+foodIdentity(food)+'<p>'+escape(food.originalName||food.name)+'</p><p>来源记录可追溯，未逐件核对当前商品标签。图片为食物示意，不代表实际包装与份量。</p>'+(food.url?'<a class="text-link" href="'+escape(food.url)+'" target="_blank" rel="noopener">查看原始来源</a>':'')+'</section><button class="btn quiet food-info-favorite" data-action="food-info-favorite" aria-pressed="'+state().favorites.includes(food.id)+'">'+(state().favorites.includes(food.id)?'已收藏':'收藏食物')+'</button><div class="page-primary">'+btn('调整份量','food-back','','primary')+'</div>','food-portion');
 }
@@ -1322,13 +1363,13 @@ function showMeal([id]) {
   if (!item?.components) return;
   foodPage('餐食详情','<div class="report-title"><h3>'+escape(item.name)+'</h3><p>'+escape([item.date,item.meal,item.timing].join(' · '))+'</p></div>'+
     nutritionStats([item])+'<ul class="rows">'+item.components.map(part=>'<li><div class="row-text"><strong>'+escape(part.name)+'</strong><small>'+
-      num(part.amount??part.grams)+' '+escape(part.unit||'g')+' · '+escape(part.source)+'</small></div></li>').join('')+'</ul>'+
+      escape(foodPortionText(part))+' · '+escape(part.source)+'</small></div></li>').join('')+'</ul>'+
     (sample?'':'<div class="dialog-actions">'+btn('修改食物与份量','meal-edit:'+id,'settings')+btn('保存为常用组合','meal-combo-save:'+id,'','quiet')+btn('编辑餐别与补给','edit:food:'+id,'','quiet')+btn('删除这顿记录','meal-delete:'+id,'','quiet')+'</div>'));
 }
 editor.addEventListener('input',event=>{
   if (event.target.id==='food-query') {mealDraft.query=event.target.value;mealDraft.limit=35;mealDraft.searchScroll=0;displayFood();}
-  if(selectedFood?.recipe&&(event.target.name?.startsWith('ingredient-')||event.target.name==='recipeYield')){const form=event.target.form;try{selectedFood=calculateRecipe(selectedFood,selectedFood.recipe.ingredients.map((p,i)=>Number(form.elements['ingredient-'+i].value)),Number(form.elements.recipeYield.value));showPortionEnergy(Number(form.elements.grams.value));}catch{}}
-  if (event.target.name==='grams' && event.target.form?.id==='portion-form') showPortionEnergy(Number(event.target.value));
+  if(selectedFood?.recipe&&(event.target.name?.startsWith('ingredient-')||event.target.name==='recipeYield')){const form=event.target.form;try{selectedFood=calculateRecipe(selectedFood,selectedFood.recipe.ingredients.map((p,i)=>Number(form.elements['ingredient-'+i].value)),Number(form.elements.recipeYield.value));const current=householdPortions(selectedFood);portionState.options=portionState.options.map(p=>current.find(n=>n.id===p.id)||p);editor.querySelectorAll('[data-action^="food-unit:"]').forEach(b=>{const p=portionState.options[Number(b.dataset.action.split(':')[1])];b.querySelector('small').textContent=(p.estimated?'约 ':'')+num(p.amount)+' '+p.unit;});syncPortionControls();}catch{}}
+  if (event.target.form?.id==='portion-form' && ['grams','quantity'].includes(event.target.name)) {portionState[event.target.name==='grams'?'amount':'quantity']=event.target.value;syncPortionControls();}
 });
 editor.addEventListener('change',async event=>{
   if (!['barcode-file','food-photo'].includes(event.target.id)) return;
@@ -1366,11 +1407,11 @@ editor.addEventListener('submit',event=>{
   const values=new FormData(form);
   if (form.id==='barcode-form') return matchBarcode(values.get('barcode').trim());
   if (form.id==='portion-form') {
-    const grams=Number(values.get('grams'));
+    const grams=readPortionAmount();
     if (!selectedFood || !Number.isFinite(grams) || grams<0.1 || grams>5000) return;
     if(selectedFood.recipe){try{selectedFood=calculateRecipe(selectedFood,selectedFood.recipe.ingredients.map((p,i)=>Number(values.get('ingredient-'+i))),Number(values.get('recipeYield')));}catch(e){notify(e.message);return;}}
-    const portion=foodSnapshot(selectedFood,grams);
-    if(Number.isInteger(mealDraft.editIndex)){const index=mealDraft.editIndex;mealDraft.editIndex=undefined;mealDraft.items[index]=selectedFood.recipe?portion:resizeFoodSnapshot(mealDraft.items[index],grams);return saveMeal(mealDraft.items);}
+    const household=currentHousehold(),portion=foodSnapshot(selectedFood,grams,selectedFood.basis?.unit||'g',household);
+    if(Number.isInteger(mealDraft.editIndex)){const index=mealDraft.editIndex;mealDraft.editIndex=undefined;mealDraft.items[index]=selectedFood.recipe?portion:resizeFoodSnapshot(mealDraft.items[index],grams,household);return saveMeal(mealDraft.items);}
     if (event.submitter?.value==='add') {
       mealDraft.items.push(portion);
       return mealTab(mealDraft.tab);
@@ -1394,7 +1435,8 @@ editor.addEventListener('submit',event=>{
 function saveMeal(items) {
   const {name,date,meal,timing}=mealDraft;
   const title=(name.trim() || items.map(item=>item.name).join(' + ')).slice(0,100);
-  const item={id:mealDraft.id||crypto.randomUUID(),name:title,date,meal,timing,components:structuredClone(items),grams:items.every(i=>Number.isFinite(i.grams))?sum(items,'grams'):null,...mealTotals(items),loggedAt:mealDraft.loggedAt||Date.now()};
+  const original=state().food.find(f=>f.id===mealDraft.id);
+  const item={...original,id:mealDraft.id||crypto.randomUUID(),name:title,date,meal,timing,components:structuredClone(items),grams:items.every(i=>Number.isFinite(i.grams))?sum(items,'grams'):null,...mealTotals(items),loggedAt:mealDraft.loggedAt||Date.now()};
   if (!commit(next=>{const index=next.food.findIndex(f=>f.id===item.id);if(index<0)next.food.push(item);else next.food[index]=item;})) return;
   if (currentRoute()==='food') foodDate=date;
   mealDraft=undefined;
