@@ -24,7 +24,7 @@ test('both adult competitive cohorts have complete, phase-compatible weeks with 
    assert.equal(t.mainDistanceM,c.loadSummary.mainDistanceM);assert.equal(t.mainDurationSeconds,c.loadSummary.mainDurationSeconds);
   }
  }
- assert.equal(courseCoverage().filter(c=>c.group==='competitive'&&c.week.complete).length,8);
+ assert.equal(courseCoverage().filter(c=>c.group==='competitive'&&c.week.complete).length,20);
 });
 
 test('800m and 1500m competitive development differ in stimulus, references, recoveries and aerobic support',()=>{
@@ -53,12 +53,13 @@ test('phase transitions replace stimuli and reduce actual totals rather than ren
  }
 });
 
-test('youth competitive remains a separate review framework; known pain, fatigue and old snapshots retain protection',()=>{
+test('youth competitive uses complete age-adapted content; adult, pain and snapshot protections remain',()=>{
  const data=fresh(),c=week('800 m','develop')[1];data.cycleProfile={age:'未满18岁'};
  assert.equal(courseReadiness(data,c,'2026-11-09').canSchedule,false);
- const young=week('800 m','develop',true);assert.equal(weekContentStatus(young).complete,false);assert.ok(young.every(c=>c.weekPurpose.includes('青少年竞技')&&!c.name.includes('走跑')));
- assert.ok(young.filter(c=>c.id!=='rest').every(c=>c.isPlanningSlot));
- assert.ok(courseCoverage({youth:true}).filter(r=>r.group==='competitive').every(r=>r.categories.every(c=>c.complete.length===0)),'adult source-checked intervals do not count as completed youth prescriptions');
+ const young=week('800 m','develop',true);assert.equal(weekContentStatus(young).complete,true);assert.ok(young.every(c=>c.population==='youth-junior'&&!c.name.includes('走跑')));
+ assert.ok(young.filter(c=>c.id!=='rest').every(c=>!c.isPlanningSlot&&c.adapted));
+ assert.ok(courseCoverage({youth:true}).filter(r=>r.group==='competitive'&&r.phase==='develop').every(r=>r.categories.find(c=>c.category==='interval').complete.includes('interval')));
+ assert.equal(courseReadiness(data,young.find(c=>c.id==='interval'),'2026-11-09').canSchedule,true);
  data.cycleProfile={};data.trainingHold=true;assert.equal(courseReadiness(data,c,'2026-11-09').status,'paused');
  data.trainingHold=false;data.recovery=[{date:'2026-11-09',fatigue:5}];assert.equal(courseReadiness(data,c,'2026-11-09').status,'recovery');
  const old=structuredClone(c),spec=templateSpecification(old,refs);old.catalogRevision='2026-11-09-middle-week-v2';spec.warmup[0].durationSeconds=600;

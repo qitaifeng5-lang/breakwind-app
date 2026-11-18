@@ -1,6 +1,7 @@
-const cacheName = 'breakwind-shell-v38';
+const cacheName = 'breakwind-shell-v39';
 const cacheNamespace = cacheName.startsWith('breakwind-preview-') ? 'breakwind-preview-' : 'breakwind-shell-';
 const shell = ["./food-gallery.js","./food-gallery-fruit.webp","./food-gallery-greens.webp","./food-gallery-vegetables.webp","./food-gallery-grains.webp","./food-gallery-nuts.webp","./food-gallery-meat.webp","./food-gallery-cured.webp","./food-gallery-seafood.webp","./food-gallery-dairy.webp","./food-gallery-bread.webp","./food-gallery-noodles.webp","./food-gallery-asian.webp","./food-gallery-main.webp","./food-gallery-soups.webp","./food-gallery-snacks.webp","./food-gallery-desserts.webp","./food-gallery-breakfast.webp","./food-gallery-drinks.webp",'./food-art.js','./food-produce.png','./food-staples.png','./food-dishes.png','./food-basics.png','./nutrition.css','./food-photos.png','./food-zh.js','./food-data.js','./week-plan.js','./completion.js','./workout-detail.js','./page-host.js','./training-workbench.js','./training-structure.js','./','./index.html','./app.js','./model.js','./running.js','./fuel.js','./engine.js','./pb-library.js','./workout.js','./workout-ui.js','./program.js','./program-ui.js','./membership.js','./coach-plan.js','./coach-ui.js','./knowledge.js','./styles.css','./hero.jpg','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
+shell.push('./event-courses.js','./training-policy.js');
 const urls = new Set(shell.map(path => new URL(path,self.registration.scope).href));
 self.addEventListener('install', event => {
   const requests=cacheNamespace==='breakwind-preview-'?shell.map(path=>new Request(new URL(path,self.registration.scope),{cache:'reload'})):shell;

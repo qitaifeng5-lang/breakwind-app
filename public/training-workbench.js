@@ -1,7 +1,7 @@
 import {emptyStructure,readStructure,structureSummary,structureSegments,restText} from './training-structure.js';
 const e=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={warmup:'热身',work:'主训练',recovery:'恢复',cooldown:'冷身'};
-const targetLabels={'800':'800m 配速','1500':'1500m 配速',mile:'英里配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',easy:'轻松跑',technique:'速度技术',coach:'教练给定目标'};
+const targetLabels={'800':'800m 配速','1500':'1500m 配速',mile:'英里配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',controlled:'受控节奏',terrain:'地形体感',easy:'轻松跑',technique:'速度技术',coach:'教练给定目标'};
 export function trainingMap(s,{compact=false}={}){
  const steps=structureSegments(s),summary=structureSummary(s),shown=steps.length>34?[...steps.slice(0,32),steps.at(-1)]:steps;
  const html='<section class="training-map'+(compact?' compact-map':'')+'" aria-label="实际训练顺序"><div class="map-heading"><strong>训练结构</strong><span>'+(s.parts.some(p=>p.skill)?'动作质量优先':summary.reps+' 趟 · '+s.sets+' 组')+'</span></div><div class="training-sequence" role="group" aria-label="选择训练分段">'+shown.map((p,i)=>'<button type="button" class="sequence-step kind-'+p.kind+'" data-segment-index="'+i+'" data-part-focus="'+e(p.partId||'')+'" data-stage-focus="'+p.kind+'" data-segment-detail="'+e(p.detail)+'" aria-label="'+e(labels[p.kind]+' · '+p.label+' · '+p.detail)+'" aria-pressed="false"><i aria-hidden="true"></i><span>'+e(p.label)+'</span></button>').join('')+'</div>'+(steps.length>34?'<small>顺序预览已折叠中间重复，共 '+summary.reps+' 趟；完整参数见下方。</small>':'')+'<p class="segment-caption" aria-live="polite">点选分段查看内容 · 条宽表示顺序，不代表时长</p></section>';

@@ -1,17 +1,17 @@
 // Execution specifications are snapshots, never inferred from a browsing PB.
-export const paceLabels={'800':'800m 配速','1500':'1500m 配速',mile:'英里配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',easy:'轻松跑',technique:'放松加速',coach:'自定义配速'};
-export const referenceEvents={'800':'800 m','1500':'1500 m',mile:'1 mile'};
+export const paceLabels={'800':'800m 配速','1500':'1500m 配速',mile:'英里配速','3000':'3km 配速','5000':'5km 配速',threshold:'Tempo',controlled:'受控节奏',terrain:'地形体感',easy:'轻松跑',technique:'放松加速',coach:'自定义配速'};
+export const referenceEvents={'800':'800 m','1500':'1500 m',mile:'1 mile','3000':'3000 m','5000':'5000 m'};
 export const referenceLabel=basis=>basis==='mile'?'1英里':basis+'m';
 // Only supported calibration bases are offered; display names do not infer new targets.
-export const targetBases=Object.fromEntries(['800','1500','mile','threshold','coach'].map(key=>[key,paceLabels[key]]));
+export const targetBases=Object.fromEntries(['800','1500','mile','3000','5000','threshold','coach'].map(key=>[key,paceLabels[key]]));
 export const recoveryModes={jog:'慢跑',walk:'步行',stand:'站立',mixed:'混合恢复'};
 // Version the immutable course structure, not the current browsing PB or live clock.
 export function courseIdentity(c){return [c.event,c.id,c.selectedGroup||'legacy',c.weekPhase||c.phase,c.catalogRevision||'legacy'].join('|');}
-export const supportsWorkout=c=>['800 m','1500 m'].includes(c?.event)&&(Boolean(c?.prescription)||Boolean(c?.executionEligible&&c?.targetBasis)||['interval','interval-development','combination'].includes(c?.id));
+export const supportsWorkout=c=>['800 m','1500 m','3000 m','5000 m','越野跑'].includes(c?.event)&&(Boolean(c?.prescription)||Boolean(c?.executionEligible&&c?.targetBasis)||['interval','interval-development','combination'].includes(c?.id));
 const positive=n=>Number.isFinite(n)&&n>0;
 export const raceSplit=(seconds,raceDistance,distance)=>[seconds,raceDistance,distance].every(positive)?seconds*distance/raceDistance:null;
 export function recentPerformance(records,event,today) {
-  return records.filter(r=>r.event===(referenceEvents[event]||event+' m') && r.kind!=='goal' && r.seconds>0 && r.date<=today && Date.parse(today)-Date.parse(r.date)<=90*86400000).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;
+  return records.filter(r=>({'5 km':'5000 m','3 km':'3000 m'}[r.event]||r.event)===(referenceEvents[event]||event+' m') && (!r.kind||r.kind==='achieved') && Number.isFinite(r.seconds)&&r.seconds>0 && r.date<=today && Date.parse(today)-Date.parse(r.date)<=90*86400000).sort((a,b)=>b.date.localeCompare(a.date)).map(r=>({...r,event:referenceEvents[event]||event+' m'}))[0]||null;
 }
 export function targetFor(distanceM,basis,reference,range) {
   if(!positive(distanceM))return null;
@@ -37,7 +37,7 @@ export function compileWorkout(spec) {
   for(const phase of ['warmup','cooldown'])if(!spec[phase]?.length||!spec[phase].every(s=>positive(s.durationSeconds)||positive(s.distanceM)||Boolean(s.label?.trim())))throw new Error('请补充热身与冷身安排');
   if (!Number.isInteger(spec.setCount)||spec.setCount<1||spec.setCount>20) throw new Error('大组数无效');
   const units=spec.repetitions.flatMap((r,index)=>{
-    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(['threshold','easy','technique'].includes(r.target?.targetBasis)&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
+    if (!Number.isInteger(r.repsPerSet)||r.repsPerSet<1||r.repsPerSet>30||!(positive(r.distanceM)!==positive(r.durationSeconds))||(positive(r.durationSeconds)?!(['threshold','controlled','terrain','easy','technique'].includes(r.target?.targetBasis)&&typeof r.target.effort==='string'&&r.target.effort.trim()):(!r.target?.targetSecondsRange?.every(positive)||r.target.targetSecondsRange.length!==2||r.target.targetSecondsRange[1]<r.target.targetSecondsRange[0]))) throw new Error('主训练尚未校准');
     return Array.from({length:r.repsPerSet},(_,rep)=>({...r,segment:index,rep:rep+1,kind:'work'}));
   });
   if (!units.length) throw new Error('缺少主训练');
@@ -103,4 +103,11 @@ export function templateSpecification(course,reference) {
     cooldown:[{label:course.cooldown||'轻松慢跑、放松整理'}],objective:course.objective,
     parameterSource:course.evidenceMap.map(e=>e.source+'；产品选择：'+e.adaptation).join('。'),review:structuredClone(course.review)};
   compileWorkout(spec);return spec;
+}
+
+// Read-time calibration only. Saved schedules and historical snapshots are immutable.
+export function calibrateCourse(course,records,today){
+  if(course.planId||course.executionSpec||course.prescription)return course;
+  const refs=Object.fromEntries(Object.keys(referenceEvents).map(b=>[b,recentPerformance(records||[],b,today)]).filter(([,r])=>r).map(([b,r])=>[b,{...r,kind:'achieved'}]));
+  try{return {...course,executionSpec:templateSpecification(course,refs)};}catch{return course;}
 }

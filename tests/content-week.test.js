@@ -30,7 +30,7 @@ test('PB changes neither cohort nor dose; different groups are explicit; mixed c
  for(const mutate of [c=>c.segments[0].distance++,c=>c.prescription.repetitions[0].repRecovery.durationSeconds++,c=>c.prescription.repetitions[0].repsPerSet++]){
   const c=structuredClone(a[3]);mutate(c);assert.equal(courseContentComplete(c),false);
  }
- assert.equal(courseCoverage().length,24);
+ assert.equal(courseCoverage().length,60);
  assert.equal(weekContentStatus(pbWeek('800 m',105,{group:'competitive',phase:'base'})).complete,true);
 });
 test('speed endurance and dual-pace combination have independent source structures and full accounting',()=>{
@@ -57,7 +57,7 @@ test('immutable course snapshots, honest partial reports, pain and youth protect
  assert.equal(record.courseSession.spec.repetitions[0].durationSeconds,360);assert.equal(record.courseSession.course.catalogRevision,'old-3x6');assert.equal(record.completedWorkSeconds,0);assert.equal(record.courseSession.status,'stopped');
  const data=fresh();data.trainingHold=true;assert.equal(courseReadiness(data,c,'2026-11-09').status,'paused');
  data.trainingHold=false;data.cycleProfile={age:'未满18岁'};assert.equal(courseReadiness(data,c,'2026-11-09').status,'coach');
- assert.equal(weekContentStatus(pbWeek('1500 m',270,{youth:true,phase:'base'})).complete,false);
+ const young=pbWeek('1500 m',270,{youth:true,phase:'base'});assert.equal(weekContentStatus(young).complete,true);assert.ok(young.filter(c=>c.id!=='rest').every(c=>c.youth&&c.adapted));
  const easy=pbCourses('800 m',130).find(c=>c.id==='aerobic'),run=newSession(easy.prescription,easy,0,'easy');for(const step of run.steps)advanceSession(run,(run.logs.reduce((n,l)=>n+l.actualSeconds,0)+step.durationSeconds)*1000);
  assert.equal(sessionRecord(run,'2026-11-09').quality,false);assert.equal(sessionRecord(run,'2026-11-09').type,'轻松跑');
 });

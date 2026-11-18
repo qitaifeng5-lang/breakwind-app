@@ -47,7 +47,7 @@ test('youth can discover every category and coached technical variants but not s
   const data=fresh();data.cycleProfile={age:'未满18岁'};
   await page.addInitScript(value=>localStorage.setItem('breakwind.local.v1',JSON.stringify(value)),data);
   await page.goto('/#run');await click(page,'调整专项与PB');await click(page,'2:20');
-  await expect(page.locator('.course-card')).toHaveCount(15);
+  await expect(page.locator('.course-card').filter({hasText:'短段放松与速度协调'})).toHaveCount(1);
   await click(page,'200m 专项耐受');
   const dialog=page.locator('#editor[open]');
   await expect(dialog).toContainText('教练结合成熟度评估');

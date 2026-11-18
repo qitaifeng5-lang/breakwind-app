@@ -1,5 +1,6 @@
 import { pbWeek,courseMetadata } from './pb-library.js';
 import { offset, sum } from './model.js';
+import {trainingContext,assessCourseLoad} from './training-policy.js';
 
 export const specialties = {
   '跑步入门': { focus:'稳定习惯与轻松体感', practice:'练习走跑切换，保持步态自然。', references:['england','talk'] },
@@ -73,6 +74,8 @@ function classify(data, day, profile, context) {
 export function recentPain(data, day) {
   return [...data.recovery,...data.runs].some(item => item.date >= offset(day,-6) && item.date <= day && item.pain);
 }
+// V1 remains for historical cycle review/import. The official plan paths use
+// pbWeek/buildProgram and the shared readiness policy, including school cohorts.
 export const cycleVersion = 'cycle-1';
 export const ageGroups = ['未提供','未满18岁','18–39岁','40–59岁','60岁及以上'];
 
@@ -297,17 +300,23 @@ export function courseReadiness(data,course,date,today=date) {
   const programPlan=course.planId&&data.plans.find(p=>p.id===course.planId&&p.programId);
   if(programPlan&&data.programs?.find(p=>p.programId===programPlan.programId)?.status==='paused')return {status:'program-paused',canSchedule:false,canStart:false,reason:'长期周期已暂停。先复核恢复状态，再恢复后续执行；已有记录保留。'};
   const legacyCombo=['800 m','1500 m'].includes(course.event)&&course.id==='combination';
+  const youth=profile.age==='未满18岁';
+  if (youth && (!course.adapted || course.quality&&!course.population?.startsWith('youth-'))) return {status:'coach',canSchedule:false,canStart:false,reason:'可浏览完整结构；青少年专项强度需教练结合成熟度评估，使用适龄分支，不能直接安排成人示例。'};
   if (!transcribed && course.id==='combination-development' && course.targetBases?.[0]!=='mile') return {status:'review',canSchedule:false,canStart:false,reason:'旧组合课使用了1500m替代英里节奏。历史快照保留；请重新核对修订课程，不沿用旧依据启动。'};
   if (course.isPlanningSlot) return {status:'review',canSchedule:false,canStart:false,reason:'这是阶段编排位置，尚未指定经过审核的课程，不作为运动记录。'};
   if (!transcribed && (legacyCombo || course.catalogStatus==='archive' || course.executionEligible===false)) return {status:'review',canSchedule:false,canStart:false,reason:'此课程尚缺完整参数依据，仅供审查浏览；不自动安排。已有教练课表请使用独立录入入口。'};
-  const youth=profile.age==='未满18岁';
-  if (youth && (!course.adapted || course.quality)) return {status:'coach',canSchedule:false,canStart:false,reason:'可浏览完整结构；青少年专项强度需教练结合成熟度评估，不能直接执行成人示例。'};
-  const hard=course.quality && [...data.runs,...data.plans].some(item=>(!course.planId || item.id!==course.planId) && !item.completed && !item.cancelled && item.executionStatus!=='reference-only' &&
+  const context=trainingContext(data,today);
+  if(context.pain)return {status:'paused',canSchedule:false,canStart:false,reason:'完成反馈记录了疼痛；先核对恢复或接受专业评估。'};
+  const load=assessCourseLoad(data,course,today);
+  if(!load.allowed)return {status:'load',canSchedule:false,canStart:false,reason:load.reasons.join('；')};
+  const races=(data.events||[]).filter(e=>e.kind==='race'||e.type==='比赛').map(e=>({...e,quality:true}));
+  const hard=course.quality && [...data.runs,...data.plans,...races].some(item=>(!course.planId || item.id!==course.planId) && item.trainingOutcome?.status!=='missed' && !item.cancelled && item.executionStatus!=='reference-only' &&
     (item.quality || item.effort>=6 || ['间歇跑','阈值跑','节奏跑','比赛配速跑','坡道跑'].includes(item.type)) &&
     Math.abs(Date.parse(date)-Date.parse(item.date))<3*86400000);
   if (hard) return {status:'spacing',canSchedule:false,canStart:false,reason:'附近已有质量课或高强度记录；请选择至少间隔两个低负荷日的日期。'};
+  if(context.needsRecovery&&(context.fatigue>=4||profile.readiness==='tired'||date<=offset(today,2)))return {status:'recovery',canSchedule:false,canStart:false,reason:'近期疲劳或高用力反馈需要恢复；先调整，不补课、不提高负荷。'};
   if (latest?.date>=offset(today,-2) && latest.fatigue>=4) return {status:'recovery',canSchedule:false,canStart:false,reason:'近期高疲劳：先恢复，再决定是否执行。'};
-  return {status:'check',canSchedule:true,canStart:false,reason:youth?'适龄技术变式仍待专业审核；执行前需要教练现场指导。':'课程可加入日程；执行前核对当前状态与同类训练经验。缺少App日志不会降低课程档位。'};
+  return {status:'check',canSchedule:true,canStart:false,reason:youth?'适龄课程可加入课表；现场教练须结合发育、既有训练和恢复核对。编排完成不代表独立审核或医学许可。':'课程可加入日程；执行前核对当前状态与同类训练经验。缺少App日志不会降低课程档位。'};
 }
 
 // Compatibility for saved group preferences: preview only, never auto-prescribe.

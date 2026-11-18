@@ -1,4 +1,5 @@
 import {compileWorkout,workoutTotals} from './workout.js';
+import {eventCourses,eventWeek,normalizeEvent,supportedEvents} from './event-courses.js';
 // Browsing groups are navigation aids, never a diagnosis of training readiness.
 const specifications={
   '800 m':[180,105,5,'800m',125,150], '1500 m':[360,210,10,'1500m',270,330],
@@ -54,8 +55,10 @@ export function pbBand(event,pb) {
 }
 const segment=(distance,repeats,recovery,unit='m')=>({distance,unit,repeats,recoverySeconds:recovery});
 const definition=(id,name,phase,objective,sets,segments,setRecovery,effort,sourceIds)=>({id,name,phase,objective,sets,segments,setRecovery,effort,sourceIds});
-export function pbCourses(event,pb,{youth=false,group='base'}={}) {
+export function pbCourses(event,pb,{youth=false,group='base',schoolStage='junior'}={}) {
+  event=normalizeEvent(event);
   if (!pbDistances.includes(event)) return [];
+  const authored=supportedEvents.includes(event)&&(youth||['3000 m','5000 m','越野跑'].includes(event))?eventCourses(event,{group,youth,schoolStage}):null;
   const band=pbBand(event,pb),track=['800 m','1500 m'].includes(event),short=event==='800 m',xc=event==='越野跑';
   const foundation=['foundation','open'].includes(band.id);
   // Explicit editorial variants. Faster PB never automatically adds repetitions.
@@ -106,6 +109,12 @@ export function pbCourses(event,pb,{youth=false,group='base'}={}) {
     if (track) {auditCourse(course);completeSupport(course);}
     return finalizeCourse(course);
   });
+  if(authored){
+    const current=authored.map(c=>finalizeCourse({...c,band,applicablePB:band.range,pb:pbSeconds(pb)?formatPB(pbSeconds(pb),{fraction:true}):'未选择'}));
+    // Preserve discovery of older categories; do not promote unfinished examples
+    // to the new authored week, or silently rewrite any saved course snapshots.
+    return [...current,...courses.filter(c=>!current.some(n=>n.id===c.id)).map(c=>({...c,automaticRecommendation:false,executionEligible:c.adapted&&!c.quality?c.executionEligible:false}))].sort((a,b)=>Object.keys(courseCategories).indexOf(a.categoryId)-Object.keys(courseCategories).indexOf(b.categoryId)).map(attachContentContract);
+  }
   return (track&&group==='competitive'?competitiveCatalog(courses,event,youth):courses).map(attachContentContract);
 }
 function finalizeCourse(course) {
@@ -131,9 +140,11 @@ export function courseSummary(course) {
   const parts=course.segments.map(s=>s.unit==='skill'?s.description:(s.repeats>1?s.repeats+' × ':'')+s.distance+({m:'m',min:'分钟',sec:'秒'}[s.unit]||''));
   return (course.sets>1?course.sets+' 组（':'')+parts.join(' + ')+(course.sets>1?'）':'');
 }
-export function pbWeek(event,pb,{phase='develop',youth=false,group='base'}={}) {
-  const courses=pbCourses(event,pb,{youth,group});
+export function pbWeek(event,pb,{phase='develop',youth=false,group='base',schoolStage='junior'}={}) {
+  event=normalizeEvent(event);
+  const courses=pbCourses(event,pb,{youth,group,schoolStage});
   if (!courses.length) return [];
+  if(supportedEvents.includes(event)&&(youth||['3000 m','5000 m','越野跑'].includes(event)))return eventWeek(courses,event,{phase,group,youth,schoolStage});
   if(['800 m','1500 m'].includes(event)&&group==='competitive')return competitiveWeek(courses,event,phase,youth);
   if(['800 m','1500 m'].includes(event)&&!youth&&['base','advanced'].includes(group)&&(['base','recover'].includes(phase)||group==='advanced'&&phase==='develop'))return authoredWeek(courses,event,group,phase);
   const track=['800 m','1500 m'].includes(event),xc=event==='越野跑';
@@ -310,9 +321,9 @@ function authoredWeek(courses,event,group,phase){
 }
 
 export function courseCoverage({youth=false}={}){
-  return ['800 m','1500 m'].flatMap(event=>Object.keys(contentGroups).flatMap(group=>Object.keys(coursePhases).map(phase=>{
+  return supportedEvents.flatMap(event=>Object.keys(contentGroups).flatMap(group=>Object.keys(coursePhases).map(phase=>{
     const courses=pbCourses(event,null,{group,youth}),week=pbWeek(event,null,{group,phase,youth});
-    return {event,group,phase,population:youth?'youth':'adult',week:weekContentStatus(week),categories:Object.keys(courseCategories).map(category=>({category,complete:courses.filter(c=>c.categoryId===category&&(!youth||(c.adapted&&!c.quality))&&(c.trainingPhases||[c.phase]).includes(phase)&&(!c.trainingGroups||c.trainingGroups.includes(contentGroups[group]))&&courseContentComplete(c)).map(c=>c.id)}))};
+    return {event,group,phase,population:youth?'youth':'adult',week:weekContentStatus(week),categories:Object.keys(courseCategories).map(category=>({category,complete:courses.filter(c=>c.categoryId===category&&(!youth||c.adapted)&&(c.trainingPhases||[c.phase]).includes(phase)&&(!c.trainingGroups||c.trainingGroups.includes(contentGroups[group]))&&courseContentComplete(c)).map(c=>c.id)}))};
   })));
 }
 export function weekContentStatus(week) {
@@ -333,7 +344,7 @@ export function courseContentComplete(c) {
       return c.prescription.setCount===c.sets&&c.prescription.repetitions.length===c.segments.length&&c.segments.every((s,i)=>{const r=c.prescription.repetitions[i];return r.repsPerSet===s.repeats&&(s.unit==='m'?r.distanceM===s.distance:r.durationSeconds===s.distance*(s.unit==='min'?60:1))&&(!(s.repeats>1||i<c.segments.length-1)||r.repRecovery?.durationSeconds===s.recoverySeconds);})&&work.length===c.sets*c.segments.reduce((n,s)=>n+s.repeats,0);
     }catch{return false;}
   }
-  return ['800','1500','mile'].includes(c.targetBasis)&&(!c.targetBases||c.targetBases.length===c.segments.length&&c.targetBases.every(b=>['800','1500','mile'].includes(b)))&&['jog','walk','stand'].includes(c.recoveryMode)&&Number.isInteger(c.sets)&&c.sets>0&&(c.sets===1||c.setRecovery>0)&&c.segments.every((s,i)=>s.unit==='m'&&s.distance>0&&Number.isInteger(s.repeats)&&s.repeats>0&&(!(s.repeats>1||i<c.segments.length-1)||s.recoverySeconds>0));
+  return ['800','1500','mile','3000','5000'].includes(c.targetBasis)&&(!c.targetBases||c.targetBases.length===c.segments.length&&c.targetBases.every(b=>['800','1500','mile','3000','5000'].includes(b)))&&['jog','walk','stand'].includes(c.recoveryMode)&&Number.isInteger(c.sets)&&c.sets>0&&(c.sets===1||c.setRecovery>0)&&c.segments.every((s,i)=>s.unit==='m'&&s.distance>0&&Number.isInteger(s.repeats)&&s.repeats>0&&(!(s.repeats>1||i<c.segments.length-1)||s.recoverySeconds>0));
 }
 
 // Adult club middle-distance cohort, not a PB-derived elite-volume prescription.
@@ -403,6 +414,7 @@ function competitiveWeek(courses,event,phase,youth){
   const purposes={base:'成人竞技基础周：分段Tempo积累有氧，短坡承担动作与力量刺激；准备专项训练，不复制精英双练周量。',develop:event==='800 m'?'成人800m竞技专项周：周二分组300m维持专项段质量，周五分段Tempo维护有氧；两低负荷日隔开，不叠加200m或组合主课。':'成人1500m竞技专项周：周二400+200双节奏转换，周五分段Tempo维护有氧；两低负荷日隔开，500m间歇或速度储备只能替换。',prepare:'成人竞技赛前七日训练块（比赛前7日至前1日）：保留同项节奏，去掉Tempo和长跑。比赛在块结束后，比赛日期不必填才能浏览；不是自动日历减量。',recover:'成人竞技主动恢复周：取消质量主课，保留轻松有氧与低疲劳技术；不是伤后复出方案。'};
   const relations=phase==='prepare'?['D-7 减少连续跑量','D-6 唯一比赛节奏课；非力竭','D-5 轻松恢复','D-4 低量有氧','D-3 放松技术，不冲刺','D-2 轻松活动；疲劳可休息','D-1 休息，不补课；比赛不计入此训练块']:phase==='recover'?['轻松进入恢复周','控制时长，不渐进提速','完全休息','低疲劳技术；残余疲劳则取消','轻松恢复','休息','评估反应，不自动切回质量周']:['低强度进入本周','本周第一刺激；熟悉负荷，不额外加课','主课后恢复检查','第二个低负荷日','不同目的的第二刺激','完整休息，不补漏课','轻松有氧收尾；与下周主课隔开'];
   return patterns[phase].map((id,i)=>({...structuredClone(id?courses.find(c=>c.id===id):{id:'rest',name:'休息与自主恢复',category:'恢复',quality:false,review:{status:'pending',label:'周编排待审核'}}),cohortId:event+'|adult-competitive-balanced',population:'adult-competitive-balanced',selectedGroup:'competitive',weekEligibility:competitiveCohort,weekPhase:phase,weekPurpose:purposes[phase],weekDraft:true,previewOnly:true,dayIndex:i,dayLabel:['周一','周二','周三','周四','周五','周六','周日'][i],relation:relations[i],event,
+    strengthSupport:['base','develop'].includes(phase)&&i===3?{status:'optional-existing-routine',content:'仅复用教练原有、熟悉的力量与躯干控制安排；计入总负荷，不在专项课前新增大重量、跳跃或练到力竭。',loadKnown:false,source:courseSources.middle.url}:null,
     transitionRules:'基础→专项仅在已耐受两刺激周并恢复正常后，以专项课替换短坡、保留分段Tempo的累计时长及60秒慢跑恢复，不同时推进连续化；不同时增加周量。专项→赛前须已有目标比赛及恢复条件，课程块可先浏览；移除长跑与Tempo，不追新刺激。恢复周不自动回加，伤痛暂停。力量房等既有训练未计入本跑步周，不能额外叠加而声称总负荷已核验。'}));
 }
 
@@ -414,9 +426,9 @@ export function courseMetadata(c) {
 }
 function attachContentContract(c) {
   const basis=c.targetBasis||c.prescription?.repetitions?.[0]?.target?.targetBasis;
-  c.stimulus=c.categoryId==='interval'?(basis==='800'?'800m比赛节奏重复':basis==='1500'?'1500m比赛节奏重复':'有氧间歇待校准'):
+  c.stimulus=c.categoryId==='interval'?(basis==='800'?'800m比赛节奏重复':basis==='1500'?'1500m比赛节奏重复':basis==='3000'?'3000m比赛节奏重复':basis==='5000'?'5000m比赛节奏重复':c.prescription?'按体感控制的节奏重复':'有氧间歇待校准'):
     ({tempo:'受控持续有氧',speed:'低疲劳速度技术',endurance:'较快节奏维持',combination:'双节奏转换',aerobic:c.sessionRole==='recovery'?'低负荷恢复':'低强度有氧支持',hills:'短坡动作与力量'})[c.categoryId];
-  if(['800 m','1500 m'].includes(c.event)){
+  if(['800 m','1500 m'].includes(c.event)&&!c.population?.startsWith('youth-')){
     c.catalogRevision=c.selectedGroup==='competitive'?competitiveRevision:contentRevision;
     if(c.prescription)c.prescription.catalogRevision=c.catalogRevision;
     const definitions='https://vdoto2.com/learn-more/training-definitions';
@@ -435,8 +447,8 @@ function attachContentContract(c) {
     sourceRules:structuredClone(c.evidenceMap||[])};
   return c;
 }
-export function programWeekCourses(event,pb,{group='competitive',phase='develop',primary=null,youth=false}={}) {
-  const courses=pbWeek(event,pb,{group,phase,youth});
+export function programWeekCourses(event,pb,{group='competitive',phase='develop',primary=null,youth=false,schoolStage='junior'}={}) {
+  const courses=pbWeek(event,pb,{group,phase,youth,schoolStage});
   if(!primary)return courses;
   if(group!=='competitive'||youth||phase!=='develop')throw Error('主课替换仅适用已编排成人竞技专项周');
   const allowed=event==='800 m'?['interval-development','endurance','combination-development']:['interval','combination-development','endurance'];

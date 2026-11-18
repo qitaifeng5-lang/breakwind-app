@@ -58,8 +58,8 @@ test('explicit partial completion protects a future snapshot from a program repl
  const before=JSON.stringify(data.plans),proposal=proposeProgramChange(data,p.programId,{kind:'recover',today:'2026-11-12'});
  assert.throws(()=>confirmProgramChange(data,proposal,{mode:'experience',now}),/历史结构/);assert.equal(JSON.stringify(data.plans),before);
 });
-test('coverage does not pretend youth frameworks and unfinished groups are complete',()=>{
- assert.ok(courseCoverage({youth:true}).filter(c=>c.group==='competitive').every(c=>!c.week.complete));
+test('coverage distinguishes authored youth weeks, pending independent review and unfinished adult groups',()=>{
+ assert.ok(courseCoverage({youth:true}).filter(c=>c.group==='competitive').every(c=>c.week.complete&&c.week.independentReview==='pending'&&!c.week.canExecuteWeek));
  assert.ok(courseCoverage().filter(c=>c.group==='competitive').every(c=>c.week.complete));
- assert.ok(courseCoverage().filter(c=>c.group==='base'&&c.phase==='prepare').every(c=>!c.week.complete));
+ assert.ok(courseCoverage().filter(c=>['800 m','1500 m'].includes(c.event)&&c.group==='base'&&c.phase==='prepare').every(c=>!c.week.complete));
 });

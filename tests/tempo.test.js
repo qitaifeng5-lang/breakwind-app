@@ -23,7 +23,7 @@ test('week completeness detects missing prescriptions and malformed recovery, no
   const broken=structuredClone(base),tempo=broken.find(c=>c.id==='tempo');delete tempo.prescription.repetitions[0].repRecovery;
   assert.equal(weekContentStatus(broken).filled,4);
   const absent=structuredClone(base);absent.find(c=>c.id==='tempo').segments=[];assert.equal(weekContentStatus(absent).filled,4);
-  const youth=pbWeek(event,'2:00',{phase:'base',youth:true});assert.equal(weekContentStatus(youth).filled,0);assert.equal(weekContentStatus(youth).complete,false);
+  const youth=pbWeek(event,'2:00',{phase:'base',youth:true});assert.equal(weekContentStatus(youth).filled,4);assert.equal(weekContentStatus(youth).complete,true);assert.ok(youth.filter(c=>c.id!=='rest').every(c=>c.adapted&&c.contentState.independentReview==='pending'));
  }
 });
 test('completed programming is independent of current safety and does not mutate a saved snapshot',()=>{

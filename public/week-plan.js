@@ -1,7 +1,8 @@
 import {pbWeek,contentGroups,coursePhases} from './pb-library.js';
 import {weekStart,offset} from './model.js';
 import {recurringFor} from './coach-plan.js';
-export const weekRevision='2026-11-12-calendar-v2';
+import {calibrateCourse} from './workout.js';
+export const weekRevision='2026-11-18-calendar-v3';
 export function restoreSelection(saved,data){
  const aliases={...Object.fromEntries(Object.keys(contentGroups).map(k=>[k,k])),...Object.fromEntries(Object.entries(contentGroups).map(([k,v])=>[v,k]))};
  const old=data.groupPlan||{},group=aliases[saved?.group]||aliases[old.group]||aliases[old.level];
@@ -16,8 +17,9 @@ export function mapWeekCourses(data,template,start){
  const slots=days.map(d=>recurringFor(data,d).filter(r=>r.kind==='training'&&!r.cancelled));
  const fixed=Boolean(data.coachSchedule?.rules?.some(r=>r.kind==='training'));
  // Rotate the whole structure, never randomly draw sessions or compress recovery.
- let shift=0;if(fixed){let best=-1;for(let n=0;n<7;n++){const score=template.reduce((s,c,i)=>s+(c.id!=='rest'&&slots[(i+n)%7].length?(c.quality?3:1):0),0);if(score>best){best=score;shift=n;}}}
- const rows=days.map((date,i)=>{const c=structuredClone(template[(i-shift+7)%7]),slot=slots[i][0],plans=data.plans.filter(p=>p.date===date&&!p.cancelled&&p.executionStatus!=='reference-only');
+ const raceLocked=template.some(c=>c.calendarLocked);
+ let shift=0;if(fixed&&!raceLocked){let best=-1;for(let n=0;n<7;n++){const score=template.reduce((s,c,i)=>s+(c.id!=='rest'&&slots[(i+n)%7].length?(c.quality?3:1):0),0);if(score>best){best=score;shift=n;}}}
+ const rows=days.map((date,i)=>{const c=calibrateCourse(structuredClone(template[(i-shift+7)%7]),data.records,date),slot=slots[i][0],plans=data.plans.filter(p=>p.date===date&&!p.cancelled&&p.executionStatus!=='reference-only');
   const coachNearby=c.quality&&data.plans.some(p=>p.coachIssued&&!p.cancelled&&Math.abs(Date.parse(p.date)-Date.parse(date))<3*86400000);
   return {date,course:c,slot,plans,held:c.id!=='rest'?(plans.length?'已有课表优先':coachNearby?'邻近教练安排，先核对':fixed&&!slot?'固定时段不足，暂不安排':''):'',mapping:{revision:weekRevision,shift,reason:fixed?'整周平移匹配固定训练日，保留小组、大组和周内间隔':'日历周从周一开始；尚未保存为个人课表'}};});
  return {start,rows,template,shift,fixed,held:rows.filter(r=>r.held).length};
