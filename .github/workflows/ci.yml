@@ -15,9 +15,10 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       EXPO_NO_TELEMETRY: '1'
+      BREAKWIND_TEST_BROWSER: chrome
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,11 +44,13 @@ jobs:
       - name: Run unit and storage tests
         id: unit
         run: npm test
-      - name: Install Chromium for browser tests
+      - name: Verify runner Chrome and install Chinese fonts
         id: browser_install
         run: |
-          npx playwright install --with-deps chromium
-          sudo apt-get install -y fonts-noto-cjk
+          # ubuntu-24.04 includes Chrome; playwright.config.js supports this channel.
+          # Keep the full viewport suite without a second browser/OS dependency install.
+          google-chrome --version
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
       - name: Run functional and responsive browser checks
         id: browser
         run: npm run test:browser
