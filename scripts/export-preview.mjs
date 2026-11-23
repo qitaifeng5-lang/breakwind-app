@@ -1,21 +1,27 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import {foodArtAssets} from '../public/food-art.js';
 
 const target=new URL('../.expo/pages-preview/',import.meta.url);
 const source=new URL('../public/',import.meta.url);
 export const assets=[
-  'index.html','app.js','styles.css','model.js','engine.js','pb-library.js','knowledge.js','running.js','fuel.js',
+  'food-portions.js',
+  'event-courses.js','training-policy.js',
+  'food-gallery.js',...foodArtAssets.filter(name=>name.endsWith('.webp')),
+  'food-art.js','food-produce.png','food-staples.png','food-dishes.png','food-basics.png','nutrition.css','food-photos.png','food-zh.js','food-data.js','week-plan.js','completion.js','workout-detail.js','page-host.js','training-workbench.js','training-structure.js','index.html','app.js','styles.css','model.js','engine.js','pb-library.js','workout.js','workout-ui.js','program.js','program-ui.js','membership.js','coach-plan.js','coach-ui.js','knowledge.js','running.js','fuel.js',
   'hero.jpg','icon.svg','icon-192.png','icon-512.png','manifest.webmanifest','sw.js'
 ];
 const revision=process.env.GITHUB_SHA || 'local';
 if (!/^(local|[0-9a-f]{40})$/.test(revision)) throw new Error('Invalid preview revision');
 const modules=new Set(assets.filter(name=>name.endsWith('.js') && name!=='sw.js'));
-const versionedAssets=[...modules,'styles.css'];
+const versionedAssets=[...modules,'styles.css','nutrition.css'];
 await mkdir(target,{recursive:true});
 const allowed=new Set([...assets,'.nojekyll']);
 const unexpected=(await readdir(target)).filter(name=>!allowed.has(name));
 if (unexpected.length) throw new Error('Preview directory contains files outside the asset allowlist');
 for (const name of assets) {
   let content=await readFile(new URL(name,source));
+  // Produce identical text assets from Windows and Linux checkouts.
+  if (/\.(html|js|css|svg|webmanifest)$/.test(name)) content=Buffer.from(content.toString().replaceAll('\r\n','\n'));
   if (name==='index.html') content=content.toString().replace('<head>',
     '<head>\n  <meta name="breakwind-preview" content="'+revision+'">\n  <meta name="robots" content="noindex,nofollow">\n'+
     '  <meta http-equiv="Content-Security-Policy" content="default-src \'self\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' blob:; connect-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">');

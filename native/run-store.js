@@ -60,7 +60,7 @@ export function createRunStore(openDatabase) {
   return {
     snapshot:() => transaction(async db=>{
       const session = await active(db);
-      const history = (await db.getAllAsync("SELECT id,started,source,summary FROM workouts WHERE phase='saved' ORDER BY started DESC,id DESC LIMIT 100"))
+      const history = (await db.getAllAsync("SELECT id,started,source,summary FROM workouts WHERE phase='saved' ORDER BY started DESC,id DESC"))
         .map(row=>({...row,...JSON.parse(row.summary)}));
       return {session,points:session?await readPoints(db,session.id):[],history};
     }),
@@ -89,6 +89,12 @@ export function createRunStore(openDatabase) {
         return false;
       } else if (batch.session.lastFix!==session.lastFix) await update(db,batch.session);
       return true;
+    }),
+    archiveLegacy:(id) => transaction(async db=>{
+      const session=await active(db);if(!session||session.id!==id)throw Error('旧草稿不存在');
+      if(session.phase==='running')throw Error('请先暂停旧记录');
+      const summary={...runSummary(session,await readPoints(db,id)),legacyPartial:true,archivedAt:Date.now()};
+      await db.runAsync("UPDATE workouts SET phase='saved',summary=? WHERE id=?",JSON.stringify(summary),id);return summary;
     }),
     save:(id) => transaction(async db=>{
       const session=await active(db);

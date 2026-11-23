@@ -1,3 +1,5 @@
+> 此文为旧 GPS／HealthKit 阶段验收存档，不能作为当前首发范围。当前训练＋饮食的安装与真机清单见 [首发说明](launch-training-food.md)。不要按本存档开启定位或扩展播放器。
+
 # iPhone 真机验收记录
 
 原生验收使用经过签名的 Expo development build 和真实 iPhone。网页 GPS 与浏览器视口测试独立记录。
