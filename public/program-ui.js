@@ -6,24 +6,39 @@ import {coursePhases} from './pb-library.js';
 import {offset} from './model.js';
 import {courseReadiness} from './engine.js';
 import {supportedEvents,normalizeEvent} from './event-courses.js';
-export function createProgramUI({selection,state,commit,modal,editor,escape:e,btn,render,day,notify,openCourse}) {
+export function createProgramUI({membershipSimulatorEnabled,selection,state,commit,modal,editor,escape:e,btn,render,day,notify,openCourse}) {
   let draft=null,selectedId=null,selectedWeek=0,proposal=null;
-  const mode='experience'; // Explicit local experience, never a payment credential.
+  const mode=membershipSimulatorEnabled?'experience':'production';
   const field=(label,name,type,value,extra='')=>'<label>'+label+'<input name="'+name+'" type="'+type+'" value="'+e(value??'')+'" '+extra+'></label>';
   function baselineFields(){const p=state().cycleProfile||{};return '<details><summary>近期训练量（可选）</summary>'+field('近期每周训练天数','weeklyDays','number',p.weeklyDays,'min="0" max="7" step="1"')+field('近期周跑量（km）','recentKm','number',p.recentKm,'min="0" max="350" step="0.1"')+field('近期最长一次（km）','recentLongest','number',p.recentLongest,'min="0" max="120" step="0.1"')+'<label><input name="completeLogs" type="checkbox">最近28天的训练记录已完整</label><p>不填保持未知，不降低组别；确认完整记录才据此估算周负荷。</p></details>';}
   const error='<p class="form-error" role="alert" hidden></p>';
   const fail=message=>{const n=editor.querySelector('.form-error');if(n){n.hidden=false;n.textContent=message;}else notify(message);};
   const current=()=>state().programs?.find(p=>p.programId===selectedId)||state().programs?.at(-1);
   const run=work=>{try{return work();}catch(err){fail(err.message);return false;}};
-  function view(){const p=state().programs?.at(-1);return p?'<section class="panel"><div class="panel-head"><h2>第'+(p.cursor+1)+'周 · '+e(coursePhases[p.weeks[p.cursor].phase])+'</h2>'+btn('长期计划','program-open','','quiet')+'</div><p>'+e(p.weeks[p.cursor].purpose)+'</p><small>本地体验 · '+p.length+'周候选 · '+e(p.status==='paused'?'已暂停':'独立审核未完成')+'</small></section>':btn('长期训练 · 体验','program-new','','quiet');}
+  function view(){
+    const programs=state().programs||[],p=programs.at(-1);
+    if(!membershipSimulatorEnabled){
+      return programs.length?btn('已保存的长期计划','program-history','','quiet'):'';
+    }
+    return p?'<section class="panel"><div class="panel-head"><h2>第'+(p.cursor+1)+'周 · '+e(coursePhases[p.weeks[p.cursor].phase])+'</h2>'+btn('长期计划','program-open','','quiet')+'</div><p>'+e(p.weeks[p.cursor].purpose)+'</p><small>本地体验 · '+p.length+'周候选 · '+e(p.status==='paused'?'已暂停':'独立审核未完成')+'</small></section>':btn('长期训练 · 体验','program-new','','quiet');
+  }
+  function history(){
+    const programs=state().programs||[];
+    if(!programs.length)return;
+    const rows=programs.map((p,i)=>'<li>'+btn(p.event+' · '+p.startDate+' · '+p.length+'周','program-history-open:'+i,'','quiet')+'</li>');
+    modal('已保存的长期计划','<ol class="week-outline">'+rows.reverse().join('')+'</ol>','sheet');
+  }
   function newForm(){const profile=state().cycleProfile||{},population=profile.age==='未满18岁'?(profile.schoolStage||'junior'):'adult';modal('长期训练 · 本地体验','<form id="program-create" class="fields" style="grid-template-columns:1fr"><label>专项<select name="event">'+supportedEvents.map(v=>'<option value="'+v+'"'+(selection().event===v?' selected':'')+'>'+v+'</option>').join('')+'</select></label><p>复用已保存PB、训练组和固定时间；不从PB推算可承受负荷。</p><label>适用阶段<select name="population">'+[['adult','成人'],['junior','初中'],['senior','高中']].map(([v,label])=>'<option value="'+v+'"'+(population===v?' selected':'')+'>'+label+'</option>').join('')+'</select></label><label>周期<select name="length"><option>8</option><option selected>12</option><option>16</option></select></label>'+field('开始日期','startDate','date',day(),'required')+'<details><summary>比赛日期与适用范围（可选）</summary>'+field('比赛日期','raceDate','date',normalizeEvent(state().goals.race)===selection().event?state().goals.raceDate:'')+'<p>初高中使用单独的适龄课表；年级不代表发育成熟度。成人中跑竞技组需已有六课周，其他支持范围见预览。缺少日志不降低训练组；已知疲劳与伤痛保留保护。</p></details>'+baselineFields()+error+'<button class="btn primary">预览整个周期</button></form>','sheet');}
   function overview(p,isDraft=false){
-    modal(isDraft?'周期预览':'长期计划','<p>'+e(p.event+' · '+p.length+'周 · '+p.timezone)+'</p><p>编排候选 · 来源按课次核对 · 独立审核未完成</p><ol class="week-outline">'+p.weeks.map((w,i)=>'<li>'+btn('第'+w.number+'周 · '+coursePhases[w.phase]+' · '+w.purpose,'program-week:'+i,'','quiet')+'</li>').join('')+'</ol><details><summary>适用范围与阶段依据</summary><p>'+e(p.limitation)+'</p><p>重复熟悉剂量用于巩固；间歇、专项组合与恢复周有明确位置，不按日历自动加量。'+(p.raceDate?'比赛日期：'+e(p.raceDate)+'；赛前七日保留熟悉短量，赛后先恢复。':'未选择比赛日期，按阶段草案浏览，不虚构比赛。')+'</p></details>'+'<details><summary>未来时区核对</summary><p>保存时区：'+e(p.timezone)+'；当前时区：'+e(Intl.DateTimeFormat().resolvedOptions().timeZone)+'</p>'+(p.programId?btn('确认未来使用当前时区','program-timezone','','quiet'):'')+'</details>'+error+(isDraft?btn('保存体验周期','program-save','','primary'):btn('新周期','program-new','','quiet'))+btn('VIP 测试状态','program-vip','','quiet'),'sheet');
+    const controls=membershipSimulatorEnabled
+      ? (isDraft?btn('保存体验周期','program-save','','primary'):btn('新周期','program-new','','quiet'))+btn('VIP 测试状态','program-vip','','quiet')
+      : btn('查看全部已保存周期','program-history','','quiet');
+    modal(isDraft?'周期预览':'长期计划','<p>'+e(p.event+' · '+p.length+'周 · '+p.timezone)+'</p><p>编排候选 · 来源按课次核对 · 独立审核未完成</p><ol class="week-outline">'+p.weeks.map((w,i)=>'<li>'+btn('第'+w.number+'周 · '+coursePhases[w.phase]+' · '+w.purpose,'program-week:'+i,'','quiet')+'</li>').join('')+'</ol><details><summary>适用范围与阶段依据</summary><p>'+e(p.limitation)+'</p><p>重复熟悉剂量用于巩固；间歇、专项组合与恢复周有明确位置，不按日历自动加量。'+(p.raceDate?'比赛日期：'+e(p.raceDate)+'；赛前七日保留熟悉短量，赛后先恢复。':'未选择比赛日期，按阶段草案浏览，不虚构比赛。')+'</p></details>'+'<details><summary>未来时区核对</summary><p>保存时区：'+e(p.timezone)+'；当前时区：'+e(Intl.DateTimeFormat().resolvedOptions().timeZone)+'</p>'+(p.programId&&membershipSimulatorEnabled?btn('确认未来使用当前时区','program-timezone','','quiet'):'')+'</details>'+error+controls,'sheet');
   }
   const courseDate=(w,index)=>mapWeekCourses(state(),w.courses,w.start).rows.find(row=>row.course.dayIndex===index)?.date||offset(w.start,index);
   function weekView(index){
-    selectedWeek=Number(index);const p=draft||current(),w=p?.weeks[selectedWeek];if(!w)return;const preview=p.programId?previewProgramWeek(state(),p,selectedWeek,{today:day()}):null;
-    modal('第'+w.number+'周 · '+coursePhases[w.phase],'<p>'+e(w.purpose)+'</p>'+(preview?'<p>已安排 '+preview.review.planned+' / '+w.courses.filter(c=>c.id!=='rest').length+' 课 · 未安排项见核对</p>':'')+(w.individualAdjustments?.length?'<p>'+e([...new Set(w.individualAdjustments.map(a=>a.reason))].join('；'))+'</p>':'')+(w.loadReview&&!w.loadReview.canArrange?'<p role="status">'+e(w.loadReview.reasons.join('；'))+'</p>':'')+'<small>'+e(w.start+' 至 '+w.end)+' · '+e(w.transition)+'</small><ol class="week-outline">'+w.courses.map((c,i)=>'<li>'+btn((state().plans.find(r=>r.programId===p.programId&&r.programWeek===selectedWeek&&r.programDay===i&&!r.cancelled)?.date||courseDate(w,i))+' · '+c.name,'program-course:'+i,'','quiet')+(c.id!=='rest'?'<p>'+e(courseReading(c).lines.map(l=>l.work+'｜'+l.target+' · 小组休息 '+l.rest).join('；'))+'</p><small>大组数 '+courseReading(c).sets+' · 每大组 '+courseReading(c).smallGroups+' 小组 · 大组休息 '+e(courseReading(c).setRest)+'</small>':'<p>休息，不补堆漏课。</p>')+(p.programId?state().plans.filter(r=>r.programId===p.programId&&r.programWeek===selectedWeek&&r.programDay===i&&!r.cancelled).map(r=>'<small>'+e(r.start||'时间待定')+'</small><details><summary>时间与例外</summary>'+btn('改期／改时','program-move:'+r.id,'','quiet')+btn('取消本次','program-cancel:'+r.id,'','quiet')+'</details>').join(''):'')+'</li>').join('')+'</ol>'+(preview?'<details><summary>安排核对 · '+preview.added.length+'课可加入</summary>'+preview.held.map(h=>'<p>'+e(h.date+' · '+h.reason)+'</p>').join('')+'<p>不覆盖教练课表，不补排过去课次。加入日程不等于执行许可。</p></details>':'')+error+(p.programId?btn('安排这一周','program-arrange','','primary')+btn('阶段复盘／推进','program-review','','quiet')+btn('调整未来一周','program-adjust','','quiet')+btn(p.status==='paused'?'恢复周期（先核对）':'暂停周期','program-pause','','quiet')+btn('导出本人周期','program-export','','quiet'):'')+btn('返回周期','program-overview','','quiet'),'sheet');
+    selectedWeek=Number(index);const p=draft||current(),w=p?.weeks[selectedWeek];if(!w)return;const preview=p.programId&&membershipSimulatorEnabled?previewProgramWeek(state(),p,selectedWeek,{today:day()}):null;
+    modal('第'+w.number+'周 · '+coursePhases[w.phase],'<p>'+e(w.purpose)+'</p>'+(preview?'<p>已安排 '+preview.review.planned+' / '+w.courses.filter(c=>c.id!=='rest').length+' 课 · 未安排项见核对</p>':'')+(w.individualAdjustments?.length?'<p>'+e([...new Set(w.individualAdjustments.map(a=>a.reason))].join('；'))+'</p>':'')+(w.loadReview&&!w.loadReview.canArrange?'<p role="status">'+e(w.loadReview.reasons.join('；'))+'</p>':'')+'<small>'+e(w.start+' 至 '+w.end)+' · '+e(w.transition)+'</small><ol class="week-outline">'+w.courses.map((c,i)=>'<li>'+btn((state().plans.find(r=>r.programId===p.programId&&r.programWeek===selectedWeek&&r.programDay===i&&!r.cancelled)?.date||courseDate(w,i))+' · '+c.name,'program-course:'+i,'','quiet')+(c.id!=='rest'?'<p>'+e(courseReading(c).lines.map(l=>l.work+'｜'+l.target+' · 小组休息 '+l.rest).join('；'))+'</p><small>大组数 '+courseReading(c).sets+' · 每大组 '+courseReading(c).smallGroups+' 小组 · 大组休息 '+e(courseReading(c).setRest)+'</small>':'<p>休息，不补堆漏课。</p>')+(p.programId?state().plans.filter(r=>r.programId===p.programId&&r.programWeek===selectedWeek&&r.programDay===i&&!r.cancelled).map(r=>'<small>'+e(r.start||'时间待定')+'</small><details><summary>时间与例外</summary>'+btn('改期／改时','program-move:'+r.id,'','quiet')+btn('取消本次','program-cancel:'+r.id,'','quiet')+'</details>').join(''):'')+'</li>').join('')+'</ol>'+(preview?'<details><summary>安排核对 · '+preview.added.length+'课可加入</summary>'+preview.held.map(h=>'<p>'+e(h.date+' · '+h.reason)+'</p>').join('')+'<p>不覆盖教练课表，不补排过去课次。加入日程不等于执行许可。</p></details>':'')+error+(p.programId&&membershipSimulatorEnabled?btn('安排这一周','program-arrange','','primary')+btn('阶段复盘／推进','program-review','','quiet')+btn('调整未来一周','program-adjust','','quiet')+btn(p.status==='paused'?'恢复周期（先核对）':'暂停周期','program-pause','','quiet'):'')+(p.programId?btn('导出本人周期','program-export','','quiet'):'')+btn('返回周期','program-overview','','quiet'),'sheet');
   }
   function vip(){const s=membershipStatus(state().membershipTest),labels={active:'体验有效',expired:'体验已到期',revoked:'已撤销',pending:'待确认',cancelled:'已取消',failed:'模拟失败',none:'未启用',unavailable:'未启用'};
     modal('破风 VIP · 本地体验','<p>目标价 ¥'+(vipProduct.targetPriceMinor/100).toFixed(2)+'/月 · 尚未核验商店价格</p><p role="status">'+e(labels[s.status])+' · 不收款</p>'+(s.expiresAt?'<p>模拟有效期至 '+e(new Date(s.expiresAt).toLocaleDateString('zh-CN'))+' · '+(s.autoRenew?'模拟续费开启':'模拟续费已关闭')+'</p>':'')+'<p>长期周期、未来调整和阶段复盘。已有免费单课、周安排、记录、导入、教练课表和导出不变。</p><p>周期长度与月费无关；续费不重置进度。到期保留已生成课表、记录和进行中的训练。</p>'+btn('启用本地体验','program-test:success','','primary')+'<details><summary>模拟状态验收（不是购买）</summary>'+[['pending','待确认'],['cancel','取消'],['failure','失败'],['renew','续费'],['cancel-renew','取消续费'],['expire','到期'],['revoke','撤销'],['restore','恢复购买']].map(([k,v])=>btn('模拟'+v,'program-test:'+k,'','quiet')).join('')+'<p>仅本地模拟，不连接StoreKit或安卓商店；正式权益需要账户、服务端交易验证和渠道通知。本地状态不能作为生产凭证。</p></details>'+error+(draft?btn('返回周期预览','program-overview','','quiet'):''),'sheet');
@@ -32,7 +47,7 @@ export function createProgramUI({selection,state,commit,modal,editor,escape:e,bt
   editor.addEventListener('submit',event=>{
     const f=event.target;if(!f.id.startsWith('program-'))return;event.preventDefault();const v=Object.fromEntries(new FormData(f));
     run(()=>{
-      if(f.id==='program-create'){
+      if(f.id==='program-create'&&membershipSimulatorEnabled){
         const planningData=structuredClone(state()),baselineInputs={};
         for(const [key,max]of [['weeklyDays',7],['recentKm',350],['recentLongest',120]]){
           if(v[key]===''||v[key]===undefined){baselineInputs[key]=null;continue;}
@@ -51,7 +66,13 @@ export function createProgramUI({selection,state,commit,modal,editor,escape:e,bt
       }
     });
   });
-  return {view,actions:{
+  const actions={
+    'program-history':history,
+    'program-history-open':([index])=>{
+      const program=state().programs?.[Number(index)];
+      if(!program)return;
+      draft=null;selectedId=program.programId;selectedWeek=program.cursor;overview(program);
+    },
     'program-new':()=>{draft=null;newForm();},
     'program-open':()=>{draft=null;const p=current();if(p){selectedId=p.programId;selectedWeek=p.cursor;weekView(p.cursor);}else newForm();},
     'program-overview':()=>overview(draft||current(),Boolean(draft)),
@@ -71,5 +92,11 @@ export function createProgramUI({selection,state,commit,modal,editor,escape:e,bt
     'program-cancel':([id])=>{if(commit(s=>{const p=s.plans.find(x=>x.id===id);if(p&&!p.completed&&!p.coachIssued)p.cancelled=true;})){render();weekView(selectedWeek);}},
     'program-timezone':()=>{const p=current();if(commit(s=>{const q=s.programs.find(x=>x.programId===p.programId);q.revisionHistory.push({action:'confirm-future-timezone',before:q.timezone,after:Intl.DateTimeFormat().resolvedOptions().timeZone,at:new Date().toISOString()});q.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;}))overview(current());},
     'program-export':()=>{const p=current(),payload=exportProgram(state(),p.programId);if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(JSON.stringify({type:'export',name:'breakwind-program-'+p.programId+'.json',text:JSON.stringify(payload,null,2)}));return;}const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='breakwind-program-'+p.programId+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  }};
+  };
+  if(!membershipSimulatorEnabled){
+    // Store builds can read/export saved cycles and manually manage already scheduled lessons.
+    const historyActions=['program-history','program-history-open','program-overview','program-week','program-course','program-export','program-move','program-cancel'];
+    return {view,actions:Object.fromEntries(historyActions.map(key=>[key,actions[key]]))};
+  }
+  return {view,actions};
 }

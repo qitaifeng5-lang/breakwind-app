@@ -1,16 +1,50 @@
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
-import {storageBootstrap} from '../native/launch-storage.js';
+import {nativeLaunchBootstrap} from '../native/launch-storage.js';
 import {fresh} from '../public/model.js';
 import {buildProgram,saveProgram} from '../public/program.js';
 import {applyTestTransaction} from '../public/membership.js';
 const click=(p,n)=>p.getByRole('button',{name:n,exact:true}).click({timeout:10000}),day='2026-11-12';
-async function entry(page,native,values={}){
+async function entry(page,native,values={},nativeOptions={}){
  await page.clock.setFixedTime(new Date(day+'T15:00:00Z'));
  await page.addInitScript(()=>{window.__gpsCalls=0;Object.defineProperty(navigator,'geolocation',{value:{watchPosition:()=>{window.__gpsCalls++;throw Error('GPS must not start');},getCurrentPosition:()=>{window.__gpsCalls++;}}});});
- if(native){const source=await readFile('.expo/native-shell.html','utf8');await page.addInitScript(()=>{window.ReactNativeWebView={postMessage:text=>{const m=JSON.parse(text);if(m.type==='persist'){window.__persisted=m.values;window.__nativeAck?.(m.revision,null);}}};});await page.route('**/native-test',r=>r.fulfill({contentType:'text/html',body:source.replace('/*__BREAKWIND_NATIVE_BOOT__*/',()=>storageBootstrap(values,'browser-native-contract'))}));await page.goto('/native-test#run');}
+ if(native){const source=await readFile('.expo/native-shell.html','utf8');await page.addInitScript(()=>{window.ReactNativeWebView={postMessage:text=>{const m=JSON.parse(text);if(m.type==='export')window.__exported=m;if(m.type==='persist'){window.__persisted=m.values;window.__nativeAck?.(m.revision,null);}}};});await page.route('**/native-test',r=>r.fulfill({contentType:'text/html',body:source.replace('/*__BREAKWIND_NATIVE_BOOT__*/',()=>nativeLaunchBootstrap(values,'browser-native-contract',nativeOptions))}));await page.goto('/native-test#run');}
  else {await page.addInitScript(v=>{for(const [k,value]of Object.entries(v))localStorage.setItem(k,value);},values);await page.goto('/#run');}
 }
+test('release native shell exposes free features with no membership simulator',async({page})=>{
+ await entry(page,true);
+ await expect(page.getByRole('button',{name:'单节训练',exact:true})).toBeVisible();
+ await click(page,'本周计划');await expect(page.getByRole('button',{name:'下一周',exact:true})).toBeVisible();
+ await expect(page.locator('[data-action="program-new"],[data-action="program-vip"],[data-action^="program-test:"],[data-action="program-history"]')).toHaveCount(0);
+ await page.locator('a[href="#food"]:visible').click();await click(page,'添加午餐');
+ await expect(page.getByRole('searchbox')).toBeVisible();
+});
+test('release native shell reads and exports all saved plans without a simulated transaction',async({page})=>{
+ const s=fresh(),now=Date.parse(day+'T15:00Z');
+ s.membershipTest=applyTestTransaction(null,{id:'internal',mode:'experience',sequence:1,type:'success',expiresAt:now+30*86400000});
+ for(const [id,length]of [['earlier',8],['later',12]]){
+   saveProgram(s,buildProgram({event:'1500 m',length,startDate:day}),{mode:'experience',now,id});
+ }
+ await entry(page,true,{'breakwind.local.v1':JSON.stringify(s)});
+ await click(page,'已保存的长期计划');await expect(page.locator('[data-action^="program-history-open:"]')).toHaveCount(2);
+ await click(page,'1500 m · '+day+' · 8周');await expect(page.locator('.week-outline li')).toHaveCount(8);
+ await expect(page.locator('[data-action="program-new"],[data-action="program-vip"]')).toHaveCount(0);
+ await page.locator('[data-action="program-week:0"]').click();await expect(page.locator('[data-action^="program-course:"]').first()).toBeVisible();
+ await expect(page.locator('[data-action="program-adjust"],[data-action="program-arrange"]')).toHaveCount(0);
+ await click(page,'导出本人周期');
+ const result=await page.evaluate(()=>({name:window.__exported.name,state:JSON.parse(localStorage.getItem('breakwind.local.v1'))}));
+ expect(result.name).toBe('breakwind-program-earlier.json');expect(result.state.programs).toEqual(s.programs);expect(result.state.membershipTest).toEqual(s.membershipTest);
+});
+for(const [build,nativeOptions]of [
+ ['debug',{development:true}],
+ ['internal-only TestFlight release',{development:false,internalTestFlight:true}]
+])test(build+' shell exposes the internal membership simulation',async({page})=>{
+ await entry(page,true,{},nativeOptions);await click(page,'长期训练 · 体验');
+ await page.locator('#program-create [name=event]').selectOption('3000 m');
+ await click(page,'预览整个周期');await click(page,'VIP 测试状态');await click(page,'启用本地体验');
+ await expect(page.locator('#editor')).toContainText('体验有效');
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('breakwind.local.v1')).membershipTest.mode)).toBe('experience');
+});
 for(const native of [false,true])test((native?'bundled iOS entry contract':'web entry')+' supports schedule → move → explicit completion and rice → lunch → history without tracking',async({page},info)=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await entry(page,native);
  await expect(page.locator('#bottom-nav a')).toHaveText(['训练','饮食']);await expect(page.getByRole('button',{name:/开始跑步|开始训练|开始记录|继续计时/})).toHaveCount(0);

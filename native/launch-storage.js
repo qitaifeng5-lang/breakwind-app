@@ -1,3 +1,9 @@
+export function nativeLaunchBootstrap(values,session,{development=false,internalTestFlight=false,hasLegacyDraft=false}={}){
+ const allowMembershipTests=development===true || internalTestFlight===true;
+ return storageBootstrap(values,session)
+   +'window.__BREAKWIND_INTERNAL_MEMBERSHIP__='+allowMembershipTests+';'
+   +'window.__nativeLegacyPending='+Boolean(hasLegacyDraft)+';';
+}
 export function storageBootstrap(values,session){
  return `(()=>{const values=${JSON.stringify(values).replaceAll('<','\\u003c')},session=${JSON.stringify(session)};let revision=0;const send=()=>{revision++;window.dispatchEvent(new CustomEvent('native-save',{detail:{pending:true,revision}}));window.ReactNativeWebView.postMessage(JSON.stringify({type:'persist',session,revision,values}));};const storage={getItem:k=>Object.hasOwn(values,k)?values[k]:null,setItem:(k,v)=>{values[k]=String(v);send();},removeItem:k=>{delete values[k];send();},clear:()=>{throw Error('请使用备份与导出，不能直接清空本机数据');},key:i=>Object.keys(values)[i]??null,get length(){return Object.keys(values).length;}};Object.defineProperty(window,'localStorage',{value:storage});window.__nativeSession=session;window.__nativeAck=(r,error)=>{if(r===revision)window.dispatchEvent(new CustomEvent('native-save',{detail:{pending:false,error}}));};})();true;`;
 }

@@ -1,3 +1,4 @@
+/* global __DEV__ */
 import React,{useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Linking,Modal,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
@@ -6,11 +7,13 @@ import {openDatabaseAsync} from 'expo-sqlite';
 import {File,Paths} from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import {html,revision} from './generated/web.js';
-import {createNativeStateStore,storageBootstrap} from './launch-storage.js';
+import {createNativeStateStore,nativeLaunchBootstrap} from './launch-storage.js';
 import {legacyStore,stopLegacyTracking} from './launch-legacy.js';
 const storage=createNativeStateStore(()=>openDatabaseAsync('breakwind-launch.db'));
+// Expo replaces this exact expression when Metro exports the release JS bundle.
+const internalTestFlight = process.env.EXPO_PUBLIC_BREAKWIND_INTERNAL_TESTFLIGHT === '1';
 function Shell(){const web=useRef(null),epoch=useRef(''),[source,setSource]=useState(null),[error,setError]=useState(''),[legacy,setLegacy]=useState(null),[legacyOpen,setLegacyOpen]=useState(false),[selectedRecord,setSelectedRecord]=useState(null);
- const start=async()=>{try{setError('');const snapshot=await stopLegacyTracking();setLegacy(snapshot);const values=await storage.read();epoch.current=String(Date.now());setSource({html:html.replace('/*__BREAKWIND_NATIVE_BOOT__*/',()=>storageBootstrap(values,epoch.current)+'window.__nativeLegacyPending='+Boolean(snapshot.session)+';' ),baseUrl:'https://breakwind.local/'});}catch(e){setError('本机数据未能安全读取，已停止加载，避免覆盖。'+e.message);}};
+ const start=async()=>{try{setError('');const snapshot=await stopLegacyTracking();setLegacy(snapshot);const values=await storage.read();epoch.current=String(Date.now());setSource({html:html.replace('/*__BREAKWIND_NATIVE_BOOT__*/',()=>nativeLaunchBootstrap(values,epoch.current,{development:__DEV__,internalTestFlight,hasLegacyDraft:Boolean(snapshot.session)}) ),baseUrl:'https://breakwind.local/'});}catch(e){setError('本机数据未能安全读取，已停止加载，避免覆盖。'+e.message);}};
  useEffect(()=>{start();const sub=AppState.addEventListener('change',s=>{if(s==='active')stopLegacyTracking().then(setLegacy).catch(e=>setError('旧定位任务未能确认停止：'+e.message));});return()=>sub.remove();},[]);
  const exportFile=async(name,text)=>{try{if(typeof text!=='string'||text.length>30000000)throw Error('导出数据过大');const safe=name.replace(/[^a-zA-Z0-9._-]/g,'_'),file=new File(Paths.cache,safe);file.write(text);if(!await Sharing.isAvailableAsync())throw Error('系统分享不可用');await Sharing.shareAsync(file.uri,{mimeType:'application/json',UTI:'public.json'});}catch(e){Alert.alert('导出失败',e.message);}};
  const message=async event=>{try{const m=JSON.parse(event.nativeEvent.data);if(m.type==='persist'){if(m.session!==epoch.current||!Number.isSafeInteger(m.revision)||!m.values||typeof m.values!=='object')return;try{await storage.write(m.values);web.current?.injectJavaScript('window.__nativeAck('+m.revision+',null);true;');}catch{web.current?.injectJavaScript('window.__nativeAck('+m.revision+',"本机保存失败，请立即导出备份");true;');}}else if(m.type==='export')await exportFile(m.name||'breakwind.json',m.text);else if(m.type==='legacy')setLegacyOpen(true);}catch(e){Alert.alert('操作未完成',e.message);}};

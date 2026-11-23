@@ -9,6 +9,7 @@
     "test": "node --test",
     "mobile:start": "expo start --dev-client",
     "mobile:ios": "expo run:ios --device",
+    "ios:archive": "node scripts/archive-ios.mjs",
     "mobile:bundle": "expo export --platform ios",
     "test:browser": "playwright test",
     "check:integrity": "node scripts/check-project.mjs integrity",

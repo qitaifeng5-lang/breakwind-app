@@ -11,6 +11,7 @@
     "userInterfaceStyle": "dark",
     "icon": "./public/icon-512.png",
     "ios": {
+      "icon": "./native/assets/icon-ios.png",
       "bundleIdentifier": "com.breakwind.running.dev",
       "supportsTablet": true,
       "infoPlist": {
